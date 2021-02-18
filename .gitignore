@@ -3,6 +3,15 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Notebooks
+/notebooks/loop_detector_data_exploration.ipynb
+
+# Folders
+**/data/
+
+# API keys
+.keys
+
 # C extensions
 *.so
 
@@ -109,6 +118,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.python-version
 
 # Spyder project settings
 .spyderproject
