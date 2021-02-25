@@ -4,3 +4,9 @@ requests
 jupyter
 matplotlib
 googlemaps
+scipy
+tqdm
+geopandas
+shapely
+sklearn
+polyline
