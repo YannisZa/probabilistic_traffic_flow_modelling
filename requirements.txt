@@ -10,3 +10,4 @@ geopandas
 shapely
 sklearn
 polyline
+statsmodels

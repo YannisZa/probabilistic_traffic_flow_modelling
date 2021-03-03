@@ -9,8 +9,8 @@ from requests.auth import HTTPBasicAuth
 camera_id = "00001.03652"
 
 # Choose starting and ending times
-start_time = "2020-09-01T04:00:00.464Z"
-end_time = "2020-09-03T22:00:00.464Z"
+start_time = "2021-02-01T10:00:00.464Z"
+end_time = "2021-02-03T10:00:00.464Z"
 
 # Convert to start and end dates
 start_date = start_time.split('T')[0].replace('-','')
@@ -19,8 +19,11 @@ end_date = end_time.split('T')[0].replace('-','')
 # Choose vehicle class
 vehicle_class = ""
 
+# Define resolution
+resolution = 'raw' # 'hourly' 'daily' 'today' 'raw'
+
 # Generate api_request_url and output data filename
-api_request_url = "https://urbanair.turing.ac.uk/odysseus/api/v1/jamcams/hourly?"
+api_request_url = f"https://urbanair.turing.ac.uk/odysseus/api/v1/jamcams/{resolution}?"
 data_filename = "../data/raw/"
 #camera_id={camera_id}&detection_class={vehicle_class}&starttime={start_time}&endtime={end_time}
 
@@ -37,7 +40,7 @@ if end_time != "":
     api_request_url += f"&endtime={end_time}"
     data_filename += f"_end_{end_date}"
 # Add csv extension at the end
-data_filename += ".csv"
+data_filename += f"_{resolution}.csv"
 
 # Get response
 response = requests.get(api_request_url,
@@ -46,9 +49,11 @@ response = requests.get(api_request_url,
 if response.status_code == 200:
     print("Success!")
 else:
-    print('Failure...')
+    print(f'Failure... {response.reason}')
 
 json_data = response.json()
+# print(json.dumps(json_data,indent=2))
+
 pd_data = pd.DataFrame.from_dict(json_data)
 
 # print(pd_data.head())
