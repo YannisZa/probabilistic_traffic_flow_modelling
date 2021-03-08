@@ -11,3 +11,4 @@ shapely
 sklearn
 polyline
 statsmodels
+pytest
