@@ -12,3 +12,4 @@ sklearn
 polyline
 statsmodels
 pytest
+toml
