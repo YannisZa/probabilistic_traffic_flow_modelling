@@ -201,23 +201,13 @@ class MarkovChainMonteCarlo(object):
         self.log_unnormalised_posterior = log_unnormalised_posterior
         self.parameter_mesh = params_mesh[::-1]
 
-        # Evaluate log likelihood
-        log_evaluated_likelihood = np.apply_along_axis(self.evaluate_log_likelihood, 0, params_mesh[::-1])
-        # Reshape likelihood
-        log_evaluated_likelihood = log_evaluated_likelihood.reshape(tuple(parameter_range_lengths))
-
-        # Evaluate log prior
-        log_evaluated_prior = np.apply_along_axis(self.evaluate_log_joint_prior, 0, params_mesh[::-1])
-        # Reshape prior
-        log_evaluated_prior = log_evaluated_prior.reshape(tuple(parameter_range_lengths))
-
         # Print amount of time elapsed
         end = time.time()
         hours, rem = divmod(end-start, 3600)
         minutes, seconds = divmod(rem, 60)
         print("Log unnormalised posterior computed in {:0>2}:{:0>2}:{:05.2f} hours...".format(int(hours),int(minutes),seconds))
 
-        return log_unnormalised_posterior,log_evaluated_likelihood,log_evaluated_prior,params_mesh[::-1]
+        return log_unnormalised_posterior,params_mesh[::-1]
 
 
     def generate_unnormalised_log_posteriors_plot(self,fundamental_diagram,show_plot:bool=False):

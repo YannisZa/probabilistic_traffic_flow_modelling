@@ -52,7 +52,10 @@ inf_model.setup(inference_params,fd,sigma2)
 inf_model.export_univariate_prior_plot(fd,data_id)
 
 # Compute unnormalised log posterior
-log_true_posterior,log_likelihood,log_prior,parameters_mesh = inf_model.evaluate_unnormalised_log_posterior(fd)
+log_true_posterior,parameters_mesh = inf_model.evaluate_unnormalised_log_posterior(fd)
+
+# Export log unnormalised posterior
+inf_model.export_log_unnormalised_posterior()
 
 # # Export log unnormalsed log posterior
 inf_model.export_unnormalised_log_posterior_plots(fd,data_id)
@@ -63,4 +66,3 @@ theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(False,2021)
 # Export data
 inf_model.export_samples()
 inf_model.export_metadata()
-inf_model.export_log_unnormalised_posterior()
