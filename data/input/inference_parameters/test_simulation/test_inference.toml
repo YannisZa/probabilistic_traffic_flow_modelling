@@ -1,0 +1,53 @@
+id = "test_inference"
+inference_model = "grwmh"
+data_id = "test_simulation"
+simulation_flag = "True"
+fundamental_diagram = "exponential"
+
+[inference]
+
+  N = 10
+  random_initialisation = "True"
+  print_statements = "True"
+  learn_noise = "False"
+  p0 = [0.4,0.2]
+
+  [inference.true_posterior]
+
+      [inference.true_posterior.alpha]
+          min = "0.55"
+          max = "0.65"
+          steps = 2
+      [inference.true_posterior.beta]
+          min = "0.05"
+          max = "0.15"
+          steps = 3
+
+  [inference.transition_kernel]
+    type = "mnormal"
+    K_diagonal = [0.09,0.009]
+    beta_step = 0.1
+
+  [inference.likelihood]
+      type = 'mlognormal'
+      covariance = 'diagonal'
+
+  [inference.priors]
+      [inference.priors.alpha]
+          prior_distribution = 'Gamma'
+          a = "2."
+          scale = "0.3"
+      [inference.priors.beta]
+          prior_distribution = 'Gamma'
+          a = "2."
+          scale = "0.05"
+      [inference.priors.sigma]
+          prior_distribution = 'Gamma'
+          a = "1."
+          scale = "9."
+
+  [plot]
+      [plot.true_posterior]
+        vmin = ""
+        vmax = ""
+        num_colors = 20

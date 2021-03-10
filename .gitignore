@@ -9,10 +9,22 @@ notebooks/loop_detector_data_exploration_useless_code.ipynb
 notebooks/loop_detector_parameter_and_marginal_likelihood_estimation.ipynb
 notebooks/loop_detector_parameter_and_marginal_likelihood_estimation2.ipynb
 
+*old_gitingore
 
 # Folders and file exclusions
 data/*
+!data/input
+data/input/*
+!data/input/simulation_parameters/
+data/input/simulation_parameters/*
+!data/input/inference_parameters/
+data/input/inference_parameters/*
+!/data/input/inference_parameters/test_simulation/
+data/input/inference_parameters/test_simulation/*
+
 !/data/input/simulation_parameters/test_simulation.toml
+!/data/input/inference_parameters/test_simulation/test_inference.toml
+
 
 # API keys
 .keys

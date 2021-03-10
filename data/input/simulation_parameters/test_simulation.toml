@@ -1,0 +1,12 @@
+id = "sample_simulation_id"
+fundamental_diagram = "exponential"
+seed = "2021"
+
+[rho]
+  rho_min = "0.01"
+  rho_max = "100"
+  rho_steps = 1000
+[true_parameters]
+  alpha = "0.6"
+  beta = "0.1"
+  sigma2 = "0.05"
