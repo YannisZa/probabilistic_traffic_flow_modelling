@@ -4,14 +4,14 @@ __pycache__/
 *$py.class
 
 # Notebooks
-/notebooks/loop_detector_data_exploration.ipynb
-/notebooks/loop_detector_data_exploration_useless_code.ipynb
+notebooks/loop_detector_data_exploration.ipynb
+notebooks/loop_detector_data_exploration_useless_code.ipynb
+notebooks/loop_detector_parameter_and_marginal_likelihood_estimation.ipynb
+notebooks/loop_detector_parameter_and_marginal_likelihood_estimation2.ipynb
 
-# Folders
-/data/*
 
-# Exclude files
-!/data/input/inference_parameters/test_simulation/test_inference.toml
+# Folders and file exclusions
+data/*
 !/data/input/simulation_parameters/test_simulation.toml
 
 # API keys

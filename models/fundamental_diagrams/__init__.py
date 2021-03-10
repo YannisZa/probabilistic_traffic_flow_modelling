@@ -82,14 +82,6 @@ class FundamentalDiagram(object):
         self.__q_true = q_true
 
     @property
-    def seed(self):
-        return self.__seed
-
-    @seed.setter
-    def seed(self, seed):
-        self.__seed = seed
-
-    @property
     def true_parameters(self):
         return self.__true_parameters
 
