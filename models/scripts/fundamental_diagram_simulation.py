@@ -2,49 +2,28 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import toml
-from utils import map_name_to_class,prepare_simulation_filename
+import utils
 from inference import *
 
 # Root directory
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]+"probabilistic_traffic_flow_modelling"
 
 # Define path to experiment parameters
-simulation_parameters_filepath = os.path.join(root,'data/input/simulation_parameters/sample_simulation.toml')
+data_id = 'exponential_fd_simulation'
 
-# Load experiment parameters
-if os.path.exists(simulation_parameters_filepath):
-    simulation_parameters  = toml.load(simulation_parameters_filepath)
-else:
-    raise FileNotFoundError(f'File {simulation_parameters_filepath} not found.')
-
-# Read and convert some simulation parameters
-seed = simulation_parameters['simulation']['seed']
-if seed == '': seed = None
-else: seed = int(seed)
+# Import emtadata from file
+metadata = utils.import_simulation_metadata(data_id)
 
 # Instantiate specified Fundamental Diagram
-fd = map_name_to_class(simulation_parameters['fundamental_diagram'])
+fd = utils.map_name_to_class(metadata['fundamental_diagram'])
 
-# Set rho
-rho = np.linspace(float(simulation_parameters['simulation']['rho_min']),
-                float(simulation_parameters['simulation']['rho_max']),
-                int(simulation_parameters['simulation']['rho_steps']))
-
-# Update rho attribute in object
-fd.rho = rho
+# Setup
+fd.setup(data_id)
 
 # Compute q based on rho and specified parameters
-fd.simulate_with_noise([float(simulation_parameters['simulation']['alpha']),
-                            float(simulation_parameters['simulation']['beta'])],
-                            float(simulation_parameters['simulation']['sigma2']),
-                            seed)
-
-# Simulation output filename
-filename = prepare_simulation_filename(simulation_parameters['id'])
-
-# Plot simulation
-# fd.plot_simulation()
+# fd.simulate(fd.true_parameters)
+fd.simulate_with_noise(fd.true_parameters)
 
 # Export plot and data
-fd.export_simulation_plot(filename)
-fd.export_data(filename)
+fd.export_simulation_plot(str(data_id))
+fd.export_data(str(data_id))

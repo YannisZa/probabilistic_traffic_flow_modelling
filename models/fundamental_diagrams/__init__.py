@@ -1,4 +1,10 @@
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
 import os
+import toml
+import utils
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -43,10 +49,6 @@ class FundamentalDiagram(object):
     def jacobian(self,jac):
         self.__jac = jac
 
-    @jacobian.deleter
-    def jacobian(self):
-        del self.__jac
-
     @property
     def hessian(self):
         return self.__hess
@@ -54,10 +56,6 @@ class FundamentalDiagram(object):
     @hessian.setter
     def hessian(self,hess):
         self.__hess = hess
-
-    @hessian.deleter
-    def hessian(self):
-        del self.__hess
 
     @property
     def rho(self):
@@ -67,10 +65,6 @@ class FundamentalDiagram(object):
     def rho(self, rho):
         self.__rho = rho
 
-    @rho.deleter
-    def rho(self):
-        del self.__rho
-
     @property
     def q(self):
         return self.__q
@@ -78,10 +72,6 @@ class FundamentalDiagram(object):
     @q.setter
     def q(self, q):
         self.__q = q
-
-    @q.deleter
-    def q(self):
-        del self.__q
 
     @property
     def q_true(self):
@@ -91,17 +81,55 @@ class FundamentalDiagram(object):
     def q_true(self, q_true):
         self.__q_true = q_true
 
-    @q_true.deleter
-    def q_true(self):
-        del self.__q_true
+    @property
+    def seed(self):
+        return self.__seed
 
-    def simulate_with_noise(self,p,sigma2,seed:float=None):
+    @seed.setter
+    def seed(self, seed):
+        self.__seed = seed
+
+    @property
+    def true_parameters(self):
+        return self.__true_parameters
+
+    @true_parameters.setter
+    def true_parameters(self, true_parameters):
+        self.__true_parameters = true_parameters
+
+    @property
+    def simulation_metadata(self):
+        return self.__simulation_metadata
+
+    @simulation_metadata.setter
+    def simulation_metadata(self, simulation_metadata):
+        self.__simulation_metadata = simulation_metadata
+
+
+    def setup(self,data_id):
+        # Import metadata to FD object
+        self.import_simulation_metadata(data_id)
+
+        # Define rho
+        rho = np.linspace(float(self.simulation_metadata['rho']['rho_min']),
+                        float(self.simulation_metadata['rho']['rho_max']),
+                        int(self.simulation_metadata['rho']['rho_steps']))
+
+        # Update rho attribute in object
+        self.rho = rho
+
+
+    def simulate_with_noise(self,p):
         # Make sure you have stored the necessary attributes
-        if not hasattr(self,'rho'):
-            raise AttributeError('Rho attribute does not exist.')
+        utils.has_attributes(self,['rho','simulation_metadata'])
 
         # Fix random seed
-        np.random.seed(seed)
+        if self.simulation_metadata['seed'] == '':np.random.seed(None)
+        else: np.random.seed(int(self.simulation_metadata['seed']))
+
+        # Define sigma2 to be the last parameter
+        sigma2 = p[-1]
+        print(f'Simulating with {sigma2} variance')
         # Get dimension of rho data
         dim = self.rho.shape[0]
         # Simulate without noise
@@ -110,53 +138,88 @@ class FundamentalDiagram(object):
         noise = np.random.multivariate_normal(np.zeros(dim),np.eye(dim)*sigma2)
         # Update q (noisy) and q_true (noise-free)
         self.q = self.q_true*np.exp(noise)
+        # Update true parameters
+        self.true_parameters = p
 
-    def import_data(self,filename):
+    def import_data(self,data_id):
+
+        # Get data filename
+        data_filename = utils.prepare_output_simulation_filename(data_id)
 
         # Import rho
-        if os.path.exists((filename+'_rho.txt')):
-            rho = np.loadtxt((filename+'_rho.txt'))
+        if os.path.exists((data_filename+'_rho.txt')):
+            rho = np.loadtxt((data_filename+'_rho.txt'))
         else:
-            raise FileNotFoundError(f"File {(filename+'_rho.txt')} not found.")
+            raise FileNotFoundError(f"File {(data_filename+'_rho.txt')} not found.")
         # Update attribute rho
         self.rho = rho
 
         # Import q
-        if os.path.exists((filename+'_q.txt')):
-            q = np.loadtxt((filename+'_q.txt'))
+        if os.path.exists((data_filename+'_q.txt')):
+            q = np.loadtxt((data_filename+'_q.txt'))
         else:
-            raise FileNotFoundError(f"File {(filename+'_rho.txt')} not found.")
+            raise FileNotFoundError(f"File {(data_filename+'_rho.txt')} not found.")
         # Update attribute rho
         self.q = q
 
-    def export_data(self,filename):
+    def import_simulation_metadata(self,data_id):
+
+        # Get data filename
+        metadata_filename = utils.prepare_input_simulation_filename(data_id)
+
+        # Import simulation metadata
+        if os.path.exists(metadata_filename):
+            _simulation_metadata  = toml.load(metadata_filename)
+        else:
+            raise FileNotFoundError(f'File {metadata_filename} not found.')
+
+        # Add to class attribute
+        self.simulation_metadata = _simulation_metadata
+        self.true_parameters = np.array([float(p) for p in _simulation_metadata['true_parameters'].values()])
+
+
+
+    def export_data(self,data_id):
+
+        # Make sure you have stored the necessary attributes
+        utils.has_attributes(self,['rho','q_true'])
+
+        # Get data filename
+        data_filename = utils.prepare_output_simulation_filename(data_id)
 
         # Export rho
-        if hasattr(self,'rho'):
-            np.savetxt((filename+'_rho.txt'),self.rho)
-            print(f"File exported to {(filename+'_rho.txt')}")
-        else:
-            raise AttributeError('Rho attribute does not exist.')
-        # Export q
+
+        # Ensure directory exists otherwise create it
+        utils.ensure_dir(data_filename)
+        # Save to txt file
+        np.savetxt((data_filename+'_rho.txt'),self.rho)
+        print(f"File exported to {(data_filename+'_rho.txt')}")
+
+        # Export q_true
+
+        # Ensure directory exists otherwise create it
+        utils.ensure_dir(data_filename)
+        # Save to txt file
+        np.savetxt((data_filename+'_q_true.txt'),self.q_true)
+        print(f"File exported to {(data_filename+'_q_true.txt')}")
+
+        # Export q if it exists
         if hasattr(self,'q'):
-            np.savetxt((filename+'_q.txt'),self.q)
-            print(f"File exported to {(filename+'_q.txt')}")
-        else:
-            raise AttributeError('q attribute does not exist.')
+            # Ensure directory exists otherwise create it
+            utils.ensure_dir(data_filename)
+            # Save to txt file
+            np.savetxt((data_filename+'_q.txt'),self.q)
+            print(f"File exported to {(data_filename+'_q.txt')}")
 
 
     def plot_simulation(self):
 
         # Make sure you have stored the necessary attributes
-        if not hasattr(self,'rho'):
-            raise AttributeError('Rho attribute does not exist.')
-        if not hasattr(self,'q_true'):
-            raise AttributeError('q_true attribute does not exist.')
-        if not hasattr(self,'q'):
-            raise AttributeError('q attribute does not exist.')
+        utils.has_attributes(self,['rho','q_true'])
 
         fig = plt.figure(figsize=(10,10))
-        plt.scatter(self.rho,self.q,color='blue',label='Simulated')
+        if hasattr(self,'q'):
+            plt.scatter(self.rho,self.q,color='blue',label='Simulated')
         plt.plot(self.rho,self.q_true,color='red',label='True')
         plt.xlabel(r'$\rho$')
         plt.ylabel(r'$q$')
@@ -165,17 +228,16 @@ class FundamentalDiagram(object):
         return fig
 
 
-    def export_simulation_plot(self,filename):
+    def export_simulation_plot(self,data_id):
 
-        # Make sure you have stored the necessary attributes
-        if not hasattr(self,'rho'):
-            raise AttributeError('Rho attribute does not exist.')
-        if not hasattr(self,'q'):
-            raise AttributeError('q attribute does not exist.')
+        # Get data filename
+        data_filename = utils.prepare_output_simulation_filename(data_id)
 
         # Generate plot
         fig = self.plot_simulation()
 
         # Export plot to file
-        fig.savefig((filename+'.png'))
-        print(f"File exported to {(filename+'.png')}")
+        fig.savefig((data_filename+'.png'))
+        # Close plot
+        plt.close(fig)
+        print(f"File exported to {(data_filename+'.png')}")
