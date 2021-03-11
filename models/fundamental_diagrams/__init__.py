@@ -42,6 +42,15 @@ class FundamentalDiagram(object):
         self.__parameter_names = param_names
 
     @property
+    def simulation_flag(self):
+        return self.__simulation_flag
+
+    @simulation_flag.setter
+    def simulation_flag(self,simulation_flag):
+        self.__simulation_flag = simulation_flag
+
+
+    @property
     def jacobian(self):
         return self.__jac
 
@@ -111,9 +120,9 @@ class FundamentalDiagram(object):
         self.rho = rho
 
 
-    def simulate_with_noise(self,p):
+    def simulate_with_noise(self,p,**kwargs):
         # Make sure you have stored the necessary attributes
-        utils.has_attributes(self,['rho','simulation_metadata'])
+        utils.validate_attribute_existence(self,['rho','simulation_metadata'])
 
         # Fix random seed
         if self.simulation_metadata['seed'] == '':np.random.seed(None)
@@ -121,7 +130,8 @@ class FundamentalDiagram(object):
 
         # Define sigma2 to be the last parameter
         sigma2 = p[-1]
-        print(f'Simulating with {sigma2} variance')
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f'Simulating with {sigma2} variance')
         # Get dimension of rho data
         dim = self.rho.shape[0]
         # Simulate without noise
@@ -168,13 +178,14 @@ class FundamentalDiagram(object):
         # Add to class attribute
         self.simulation_metadata = _simulation_metadata
         self.true_parameters = np.array([float(p) for p in _simulation_metadata['true_parameters'].values()])
+        self.simulation_flag = True
 
 
 
-    def export_data(self,data_id):
+    def export_data(self,data_id,**kwargs):
 
         # Make sure you have stored the necessary attributes
-        utils.has_attributes(self,['rho','q_true'])
+        utils.validate_attribute_existence(self,['rho','q_true'])
 
         # Get data filename
         data_filename = utils.prepare_output_simulation_filename(data_id)
@@ -185,7 +196,8 @@ class FundamentalDiagram(object):
         utils.ensure_dir(data_filename)
         # Save to txt file
         np.savetxt((data_filename+'_rho.txt'),self.rho)
-        print(f"File exported to {(data_filename+'_rho.txt')}")
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(data_filename+'_rho.txt')}")
 
         # Export q_true
 
@@ -193,7 +205,8 @@ class FundamentalDiagram(object):
         utils.ensure_dir(data_filename)
         # Save to txt file
         np.savetxt((data_filename+'_q_true.txt'),self.q_true)
-        print(f"File exported to {(data_filename+'_q_true.txt')}")
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(data_filename+'_q_true.txt')}")
 
         # Export q if it exists
         if hasattr(self,'q'):
@@ -201,13 +214,14 @@ class FundamentalDiagram(object):
             utils.ensure_dir(data_filename)
             # Save to txt file
             np.savetxt((data_filename+'_q.txt'),self.q)
-            print(f"File exported to {(data_filename+'_q.txt')}")
+            if 'prints' in kwargs:
+                if kwargs.get('prints'): print(f"File exported to {(data_filename+'_q.txt')}")
 
 
     def plot_simulation(self):
 
         # Make sure you have stored the necessary attributes
-        utils.has_attributes(self,['rho','q_true'])
+        utils.validate_attribute_existence(self,['rho','q_true'])
 
         fig = plt.figure(figsize=(10,10))
         if hasattr(self,'q'):
@@ -220,7 +234,7 @@ class FundamentalDiagram(object):
         return fig
 
 
-    def export_simulation_plot(self,data_id):
+    def export_simulation_plot(self,data_id,**kwargs):
 
         # Get data filename
         data_filename = utils.prepare_output_simulation_filename(data_id)
@@ -232,4 +246,5 @@ class FundamentalDiagram(object):
         fig.savefig((data_filename+'.png'))
         # Close plot
         plt.close(fig)
-        print(f"File exported to {(data_filename+'.png')}")
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(data_filename+'.png')}")

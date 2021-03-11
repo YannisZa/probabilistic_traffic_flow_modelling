@@ -9,13 +9,13 @@ from inference import *
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]+"probabilistic_traffic_flow_modelling"
 
 # Define path to experiment parameters
-data_id = 'exponential_fd_simulation'
-
-# Import emtadata from file
-metadata = utils.import_simulation_metadata(data_id)
+data_id = 'exponential_fd_simulation_small'#'exponential_fd_simulation'
 
 # Instantiate specified Fundamental Diagram
-fd = utils.map_name_to_class(metadata['fundamental_diagram'])
+fd = utils.instantiate_fundamental_diagram(data_id)
+
+# Load simulation metadata
+fd.import_simulation_metadata(data_id)
 
 # Setup
 fd.setup(data_id)

@@ -1,28 +1,77 @@
 import os, sys
 import math
 import toml
+import collections.abc
+import scipy.stats as ss
+
 from fundamental_diagrams.fundamental_diagram_definitions import *
 from inference.mcmc_inference_models import *
-import scipy.stats as ss
 
 # Root directory
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]
 
 # def multivariate_log_normal
 
-def has_attributes(_self,necessary_attributes):
+""" ---------------------------------------------------------------------------General purpose-----------------------------------------------------------------------------"""
+def update(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
+
+def ensure_dir(dir):
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+
+""" ---------------------------------------------------------------------------Instantiators-----------------------------------------------------------------------------"""
+
+def instantiate_fundamental_diagram(data_id):
+    # Load simulation parameters
+    simulation_params = import_simulation_metadata(data_id)
+
+    # Return instance of Fundamental Diagram object child class
+    return utils.map_name_to_fundamental_diagram(simulation_params['fundamental_diagram'])
+
+def instantiate_inference_method(data_id,inference_id):
+    # Load inference parameters
+    inference_params = import_inference_metadata(data_id,inference_id)
+
+    # Return instance of MarkovChainMonteCarlo object child class
+    return utils.map_name_to_inference_method(inference_params['inference_model']),inference_params
+
+
+""" ---------------------------------------------------------------------------Checking existence of attributes/parameters-----------------------------------------------------------------------------"""
+
+def find_lacking_attributes(_self,necessary_attributes):
     # Initialise lacking attributes array
     lacking_attributes = []
     for attr in necessary_attributes:
         if not hasattr(_self,attr):
             lacking_attributes.append(attr)
-            # raise AttributeError(f'Attribute {attr} not found.')
+
+    return lacking_attributes
+
+def has_attributes(_self,necessary_attributes):
+    # Find lacking attributes
+    lacking_attributes =  find_lacking_attributes(_self,necessary_attributes)
+
+    # If there is at least one lacking attribute raise error
+    if len(lacking_attributes) > 0: return False
+    else: return True
+
+
+def validate_attribute_existence(_self,necessary_attributes):
+    # Find lacking attributes
+    lacking_attributes =  find_lacking_attributes(_self,necessary_attributes)
 
     # If there is at least one lacking attribute raise error
     if len(lacking_attributes) > 0:
         raise AttributeError(f'Attributes {lacking_attributes} not found.')
 
-def has_parameters(necessary_parameters,current_params):
+def find_lacking_parameters(necessary_parameters,current_params):
     # Initialise lacking parameters array
     lacking_params = []
     # Loop through necessary parameters
@@ -33,23 +82,38 @@ def has_parameters(necessary_parameters,current_params):
         if hasattr(p, "__len__") and len(p) < 1:
             lacking_params.append(p)
 
+    return lacking_params
+
+def has_parameters(necessary_parameters,current_params):
+
+    # Find lacking parameters
+    lacking_params =  find_lacking_parameters(necessary_parameters,current_params)
+
+    # If there is at least one lacking parameter raise error
+    if len(lacking_params) > 0: return False
+    else: return True
+
+
+def validate_parameter_existence(necessary_parameters,current_params):
+    # Find lacking parameters
+    lacking_params =  find_lacking_parameters(necessary_parameters,current_params)
+
     # If there is at least one lacking parameter raise error
     if len(lacking_params) > 0:
         raise Exception(f'Parameters {lacking_params} are missing or mispecified.')
 
 
-def ensure_dir(dir):
-    if not os.path.exists(dir):
-        os.makedirs(dir)
 
-def map_name_to_class(name):
+""" ---------------------------------------------------------------------------String to function maps-----------------------------------------------------------------------------"""
+
+def map_name_to_fundamental_diagram(name):
 
     if name == 'exponential':
         return ExponentialFD()
     else:
         raise Exception(f'No fundamental diagram model found for {name.lower()}')
 
-def map_name_to_mcmc_method(name):
+def map_name_to_inference_method(name):
 
     if name.lower() == 'grwmh':
         return GaussianRandomWalkMetropolisHastings()
@@ -87,6 +151,8 @@ def map_name_to_numpy_distribution(name):
     else:
         raise Exception(f'No numpy probability distribution found for {name.lower()}')
 
+""" ---------------------------------------------------------------------------Prepare filenames for imports/exports-----------------------------------------------------------------------------"""
+
 
 def prepare_output_simulation_filename(simulation_id):
     # Define output folder path
@@ -115,7 +181,7 @@ def prepare_input_simulation_filename(simulation_id):
 
 def prepare_input_inference_filename(data_id,inference_id):
     # Define input filepath
-    input_file = os.path.join(root,'data/input/inference_parameters',data_id,inference_id+('.toml'))
+    input_file = os.path.join(root,'data/input/inference_parameters',inference_id+('.toml'))
     # Ensure file exists
     if not os.path.exists(input_file):
         raise ValueError(f'Simulation file {input_file} not found.')
@@ -123,6 +189,7 @@ def prepare_input_inference_filename(data_id,inference_id):
     # Return simulation filename
     return input_file
 
+""" ---------------------------------------------------------------------------Import metadata from file-----------------------------------------------------------------------------"""
 
 def import_simulation_metadata(data_id):
 

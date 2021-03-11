@@ -7,6 +7,7 @@ import scipy.stats as ss
 import matplotlib
 import matplotlib.pyplot as plt
 
+from distutils.util import strtobool
 from inference import MarkovChainMonteCarlo
 
 # matplotlib settings
@@ -28,7 +29,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         elif sigma2 is not None:
             sigma_cov = np.eye(self.n)*sigma2
 
-        if (bool(self.inference_metadata['simulation_flag']) or not bool(self.inference_metadata['inference']['learn_noise'])) and (sigma_cov is not None):
+        if (strtobool(self.inference_metadata['simulation_flag']) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (sigma_cov is not None):
             if self.inference_metadata['inference']['likelihood']['type'] in ['mnormal','normal']:
                 def _log_likelihood(p):
                     return ss.multivariate_normal.logpdf(self.y,fundamental_diagram.simulate(p),sigma_cov)
@@ -64,7 +65,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
             # Get prior hyperparameter kwargs
             hyperparams = {}
             for key, v in self.inference_metadata['inference']['priors'][k].items():
-                if key != "prior_distribution":
+                if key != "distribution":
                     hyperparams[key] = float(v)
             # Append to list
             hyperparams_list.append(hyperparams)
@@ -72,7 +73,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         # Loop through number of parameters
         for i,k in enumerate(list(self.inference_metadata['inference']['priors'])[0:num_params]):
             # Define prior distribution
-            prior_distr = utils.map_name_to_scipy_distribution(self.inference_metadata['inference']['priors'][k]['prior_distribution'])
+            prior_distr = utils.map_name_to_scipy_distribution(self.inference_metadata['inference']['priors'][k]['distribution'])
 
             # print('hyperparams',hyperparams)
             # Define log pdf of prior distribution
@@ -123,9 +124,12 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         MarkovChainMonteCarlo.transition_kernel.fset(self, _kernel)
 
 
-    def sample_from_univariate_priors(self,num_params,N):
+    def sample_from_univariate_priors(self,fundamental_diagram,N):
         # Initialise array for prior samples
         prior_samples = []
+
+        # Get number of parameters
+        num_params = fundamental_diagram.parameter_number
 
         # Make sure you have enough priors
         if len(self.inference_metadata['inference']['priors'].keys()) < num_params:
@@ -134,9 +138,16 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         # Loop through number of parameters
         for k in list(self.inference_metadata['inference']['priors'])[0:num_params]:
             # Define prior distribution
-            prior_distr = utils.map_name_to_numpy_distribution(self.inference_metadata['inference']['priors'][k]['prior_distribution'])
+            prior_distr = utils.map_name_to_numpy_distribution(self.inference_metadata['inference']['priors'][k]['distribution'])
+            # Get prior hyperparams
+            prior_hyperparams = self.inference_metadata['inference']['priors'][k]
+            # Remove name of prior distribution
+            prior_hyperparams.pop('distribution')
+            # Convert value data type to float
+            for k, v in prior_hyperparams.items():
+                prior_hyperparams[k] = float(v)
             # Sample N times from univariate prior distribution
-            if N == 1: prior_samples.append(prior_distr(float(self.inference_metadata['inference']['priors'][k]['a']),float(self.inference_metadata['inference']['priors'][k]['b'])))
-            else: prior_samples.append(prior_distr(float(self.inference_metadata['inference']['priors'][k]['a']),float(self.inference_metadata['inference']['priors'][k]['b']),N))
+            if N == 1: prior_samples.append(prior_distr(*prior_hyperparams.values()))
+            else: prior_samples.append(prior_distr(*prior_hyperparams.values(),size=N))
 
         return np.array(prior_samples)
