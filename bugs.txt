@@ -1,0 +1,12 @@
+# Bugs
+
+space exploration does not show true parameters 
+	action: change their zorder
+
+
+
+# Extensions
+
+Implement posterior predictive computation
+Implement sigma learning
+Implement Experiments class
