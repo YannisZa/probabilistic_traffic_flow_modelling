@@ -9,10 +9,13 @@ class ExponentialFD(FundamentalDiagram):
         super().__init__('exponential')
         FundamentalDiagram.parameter_number.fset(self, 2)
         FundamentalDiagram.parameter_names.fset(self, [r'$\alpha$',r'$\beta$'])
-        
+
     def simulate(self,p):
         FundamentalDiagram.q_true.fset(self, p[0]*super().rho*np.exp(-p[1]*super().rho))
         return super().q_true
+
+    def simulate_with_x(self,p,rho):
+        return p[0]*rho*np.exp(-p[1]*rho)
 
     def compute_jacobian(self,p):
         FundamentalDiagram.jacobian.fset(self, p[0]*np.exp(-p[1]*super().rho) - p[0]*super().rho*np.exp(-p[1]*super().rho))

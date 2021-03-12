@@ -146,7 +146,7 @@ def map_name_to_numpy_distribution(name):
         return np.random.multivariate_normal
     elif name.lower() == 'normal':
         return np.random.normal
-    elif name.lower() == 'lognormal':
+    elif name.lower() == 'lognormal' or name.lower() == 'mlognormal':
         return np.random.lognormal
     else:
         raise Exception(f'No numpy probability distribution found for {name.lower()}')

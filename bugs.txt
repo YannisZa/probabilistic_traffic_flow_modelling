@@ -1,12 +1,11 @@
 # Bugs
 
-space exploration does not show true parameters 
-	action: change their zorder
-
+Debug marginal likelihood posterior harmonic mean estimation
 
 
 # Extensions
 
-Implement posterior predictive computation
+Implement marginal likelihood thermodynamic integration estimation
+Implement log posterior in c
 Implement sigma learning
 Implement Experiments class

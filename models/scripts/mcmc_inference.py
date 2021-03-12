@@ -56,18 +56,32 @@ inf_model.setup(inference_params,fd,sigma2)
 # Export log unnormalised posterior
 # inf_model.export_log_unnormalised_posterior(fd)
 # Export log unnormalsed log posterior plot
-# inf_model.export_log_unnormalised_posterior_plots(fd,False)
+# inf_model.export_log_unnormalised_posterior_plots(fd,True)
 
 # Run MCMC
-theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True,None)
-# inf_model.import_mcmc_samples()
+# theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True,None)
+inf_model.import_mcmc_samples()
+
+# Compute marginal likelihood estimator
+# inf_model.compute_log_posterior_harmonic_mean_estimator(prints=True)
+
+# Compute Gelman and Rubin statistic
+# inf_model.compute_gelman_rubin_statistic(prints=True)
+
+# Compute posterior predictive
+# inf_model.evaluate_posterior_predictive_moments()
+# inf_model.import_posterior_predictive()
 
 # Export MCMC data
-inf_model.export_samples()
-inf_model.export_metadata()
-
+# inf_model.export_samples()
+# inf_model.export_posterior_predictive()
 
 # Export MCMC
-inf_model.export_mcmc_sample_plots(fd,True)
-inf_model.export_mcmc_mixing_plots(fd,True)
-inf_model.export_mcmc_acf_plots(fd,False)
+inf_model.export_mcmc_parameter_posterior_plots(fd,True)
+# inf_model.export_mcmc_space_exploration_plots(fd,True)
+# inf_model.export_mcmc_mixing_plots(fd,False)
+# inf_model.export_mcmc_acf_plots(fd,False)
+# inf_model.export_mcmc_posterior_predictive_plot(fd,2,True)
+
+# Export metadata
+# inf_model.export_metadata()

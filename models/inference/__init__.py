@@ -30,10 +30,13 @@ class MarkovChainMonteCarlo(object):
     def update_log_likelihood_log_pdf(self,fundamental_diagram,sigma2):
         pass
 
-    def update_log_prior_log_pdf(self,num_params):
+    def update_log_prior_log_pdf(self,fundamental_diagram):
         pass
 
     def sample_from_univariate_priors(self,num_params,N):
+        pass
+
+    def update_predictive_likelihood(self,x,y):
         pass
 
     @property
@@ -69,29 +72,20 @@ class MarkovChainMonteCarlo(object):
         self.__log_likelihood = log_likelihood
 
     @property
+    def predictive_likelihood(self):
+        return self.__predictive_likelihood
+
+    @predictive_likelihood.setter
+    def predictive_likelihood(self,predictive_likelihood):
+        self.__predictive_likelihood = predictive_likelihood
+
+    @property
     def log_unnormalised_posterior(self):
         return self.__log_unnormalised_posterior
 
     @log_unnormalised_posterior.setter
     def log_unnormalised_posterior(self,log_unnormalised_posterior):
         self.__log_unnormalised_posterior = log_unnormalised_posterior
-
-    @property
-    def log_evaluated_likelihood(self):
-        return self.__log_evaluated_likelihood
-
-    @log_evaluated_likelihood.setter
-    def log_evaluated_likelihood(self,log_evaluated_likelihood):
-        self.__log_evaluated_likelihood = log_evaluated_likelihood
-
-    @property
-    def transition_kernel(self):
-        return self.__transition_kernel
-
-    @transition_kernel.setter
-    def transition_kernel(self,transition_kernel):
-        self.__transition_kernel = transition_kernel
-
 
     @property
     def parameter_mesh(self):
@@ -101,6 +95,13 @@ class MarkovChainMonteCarlo(object):
     def parameter_mesh(self,parameter_mesh):
         self.__parameter_mesh = parameter_mesh
 
+    @property
+    def transition_kernel(self):
+        return self.__transition_kernel
+
+    @transition_kernel.setter
+    def transition_kernel(self,transition_kernel):
+        self.__transition_kernel = transition_kernel
 
     @property
     def inference_metadata(self):
@@ -114,6 +115,30 @@ class MarkovChainMonteCarlo(object):
         # If new metadata exist
         if bool(inference_metadata):
             self.__inference_metadata = utils.update(self.__inference_metadata, inference_metadata)
+
+    @property
+    def posterior_predictive_mean(self):
+        return self.__posterior_predictive_mean
+
+    @posterior_predictive_mean.setter
+    def posterior_predictive_mean(self,posterior_predictive_mean):
+        self.__posterior_predictive_mean = posterior_predictive_mean
+
+    @property
+    def posterior_predictive_std(self):
+        return self.__posterior_predictive_std
+
+    @posterior_predictive_std.setter
+    def posterior_predictive_std(self,posterior_predictive_std):
+        self.__posterior_predictive_std = posterior_predictive_std
+
+    @property
+    def posterior_predictive_x(self):
+        return self.__posterior_predictive_x
+
+    @posterior_predictive_x.setter
+    def posterior_predictive_x(self,posterior_predictive_x):
+        self.__posterior_predictive_x = posterior_predictive_x
 
     @property
     def x(self):
@@ -158,10 +183,13 @@ class MarkovChainMonteCarlo(object):
 
     def setup(self,inference_params,fundamental_diagram,sigma2):
         # Update data and parameters in inference model
-        self.update_data(fundamental_diagram.rho,fundamental_diagram.q,inference_params)
+        self.update_data(fundamental_diagram.rho,fundamental_diagram.q,r"$\rho$",r"$q$",inference_params)
 
         # Update model likelihood
         self.update_log_likelihood_log_pdf(fundamental_diagram,sigma2)
+
+        # Update model predictive likelihood
+        self.update_predictive_likelihood(fundamental_diagram,sigma2)
 
         # Update model priors
         self.update_log_prior_log_pdf(fundamental_diagram)
@@ -170,9 +198,11 @@ class MarkovChainMonteCarlo(object):
         self.update_transition_kernel(fundamental_diagram)
 
 
-    def update_data(self,x,y,inference_params):
+    def update_data(self,x,y,x_name,y_name,inference_params):
         self.x = x
         self.y = y
+        self.x_name = x_name
+        self.y_name = y_name
         self.n = y.shape[0]
         self.inference_metadata = inference_params
 
@@ -187,6 +217,11 @@ class MarkovChainMonteCarlo(object):
     def evaluate_log_likelihood(self,p):
         utils.validate_attribute_existence(self,['log_likelihood'])
         return self.__log_likelihood(p)
+
+    def evaluate_predictive_likelihood(self,p,x):
+        utils.validate_attribute_existence(self,['predictive_likelihood'])
+        utils.validate_attribute_existence(x,['__len__'])
+        return self.__predictive_likelihood(p,x)
 
     def evaluate_log_posterior(self,p):
         return self.evaluate_log_likelihood(p) + self.evaluate_log_joint_prior(p)
@@ -227,7 +262,7 @@ class MarkovChainMonteCarlo(object):
         np.random.seed(seed)
 
         # Make sure you have stored necessary attributes
-        utils.validate_attribute_existence(self,['evaluate_log_function',])
+        utils.validate_attribute_existence(self,['evaluate_log_function'])
 
         # Make sure you have stored necessary attributes
         utils.validate_parameter_existence(['N'],self.inference_metadata['inference'])
@@ -315,17 +350,58 @@ class MarkovChainMonteCarlo(object):
         return np.array(theta), np.array(theta_proposed), int(100*(acc / N))
 
 
-    def gelman_rubin_statistic(self):
+    def compute_log_posterior_harmonic_mean_estimator(self,**kwargs):
+
+        # Make sure you have stored necessary attributes
+        utils.validate_attribute_existence(self,['theta'])
+
+        # Time execution
+        tic = time.perf_counter()
+
+        # Get burnin and acf lags from plot metadata
+        burnin = int(self.inference_metadata['plot']['mcmc_samples']['burnin'])
+
+        # Get number of MCMC iterations
+        N = self.theta.shape[0]
+
+        # ml = 0
+        # print(self.theta[burnin:,:])
+        # for i in range(burnin,N):
+        #     term = np.exp(self.evaluate_log_likelihood(self.theta[i,:]))**(-1)
+        #     print('term',term)
+        #     sys.exit(1)
+
+        # Compute log marginal likelihood
+        ml = N * ( np.sum([np.exp(self.evaluate_log_likelihood(self.theta[i,:]))**(-1) for i in range(burnin,N)]) )**(-1)
+        lml = np.log(ml)
+
+        # Update metadata
+        self.update_inference_metadata({"results":{"mcmc":{"log_marginal_likelihood":{"posterior_harmonic_mean":lml}}}})
+
+        if 'prints' in kwargs:
+            if kwargs.get('prints'):
+                # Print log marginal likelihood
+                print(f'Log marginal likelihood = {lml}')
+                # Print time execution
+                toc = time.perf_counter()
+                print(f"Computed posterior harmonic mean estimator in {toc - tic:0.4f} seconds")
+
+        return lml
+
+    def compute_gelman_rubin_statistic(self,**kwargs):
         # See more details here: https://pymc-devs.github.io/pymc/modelchecking.html
 
         # Make sure you have the necessary attributes
         utils.validate_attribute_existence(self,['theta'])
 
+        # Time execution
+        tic = time.perf_counter()
+
         # Make sure you have the necessary parameters
-        self.validate_parameter_existence(['r_critical'],self.inference_metadata['inference'])
+        utils.validate_parameter_existence(['r_critical'],self.inference_metadata['inference'])
 
         # Get R statistic critical value
-        r_critical = self.inference_metadata['r_critical']
+        r_critical = float(self.inference_metadata['inference']['r_critical'])
 
         # Get number of chain iterations and number of chains
         n,m = self.theta.shape
@@ -342,8 +418,14 @@ class MarkovChainMonteCarlo(object):
         r_stat = np.sqrt(posterior_marginal_var/W)
 
         # Decide if convergence was achieved
-        if r_stat < r_critical: print(r'MCMC chains have converged with $\hat{R}$=',r_stat,'!')
-        else: print(r'MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
+        if 'prints' in kwargs:
+            if kwargs.get('prints'):
+                # Print if chains have converged
+                if r_stat < r_critical: print(r'MCMC chains have converged with $\hat{R}$=',r_stat,'!')
+                else: print(r'MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
+                # Print time execution
+                toc = time.perf_counter()
+                print(f"Computed posterior predictive in {toc - tic:0.4f} seconds")
 
         # Update metadata
         self.update_inference_metadata({"results":{"mcmc":{"r_stat":r_stat}}})
@@ -354,8 +436,41 @@ class MarkovChainMonteCarlo(object):
 
     """---------------------------------------------------------------------------Evaluate and generate posterior data/plots-----------------------------------------------------------------------------"""
 
+    def evaluate_posterior_predictive_moments(self,*args,seed:int=None,**kwargs):
 
+        # Make sure you have stored the necessary attributes
+        utils.validate_attribute_existence(self,['theta'])
 
+        # Time execution
+        tic = time.perf_counter()
+
+        # Get burnin and acf lags from plot metadata
+        burnin = int(self.inference_metadata['plot']['mcmc_samples']['burnin'])
+
+        # Set posterior predictive range to covariate range
+        x = self.x
+        # Set posterior predictive x based on args
+        if len(args) == 1 and hasattr(args[0],'__len__'):
+            x = args[0]
+
+        # Fix random seed
+        np.random.seed(seed)
+
+        # Compute posterior predictive mean
+        pp_mean = np.sum([self.evaluate_predictive_likelihood(self.theta[j,:],x) for j in range(burnin,self.theta.shape[0])],axis=0)/self.theta[burnin:].shape[0]
+        # Compute posterior predictive standard deviation
+        pp_std = np.sum([self.evaluate_predictive_likelihood(self.theta[j,:],x)**2 for j in range(burnin,self.theta.shape[0])],axis=0)/self.theta[burnin:].shape[0] - pp_mean**2
+
+        # Update class variables
+        self.posterior_predictive_mean = pp_mean
+        self.posterior_predictive_std = pp_std
+        self.posterior_predictive_x = x
+
+        # Compute execution time
+        if 'prints' in kwargs:
+            if kwargs.get('prints'):
+                toc = time.perf_counter()
+                print(f"Computed posterior predictive in {toc - tic:0.4f} seconds")
 
     def evaluate_log_unnormalised_posterior(self,fundamental_diagram):
 
@@ -413,6 +528,76 @@ class MarkovChainMonteCarlo(object):
 
         return log_unnormalised_posterior,params_mesh[::-1]
 
+    def generate_univariate_prior_plots(self,fundamental_diagram,show_plot:bool=False,prints:bool=False):
+
+        # Make sure you have stored the necessary attributes
+        utils.validate_attribute_existence(self,['log_univariate_priors'])
+
+        # # Create sublots
+        # fig, axs = plt.subplots(figsize=(10,10*fundamental_diagram.parameter_number),nrows=fundamental_diagram.parameter_number,ncols=1)
+
+        # Get prior distribution parameters
+        prior_params = list(self.inference_metadata['inference']['priors'].values())
+
+        figs = []
+        # Loop through parameter number
+        for i in range(0,fundamental_diagram.parameter_number):
+
+            fig = plt.figure(figsize=(10,8))
+
+            # Define x range
+            xrange = np.linspace(0,10,1000)
+            # Store prior hyperparameter kwargs from metadata
+            hyperparams = {}
+            prior_key = list(self.inference_metadata['inference']['priors'].keys())[i]
+            for k, v in self.inference_metadata['inference']['priors'][prior_key].items():
+                if k != "distribution":
+                    hyperparams[k] = float(v)
+
+            yrange = self.log_univariate_priors[i].pdf(xrange,**hyperparams)
+            prior_mean = np.round(self.log_univariate_priors[i].mean(**hyperparams),2)
+            prior_std = np.round(self.log_univariate_priors[i].std(**hyperparams),2)
+
+            # Store distributio and parameter names
+            distribution_name = prior_params[i]['distribution'].capitalize()
+            parameter_name = fundamental_diagram.parameter_names[i]
+
+            # Plot pdf
+            plt.plot(xrange,yrange,color='blue',label='pdf')
+            # Plot prior mean
+            plt.vlines(prior_mean,ymin=-1,ymax=np.max(yrange[np.isfinite(yrange)]),color='red',label=f'mean = {prior_mean}')
+            # Plot prior mean +/- prior std
+            plt.hlines(np.max(yrange)/2,xmin=(prior_mean-prior_std),xmax=(prior_mean+prior_std),color='green',label=f'mean +/- std, std = {prior_std}')
+
+            # Print hyperparameters
+            if prints: print(f'Prior hypeparameters for {fundamental_diagram.parameter_names[i]}:',', '.join(['{}={!r}'.format(k, v) for k, v in hyperparams.items()]))
+
+            # Plot true parameter if it exists
+            if hasattr(fundamental_diagram,'true_parameters'):
+                plt.vlines(fundamental_diagram.true_parameters[i],ymin=0,ymax=np.max(yrange[np.isfinite(yrange)]),color='black',label='true',linestyle='dashed')
+            # Change x limit
+            if (len(np.where((~np.isfinite(yrange)) | (yrange <= 0))[0]) > 0) and np.where((~np.isfinite(yrange)) | (yrange <= 0))[0][0] > 0:
+                ximax = np.min(np.where(~np.isfinite(yrange))[0][0],np.where(yrange<= 1e-10)[0][0])
+                plt.xlim(0,xrange[ximax])
+            else:
+                ximax = np.where(np.where(yrange <= 1e-3)[0]>=5)[0][0]
+                plt.xlim(0,xrange[np.where(yrange <= 1e-3)[0][ximax]])
+            # Change y limit
+            plt.ylim(0,np.max(yrange[np.isfinite(yrange)])*100/99)
+            # Set title
+            plt.title(f"{distribution_name} prior for {parameter_name} parameter")
+            # Plot legend
+            plt.legend()
+
+            # Plot figure
+            if show_plot: plt.show()
+            # Append to figures
+            figs.append({"parameters":[fundamental_diagram.parameter_names[i]],"figure":fig})
+            # Close plot
+            plt.close(fig)
+
+
+        return figs
 
 
     def generate_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False):
@@ -493,8 +678,53 @@ class MarkovChainMonteCarlo(object):
 
         return figs
 
+    def generate_mcmc_parameter_posterior_plots(self,fundamental_diagram,show_plot:bool=False):
 
-    def generate_mcmc_sample_plots(self,fundamental_diagram,include_posterior:bool=False,show_plot:bool=False):
+        # Make sure you have stored the necessary attributes
+        utils.validate_attribute_existence(self,['theta'])
+
+        # Make sure posterior has right number of parameters
+        if fundamental_diagram.parameter_number > self.theta.shape[1]:
+            raise ValueError(f'Posterior has {self.theta.shape[1]} parameters instead of at least {fundamental_diagram.parameter_number}')
+
+        # Get burnin, acf lags and histogram bins from plot metadata
+        burnin = int(self.inference_metadata['plot']['mcmc_samples']['burnin'])
+        lags = np.min([int(self.inference_metadata['plot']['mcmc_samples']['acf_lags']),(self.theta[burnin:,:].shape[0]-1)])
+        bins = np.max([int(self.inference_metadata['plot']['mcmc_samples']['hist_bins']),10])
+
+        figs = []
+        # Loop through parameter indices
+        for p in range(self.theta.shape[1]):
+            # Generate figure
+            fig = plt.figure(figsize=(10,8))
+
+            # Plot parameter posterior
+            freq,_,_ = plt.hist(self.theta[burnin:,p],bins=bins)
+
+
+            # Add labels
+            plt.title(f'Parameter posterior for {fundamental_diagram.parameter_names[p]}')
+            plt.vlines(np.mean(self.theta[burnin:,p]),0,np.max(freq),color='red',label=r'$\mu$', linewidth=2)
+            plt.vlines((np.mean(self.theta[burnin:,p])-np.std(self.theta[burnin:,p])),0,np.max(freq),color='red',label=r'$\mu - \sigma$',linestyle='dashed', linewidth=2)
+            plt.vlines((np.mean(self.theta[burnin:,p])+np.std(self.theta[burnin:,p])),0,np.max(freq),color='red',label=r'$\mu + \sigma$',linestyle='dashed', linewidth=2)
+            # Plot true parameters if they exist
+            if hasattr(fundamental_diagram,'true_parameters'):
+                plt.vlines(fundamental_diagram.true_parameters[p],0,np.max(freq),label='True',color='black',linewidth=2)
+            plt.xlabel(f'{fundamental_diagram.parameter_names[p]}')
+            plt.ylabel('Sample frequency')
+            plt.legend()
+
+            # Show plot
+            if show_plot: plt.show()
+            # Append plot to list
+            figs.append({"parameters":[fundamental_diagram.parameter_names[p]],"figure":fig})
+            # Close current plot
+            plt.close(fig)
+
+        return figs
+
+
+    def generate_mcmc_space_exploration_plots(self,fundamental_diagram,include_posterior:bool=False,show_plot:bool=False):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['theta','theta_proposed'])
@@ -551,14 +781,21 @@ class MarkovChainMonteCarlo(object):
                     num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),np.prod(Q_hat.shape)])
                     # Update levels
                     levels = np.linspace(float(self.inference_metadata['plot']['true_posterior']['vmin']),float(self.inference_metadata['plot']['true_posterior']['vmax']),num_colors)
-                elif bool(self.inference_metadata['plot']['true_posterior']['num_colors']):
-                    # Get number of colors in contour
-                    num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),np.prod(Q_hat.shape)])
-                    levels = np.linspace(np.min(Q_hat),np.max(Q_hat),num_colors)
+                else:
+                    vmin = np.min(Q_hat)
+                    if bool(self.inference_metadata['plot']['true_posterior']['vmin']):
+                        vmin = np.max([float(self.inference_metadata['plot']['true_posterior']['vmin']),np.min(Q_hat)])
+                    vmax = np.max(Q_hat)
+                    if bool(self.inference_metadata['plot']['true_posterior']['vmax']):
+                        vmax = np.min([float(self.inference_metadata['plot']['true_posterior']['vmax']),np.max(Q_hat)])
+                    if bool(self.inference_metadata['plot']['true_posterior']['num_colors']):
+                        # Get number of colors in contour
+                        num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),np.prod(Q_hat.shape)])
+                    if vmin >= vmax: print('Wrong order'); levels = np.linspace(vmax,vmin,num_colors)
+                    else: levels = np.linspace(vmin,vmax,num_colors)
 
                 # Plot countour surface
-                if levels is None: im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat,zorder=1)
-                else:  im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat, levels=levels,zorder=1)
+                im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat, levels=levels,zorder=1)
                 # Plot MAP estimate
                 plt.scatter(self.parameter_mesh[index[0]].flatten()[np.argmax(Q_hat)],self.parameter_mesh[index[1]].flatten()[np.argmax(Q_hat)],label='surface max',marker='x',s=200,color='blue',zorder=3)
                 # Change limits
@@ -575,7 +812,7 @@ class MarkovChainMonteCarlo(object):
 
             # Plot true parameters if they exist
             if hasattr(fundamental_diagram,'true_parameters'):
-                plt.scatter(fundamental_diagram.true_parameters[index[0]],fundamental_diagram.true_parameters[index[1]],label='True',marker='x',s=100,color='black',zorder=4)
+                plt.scatter(fundamental_diagram.true_parameters[index[0]],fundamental_diagram.true_parameters[index[1]],label='True',marker='x',s=100,color='black',zorder=7)
 
             # Add labels
             plt.xlabel(f'{parameter_names[i][index[0]]}')
@@ -600,6 +837,9 @@ class MarkovChainMonteCarlo(object):
         # Get starting time
         start = time.time()
 
+        # Make sure you have stored the necessary attributes
+        utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
+
         # Get number of plots
         num_plots = int(comb(len(self.log_unnormalised_posterior.shape),2))
 
@@ -613,6 +853,7 @@ class MarkovChainMonteCarlo(object):
         elif num_plots <= 0:
             raise ValueError(f'You cannot plot {num_plots} plots!')
 
+        # print('Generating log posterior plots')
         # Loop through each plot
         figs = []
         for i in range(num_plots):
@@ -632,17 +873,23 @@ class MarkovChainMonteCarlo(object):
                 num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),np.prod(Q_hat.shape)])
                 # Update levels
                 levels = np.linspace(float(self.inference_metadata['plot']['true_posterior']['vmin']),float(self.inference_metadata['plot']['true_posterior']['vmax']),num_colors)
-            elif bool(self.inference_metadata['plot']['true_posterior']['num_colors']):
-                # Get number of colors in contour
-                num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),np.prod(Q_hat.shape)])
-                levels = np.linspace(np.min(Q_hat),np.max(Q_hat),num_colors)
+            else:
+                vmin = np.min(Q_hat)
+                if bool(self.inference_metadata['plot']['true_posterior']['vmin']):
+                    vmin = np.max([float(self.inference_metadata['plot']['true_posterior']['vmin']),np.min(Q_hat)])
+                vmax = np.max(Q_hat)
+                if bool(self.inference_metadata['plot']['true_posterior']['vmax']):
+                    vmax = np.min([float(self.inference_metadata['plot']['true_posterior']['vmax']),np.max(Q_hat)])
+                if bool(self.inference_metadata['plot']['true_posterior']['num_colors']):
+                    # Get number of colors in contour
+                    num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),np.prod(Q_hat.shape)])
+                levels = np.linspace(vmin,vmax,num_colors)
 
             # Create figure
             fig = plt.figure(figsize=(10,8))
 
             # Plot countour surface
-            if levels is None: im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat)
-            else:  im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat, levels=levels)
+            im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat, levels=levels)
 
             plt.scatter(self.parameter_mesh[index[0]].flatten()[np.argmax(Q_hat)],self.parameter_mesh[index[1]].flatten()[np.argmax(Q_hat)],label='surface max',marker='x',s=200,color='blue',zorder=10)
             if hasattr(fundamental_diagram,'true_parameters'):
@@ -665,77 +912,40 @@ class MarkovChainMonteCarlo(object):
 
         return figs
 
+    def generate_posterior_predictive_plot(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False):
 
-    def generate_univariate_prior_plots(self,fundamental_diagram,show_plot:bool=False,prints:bool=False):
-
-        # Make sure you have stored the necessary attributes
-        utils.validate_attribute_existence(self,['log_univariate_priors'])
-
-        # # Create sublots
-        # fig, axs = plt.subplots(figsize=(10,10*fundamental_diagram.parameter_number),nrows=fundamental_diagram.parameter_number,ncols=1)
-
-        # Get prior distribution parameters
-        prior_params = list(self.inference_metadata['inference']['priors'].values())
+        # Get starting time
+        start = time.time()
 
         figs = []
-        # Loop through parameter number
-        for i in range(0,fundamental_diagram.parameter_number):
 
-            fig = plt.figure(figsize=(10,8))
+        # Create figure
+        fig = plt.figure(figsize=(10,8))
 
-            # Define x range
-            xrange = np.linspace(0,10,1000)
-            # Store prior hyperparameter kwargs from metadata
-            hyperparams = {}
-            prior_key = list(self.inference_metadata['inference']['priors'].keys())[i]
-            for k, v in self.inference_metadata['inference']['priors'][prior_key].items():
-                if k != "distribution":
-                    hyperparams[k] = float(v)
+        # Compute upper and lower bounds
+        q_upper = self.posterior_predictive_mean + num_stds*self.posterior_predictive_std
+        q_mean = self.posterior_predictive_mean
+        q_lower= self.posterior_predictive_mean - num_stds*self.posterior_predictive_std
 
-            yrange = self.log_univariate_priors[i].pdf(xrange,**hyperparams)
-            prior_mean = np.round(self.log_univariate_priors[i].mean(**hyperparams),2)
-            prior_std = np.round(self.log_univariate_priors[i].std(**hyperparams),2)
+        plt.scatter(self.x,self.y,label='Observed data',color='blue',zorder=3)
+        plt.plot(self.posterior_predictive_x,q_mean,color='red',label=r'$\mu$',zorder=2)
+        plt.fill_between(self.posterior_predictive_x,q_upper,q_lower,alpha=0.5,color='red',label=f"$\mu$ +/- {num_stds}$\sigma$",zorder=2)
+        plt.title(f"Posterior predictive for {self.inference_metadata['fundamental_diagram']} FD")
+        plt.xlabel(f'{self.x_name}')
+        plt.ylabel(f'{self.y_name}')
+        plt.legend()
 
-            # Store distributio and parameter names
-            distribution_name = prior_params[i]['distribution'].capitalize()
-            parameter_name = fundamental_diagram.parameter_names[i]
-
-            # Plot pdf
-            plt.plot(xrange,yrange,color='blue',label='pdf')
-            # Plot prior mean
-            plt.vlines(prior_mean,ymin=-1,ymax=np.max(yrange[np.isfinite(yrange)]),color='red',label=f'mean = {prior_mean}')
-            # Plot prior mean +/- prior std
-            plt.hlines(np.max(yrange)/2,xmin=(prior_mean-prior_std),xmax=(prior_mean+prior_std),color='green',label=f'mean +/- std, std = {prior_std}')
-
-            # Print hyperparameters
-            if prints: print(f'Prior hypeparameters for {fundamental_diagram.parameter_names[i]}:',', '.join(['{}={!r}'.format(k, v) for k, v in hyperparams.items()]))
-
-            # Plot true parameter if it exists
-            if hasattr(fundamental_diagram,'true_parameters'):
-                plt.vlines(fundamental_diagram.true_parameters[i],ymin=0,ymax=np.max(yrange[np.isfinite(yrange)]),color='black',label='true',linestyle='dashed')
-            # Change x limit
-            if (len(np.where((~np.isfinite(yrange)) | (yrange <= 0))[0]) > 0) and np.where((~np.isfinite(yrange)) | (yrange <= 0))[0][0] > 0:
-                ximax = np.min(np.where(~np.isfinite(yrange))[0][0],np.where(yrange<= 1e-10)[0][0])
-                plt.xlim(0,xrange[ximax])
-            else:
-                ximax = np.where(np.where(yrange <= 1e-3)[0]>=5)[0][0]
-                plt.xlim(0,xrange[np.where(yrange <= 1e-3)[0][ximax]])
-            # Change y limit
-            plt.ylim(0,np.max(yrange[np.isfinite(yrange)])*100/99)
-            # Set title
-            plt.title(f"{distribution_name} prior for {parameter_name} parameter")
-            # Plot legend
-            plt.legend()
-
-            # Plot figure
-            if show_plot: plt.show()
-            # Append to figures
-            figs.append({"parameters":[fundamental_diagram.parameter_names[i]],"figure":fig})
-            # Close plot
-            plt.close(fig)
-
+        # Show plot
+        if show_plot: plt.show()
+        # Append plot to list
+        figs.append({"parameters":fundamental_diagram.parameter_names,"figure":fig})
+        # Close current plot
+        plt.close(fig)
 
         return figs
+
+
+
 
 
     """ ---------------------------------------------------------------------------Import data-----------------------------------------------------------------------------"""
@@ -790,7 +1000,7 @@ class MarkovChainMonteCarlo(object):
 
         # Get parameter names
         param_names = "_".join([str(p).replace("$","").replace("\\","") for p in parameter_pair])
-
+        # print('Importing unnormalised posterior')
         # Load from txt file
         try:
             file = inference_filename+f'_log_unnormalised_posterior_{param_names}.txt'
@@ -809,6 +1019,38 @@ class MarkovChainMonteCarlo(object):
             self.parameter_mesh = self.parameter_mesh.reshape(parameter_mesh_shape)
         except:
             print('Available files are',list(glob.glob(inference_filename + "_log_unnormalised_posterior_mesh*.txt")))
+            raise Exception(f'File {file} was not found.')
+
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print('Imported log unnormalised posterior')
+
+    def import_posterior_predictive(self,**kwargs):
+
+        # Get inference filename
+        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['data_id'],self.method,self.inference_metadata['id'])
+
+        # Load from txt file
+        try:
+            file = inference_filename+f'_posterior_predictive_mean.txt'
+            self.posterior_predictive_mean = np.loadtxt(file)
+        except:
+            print('Available files are',list(glob.glob(inference_filename + "*.txt")))
+            raise Exception(f'File {file} was not found.')
+
+        # Load from txt file
+        try:
+            file = inference_filename+f'_posterior_predictive_std.txt'
+            self.posterior_predictive_std = np.loadtxt(file)
+        except:
+            print('Available files are',list(glob.glob(inference_filename + "*.txt")))
+            raise Exception(f'File {file} was not found.')
+
+        # Load from txt file
+        try:
+            file = inference_filename+f'_posterior_predictive_x.txt'
+            self.posterior_predictive_x = np.loadtxt(file)
+        except:
+            print('Available files are',list(glob.glob(inference_filename + "*.txt")))
             raise Exception(f'File {file} was not found.')
 
         if 'prints' in kwargs:
@@ -912,6 +1154,68 @@ class MarkovChainMonteCarlo(object):
         elif len(self.log_unnormalised_posterior.shape) < 2:
             raise ValueError(f'Log unnormalised posterior has shape {len(self.log_unnormalised_posterior.shape)} < 2')
 
+
+    def export_samples(self,**kwargs):
+
+        # Make sure you have necessary attributes
+        utils.validate_attribute_existence(self,['theta','theta_proposed','inference_metadata'])
+
+        # Get inference filename
+        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['data_id'],self.method,self.inference_metadata['id'])
+
+        # Export theta
+        # Save to txt file
+        np.savetxt((inference_filename+'_theta.txt'),self.theta)
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_theta.txt')}")
+
+        # Export theta_proposed
+        # Save to txt file
+        np.savetxt((inference_filename+'_theta_proposed.txt'),self.theta_proposed)
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_theta_proposed.txt')}")
+
+    def export_posterior_predictive(self,**kwargs):
+
+        # Make sure you have necessary attributes
+        utils.validate_attribute_existence(self,['posterior_predictive_mean','posterior_predictive_std','posterior_predictive_x'])
+
+        # Get inference filename
+        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['data_id'],self.method,self.inference_metadata['id'])
+
+        # Export posterior_predictive_mean
+        # Save to txt file
+        np.savetxt((inference_filename+'_posterior_predictive_mean.txt'),self.posterior_predictive_mean)
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_posterior_predictive_mean.txt')}")
+
+        # Export posterior_predictive_std
+        # Save to txt file
+        np.savetxt((inference_filename+'_posterior_predictive_std.txt'),self.posterior_predictive_std)
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_posterior_predictive_std.txt')}")
+
+        # Export posterior_predictive_x
+        # Save to txt file
+        np.savetxt((inference_filename+'_posterior_predictive_x.txt'),self.posterior_predictive_x)
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_posterior_predictive_x.txt')}")
+
+    def export_metadata(self,**kwargs):
+
+        # Make sure you have necessary attributes
+        utils.validate_attribute_existence(self,['inference_metadata'])
+
+        # Get inference filename
+        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['data_id'],self.method,self.inference_metadata['id'])
+
+        #  Export metadata where acceptance is part of metadata
+        with open((inference_filename+'_metadata.json'), 'w') as outfile:
+            json.dump(self.inference_metadata, outfile)
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_metadata.txt')}")
+
+
     def export_posterior_plots(self,figs,plot_type,**kwargs):
 
         # Make sure figs is not empty
@@ -952,26 +1256,6 @@ class MarkovChainMonteCarlo(object):
         self.export_posterior_plots(figs,"log_unnormalised_posterior")
 
 
-    def export_samples(self,**kwargs):
-
-        # Make sure you have necessary attributes
-        utils.validate_attribute_existence(self,['theta','theta_proposed','inference_metadata'])
-
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['data_id'],self.method,self.inference_metadata['id'])
-
-        # Export theta
-        # Save to txt file
-        np.savetxt((inference_filename+'_theta.txt'),self.theta)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_theta.txt')}")
-
-        # Export theta_proposed
-        # Save to txt file
-        np.savetxt((inference_filename+'_theta_proposed.txt'),self.theta_proposed)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_theta_proposed.txt')}")
-
     def export_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False):
 
         # Get subplots
@@ -979,6 +1263,14 @@ class MarkovChainMonteCarlo(object):
 
         # Export them
         self.export_posterior_plots(figs,"mixing")
+
+    def export_mcmc_parameter_posterior_plots(self,fundamental_diagram,show_plot:bool=False):
+
+        # Get subplots
+        figs = self.generate_mcmc_parameter_posterior_plots(fundamental_diagram,show_plot)
+
+        # Export them
+        self.export_posterior_plots(figs,"parameter_posterior")
 
 
     def export_mcmc_acf_plots(self,fundamental_diagram,show_plot:bool=False):
@@ -990,27 +1282,21 @@ class MarkovChainMonteCarlo(object):
         self.export_posterior_plots(figs,"acf")
 
 
-    def export_mcmc_sample_plots(self,fundamental_diagram,show_plot:bool=False):
+    def export_mcmc_space_exploration_plots(self,fundamental_diagram,show_plot:bool=False):
 
         # Set show posterior plot to true iff the metadata says so AND you have already computed the posterior
         show_posterior = strtobool(self.inference_metadata['plot']['mcmc_samples']['include_posterior']) and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
 
         # Generate plots
-        figs = self.generate_mcmc_sample_plots(fundamental_diagram,show_posterior,show_plot)
+        figs = self.generate_mcmc_space_exploration_plots(fundamental_diagram,show_posterior,show_plot)
 
         # Export them
         self.export_posterior_plots(figs,"space_exploration")
 
-    def export_metadata(self,**kwargs):
+    def export_mcmc_posterior_predictive_plot(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False):
 
-        # Make sure you have necessary attributes
-        utils.validate_attribute_existence(self,['inference_metadata'])
+        # Generate plots
+        figs = self.generate_posterior_predictive_plot(fundamental_diagram,num_stds,show_plot)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['data_id'],self.method,self.inference_metadata['id'])
-
-        #  Export metadata where acceptance is part of metadata
-        with open((inference_filename+'_metadata.json'), 'w') as outfile:
-            json.dump(self.inference_metadata, outfile)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'_metadata.txt')}")
+        # Export them
+        self.export_posterior_plots(figs,"posterior_predictive")
