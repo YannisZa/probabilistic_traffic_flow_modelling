@@ -1,11 +1,15 @@
 # Bugs
 
-Debug marginal likelihood posterior harmonic mean estimation
+## Urgent
+Debug posterior predictive
+Debug thermodynamic integration mcmc
 
+## Non-urgent
+Debug gelman and rubin criterion
 
 # Extensions
 
-Implement marginal likelihood thermodynamic integration estimation
-Implement log posterior in c
+## Non-urgent
 Implement sigma learning
 Implement Experiments class
+Implement log posterior in c

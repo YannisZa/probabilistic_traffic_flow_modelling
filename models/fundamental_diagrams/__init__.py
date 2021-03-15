@@ -112,12 +112,16 @@ class FundamentalDiagram(object):
         self.import_simulation_metadata(data_id)
 
         # Define rho
-        rho = np.linspace(float(self.simulation_metadata['rho']['rho_min']),
-                        float(self.simulation_metadata['rho']['rho_max']),
-                        int(self.simulation_metadata['rho']['rho_steps']))
+        rho_intervals = []
+        for interval in self.simulation_metadata['rho']:
+            rho = np.linspace(float(self.simulation_metadata['rho'][interval]['rho_min']),
+                        float(self.simulation_metadata['rho'][interval]['rho_max']),
+                        int(self.simulation_metadata['rho'][interval]['rho_steps']))
+            # Append to intervals
+            rho_intervals.append(rho)
 
         # Update rho attribute in object
-        self.rho = rho
+        self.rho = np.concatenate(rho_intervals)
 
 
     def simulate_with_noise(self,p,**kwargs):
@@ -138,10 +142,13 @@ class FundamentalDiagram(object):
         self.simulate(p)
         # Generate white noise
         noise = np.random.multivariate_normal(np.zeros(dim),np.eye(dim)*sigma2)
+
         # Update q (noisy) and q_true (noise-free)
         self.q = self.q_true*np.exp(noise)
         # Update true parameters
         self.true_parameters = p
+
+
 
     def import_data(self,data_id):
 
@@ -234,7 +241,7 @@ class FundamentalDiagram(object):
         return fig
 
 
-    def export_simulation_plot(self,data_id,**kwargs):
+    def export_simulation_plot(self,data_id,show_plot:bool=False,**kwargs):
 
         # Get data filename
         data_filename = utils.prepare_output_simulation_filename(data_id)

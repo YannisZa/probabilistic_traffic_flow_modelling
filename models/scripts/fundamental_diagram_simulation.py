@@ -25,5 +25,5 @@ fd.setup(data_id)
 fd.simulate_with_noise(fd.true_parameters)
 
 # Export plot and data
-fd.export_simulation_plot(str(data_id))
+fd.export_simulation_plot(str(data_id),True)
 fd.export_data(str(data_id))

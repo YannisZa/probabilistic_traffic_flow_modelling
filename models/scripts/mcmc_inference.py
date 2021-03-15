@@ -50,38 +50,47 @@ inf_model.setup(inference_params,fd,sigma2)
 
 # Compute log unnormalised posterior
 # log_true_posterior,parameters_mesh = inf_model.evaluate_log_unnormalised_posterior(fd)
+# Export log unnormalised posterior
+# inf_model.export_log_unnormalised_posterior(fd,prints=True)
 # Import log unnormalised posterior
 # inf_model.import_log_unnormalised_posterior(['alpha','beta'])
 
-# Export log unnormalised posterior
-# inf_model.export_log_unnormalised_posterior(fd)
 # Export log unnormalsed log posterior plot
 # inf_model.export_log_unnormalised_posterior_plots(fd,True)
 
 # Run MCMC
 # theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True,None)
-inf_model.import_mcmc_samples()
+# Run thermodynamic integration MCMC
+ti_theta_accepted,ti_acceptance = inf_model.thermodynamic_integration_mcmc(fd,True,None)
 
-# Compute marginal likelihood estimator
-# inf_model.compute_log_posterior_harmonic_mean_estimator(prints=True)
+# Export MCMC samples
+inf_model.export_mcmc_samples()
+# Import MCMC samples
+# inf_model.import_mcmc_samples(fd)
+
+# Export MCMC data
+# inf_model.export_mcmc_parameter_posterior_plots(fd,2,True)
+# inf_model.export_mcmc_space_exploration_plots(fd,True)
+# inf_model.export_mcmc_mixing_plots(fd,True)
+# inf_model.export_mcmc_acf_plots(fd,True)
+# Export thermodynamic integration MCMC
+inf_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,False)
 
 # Compute Gelman and Rubin statistic
-# inf_model.compute_gelman_rubin_statistic(prints=True)
+# inf_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(prints=True)
+# inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(prints=True)
 
 # Compute posterior predictive
 # inf_model.evaluate_posterior_predictive_moments()
 # inf_model.import_posterior_predictive()
 
-# Export MCMC data
-# inf_model.export_samples()
+# Export posterior predictive
 # inf_model.export_posterior_predictive()
-
-# Export MCMC
-inf_model.export_mcmc_parameter_posterior_plots(fd,True)
-# inf_model.export_mcmc_space_exploration_plots(fd,True)
-# inf_model.export_mcmc_mixing_plots(fd,False)
-# inf_model.export_mcmc_acf_plots(fd,False)
 # inf_model.export_mcmc_posterior_predictive_plot(fd,2,True)
 
+# Compute marginal likelihood estimators
+# inf_model.compute_log_posterior_harmonic_mean_estimator(prints=True)
+inf_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(prints=True)
+
 # Export metadata
-# inf_model.export_metadata()
+inf_model.export_metadata()

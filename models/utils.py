@@ -162,13 +162,15 @@ def prepare_output_simulation_filename(simulation_id):
     # Return simulation filename
     return os.path.join(output_folder,simulation_id)
 
-def prepare_output_inference_filename(dataset,method,inference_id):
+def prepare_output_inference_filename(inference_id,*args,**kwargs):
+
     # Define output folder path
-    output_folder = os.path.join(root,'data/output/inference_experiments',dataset,method,inference_id)
+    if len(args) > 0: output_folder = os.path.join(root,'data/output/inference_experiments',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/',*[args[i]+'/' for i in range(len(args))])
+    else: output_folder = os.path.join(root,'data/output/inference_experiments',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/')
     # Create new folder if it doesn't exist
     ensure_dir(output_folder)
     # Return simulation filename
-    return os.path.join(output_folder,inference_id)
+    return output_folder
 
 def prepare_input_simulation_filename(simulation_id):
     # Define input filepath

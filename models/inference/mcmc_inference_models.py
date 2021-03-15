@@ -19,6 +19,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
     def __init__(self):
         super().__init__('grwmh')
         MarkovChainMonteCarlo.evaluate_log_function.fset(self, super().evaluate_log_posterior)
+        MarkovChainMonteCarlo.evaluate_thermodynamic_integration_log_function.fset(self, super().evaluate_thermodynamic_integration_log_posterior)
 
     def update_log_likelihood_log_pdf(self,fundamental_diagram,sigma2):
 
@@ -94,10 +95,10 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         MarkovChainMonteCarlo.log_univariate_priors.fset(self, prior_distributions)
 
 
-    def update_transition_kernel(self,fundamental_diagram):
+    def update_transition_kernel(self,fundamental_diagram,mcmc_type:str='vanilla_mcmc'):
 
         # Get kernel parameters
-        kernel_params = self.inference_metadata['inference']['transition_kernel']
+        kernel_params = self.inference_metadata['inference'][mcmc_type]['transition_kernel']
         kernel_type = str(kernel_params['type'])
         K_diagonal = list(kernel_params['K_diagonal'])
         beta_step = float(kernel_params['beta_step'])
@@ -119,9 +120,11 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
                 if num_params > 1: return p + beta_step*kernel_distr(np.zeros(num_params),np.diag(K_diagonal))
                 else: return p + beta_step*kernel_distr(0,K_diagonal[0])
 
-
         # Update super class transition kernel attribute
-        MarkovChainMonteCarlo.transition_kernel.fset(self, _kernel)
+        if mcmc_type == 'vanilla_mcmc':
+            MarkovChainMonteCarlo.transition_kernel.fset(self, _kernel)
+        elif mcmc_type == 'thermodynamic_integration_mcmc':
+            MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _kernel)
 
 
     def sample_from_univariate_priors(self,fundamental_diagram,N):
