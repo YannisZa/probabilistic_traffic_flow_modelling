@@ -13,3 +13,4 @@ polyline
 statsmodels
 pytest
 toml
+descartes

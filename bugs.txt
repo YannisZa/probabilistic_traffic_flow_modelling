@@ -16,6 +16,7 @@ Parameter initialisation in vanilla mcmc
 ## Non-urgent
 Write validate attribute and parameter statements where necessary
 Implement sigma learning
+Write tests for important functions
 
 ## Nice-to-have
 Function that updates a class attribute that does not exist
