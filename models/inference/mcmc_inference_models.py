@@ -16,21 +16,19 @@ matplotlib.rc('font', **{'size' : 18})
 class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
     pass
 
-    def __init__(self):
-        super().__init__('grwmh')
-        MarkovChainMonteCarlo.evaluate_log_function.fset(self, super().evaluate_log_posterior)
-        MarkovChainMonteCarlo.evaluate_thermodynamic_integration_log_function.fset(self, super().evaluate_thermodynamic_integration_log_posterior)
+    def __init__(self,inference_id):
+        super().__init__(inference_id)
+        MarkovChainMonteCarlo.method.fset(self, 'grwmh')
+        MarkovChainMonteCarlo.evaluate_log_target.fset(self, super().evaluate_log_posterior)
+        MarkovChainMonteCarlo.evaluate_thermodynamic_integration_log_target.fset(self, super().evaluate_thermodynamic_integration_log_posterior)
 
-    def update_log_likelihood_log_pdf(self,fundamental_diagram,sigma2):
+    def update_log_likelihood_log_pdf(self,fundamental_diagram):
 
-        # Define covariance
-        sigma_cov = None
-        if hasattr(sigma2,'__len__'):
-            sigma_cov = np.diag(sigma2)
-        elif sigma2 is not None:
-            sigma_cov = np.eye(self.n)*sigma2
+        # If data is from a simulation and sigma parameter is not learned
+        if ((fundamental_diagram.simulation_flag) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters)>0):
+            # Define sigma
+            sigma_cov = np.eye(self.n)*fundamental_diagram.true_parameters[-1]
 
-        if (strtobool(self.inference_metadata['simulation_flag']) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (sigma_cov is not None):
             if self.inference_metadata['inference']['likelihood']['type'] in ['mnormal','normal']:
                 def _log_likelihood(p):
                     return ss.multivariate_normal.logpdf(self.y,fundamental_diagram.simulate(p),sigma_cov)
@@ -38,14 +36,58 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
                 def _log_likelihood(p):
                     return np.sum([ss.lognorm.logpdf(x=self.y[i],s=np.sqrt(sigma_cov[i,i]),scale=fundamental_diagram.simulate(p)[i]) for i in range(self.n)])
         else:
+            raise ValueError('Not implemented yet')
+
             if self.inference_metadata['inference']['likelihood']['type'] in ['mnormal','normal']:
                 def _log_likelihood(p):
                     return ss.multivariate_normal.logpdf(self.y,fundamental_diagram.simulate(p),np.eye(self.n)*p[-1])
             if self.inference_metadata['inference']['likelihood']['type'] in ['mlognormal','lognormal']:
                 def _log_likelihood(p):
-                    return np.sum([ss.lognorm.logpdf(x=self.y[i],s=np.sqrt(sigma_cov[i,i]),scale=fundamental_diagram.simulate(p)[i]) for i in range(self.n)])
+                    return np.sum([ss.lognorm.logpdf(x=self.y[i],s=np.sqrt(p[-1]),scale=fundamental_diagram.simulate(p)[i]) for i in range(self.n)])
 
         MarkovChainMonteCarlo.log_likelihood.fset(self, _log_likelihood)
+
+    def update_predictive_likelihood(self,fundamental_diagram):
+
+        # Get likelihood numpy sampler from metadata
+        likelihood_sampler = utils.map_name_to_numpy_distribution(self.inference_metadata['inference']['likelihood']['type'])
+
+        if ((fundamental_diagram.simulation_flag) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters) > 0):
+
+            if self.n > 1 and self.inference_metadata['inference']['likelihood']['type'] in ['lognormal','normal']:
+                raise ValueError(f"Univariate {self.inference_metadata['inference']['likelihood']['type']} likelihood does not work with {self.n}-dimensional data.")
+
+            # Define sigma
+            sigma_cov = np.eye(self.n)*fundamental_diagram.true_parameters[-1]
+
+            if 'lognormal' in self.inference_metadata['inference']['likelihood']['type'] and self.n >= 1:
+                def _predictive_likelihood(p:list,x:list):
+                    return np.array([likelihood_sampler(mean=np.log(fundamental_diagram.simulate_with_x(p,x[i])),sigma=np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
+            elif self.n == 1:#self.inference_metadata['inference']['likelihood']['type'] == 'normal':
+                def _predictive_likelihood(p:list,x:list):
+                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
+            elif self.n > 1:
+                def _predictive_likelihood(p:list,x:list):
+                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),sigma_cov) for i in range(len(x))])
+            else:
+                raise ValueError(f'Number of data points {self.n} are too few...')
+        else:
+            raise ValueError('Not implemented yet')
+
+            if 'lognormal' in self.inference_metadata['inference']['likelihood']['type'] and self.n >= 1:
+                def _predictive_likelihood(p:list,x:list):
+                    return np.array([likelihood_sampler(mean=np.log(fundamental_diagram.simulate_with_x(p,x[i])),sigma=np.sqrt(p[-1])) for i in range(len(x))])
+            elif self.n == 1:#self.inference_metadata['inference']['likelihood']['type'] == 'normal':
+                def _predictive_likelihood(p:list,x:list):
+                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),np.sqrt(p[-1])) for i in range(len(x))])
+            elif self.n > 1:
+                def _predictive_likelihood(p:list,x:list):
+                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),np.eye(self.n)*p[-1]) for i in range(len(x))])
+            else:
+                raise ValueError(f'Number of data points {self.n} are too few...')
+
+        MarkovChainMonteCarlo.predictive_likelihood.fset(self, _predictive_likelihood)
+
 
     def update_log_prior_log_pdf(self,fundamental_diagram):
 
@@ -53,7 +95,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         prior_distributions = []
 
         # Store number of parameters
-        num_params = fundamental_diagram.parameter_number
+        num_params = fundamental_diagram.num_learning_parameters
 
         # Make sure you have enough priors
         if len(self.inference_metadata['inference']['priors'].keys()) < num_params:
@@ -104,7 +146,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         beta_step = float(kernel_params['beta_step'])
 
         # Store number of parameters
-        num_params = fundamental_diagram.parameter_number
+        num_params = fundamental_diagram.num_learning_parameters
 
         # If K_diagonal does not have length equal to num_params raise error
         if len(K_diagonal) != num_params:
@@ -132,7 +174,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         prior_samples = []
 
         # Get number of parameters
-        num_params = fundamental_diagram.parameter_number
+        num_params = fundamental_diagram.num_learning_parameters
 
         # Make sure you have enough priors
         if len(self.inference_metadata['inference']['priors'].keys()) < num_params:
@@ -154,47 +196,3 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
             else: prior_samples.append(prior_distr(*prior_hyperparams.values(),size=N))
 
         return np.array(prior_samples)
-
-
-    def update_predictive_likelihood(self,fundamental_diagram,sigma2):
-
-        # Define covariance
-        sigma_cov = None
-        if hasattr(sigma2,'__len__'):
-            sigma_cov = np.diag(sigma2)
-        elif sigma2 is not None:
-            sigma_cov = np.eye(self.n)*sigma2
-
-        # Get likelihood numpy sampler from metadata
-        likelihood_sampler = utils.map_name_to_numpy_distribution(self.inference_metadata['inference']['likelihood']['type'])
-
-        if (strtobool(self.inference_metadata['simulation_flag']) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (sigma_cov is not None):
-
-            if self.n > 1 and self.inference_metadata['inference']['likelihood']['type'] in ['lognormal','normal']:
-                raise ValueError(f"Univariate {self.inference_metadata['inference']['likelihood']['type']} likelihood does not work with {self.n}-dimensional data.")
-
-            if 'lognormal' in self.inference_metadata['inference']['likelihood']['type'] and self.n >= 1:
-                def _predictive_likelihood(p:list,x:list):
-                    return np.array([likelihood_sampler(mean=np.log(fundamental_diagram.simulate_with_x(p,x[i])),sigma=np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
-            elif self.n == 1:#self.inference_metadata['inference']['likelihood']['type'] == 'normal':
-                def _predictive_likelihood(p:list,x:list):
-                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
-            elif self.n > 1:
-                def _predictive_likelihood(p:list,x:list):
-                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),sigma_cov) for i in range(len(x))])
-            else:
-                raise ValueError(f'Number of data points {self.n} are too few...')
-        else:
-            if 'lognormal' in self.inference_metadata['inference']['likelihood']['type'] and self.n >= 1:
-                def _predictive_likelihood(p:list,x:list):
-                    return np.array([likelihood_sampler(mean=np.log(fundamental_diagram.simulate_with_x(p,x[i])),sigma=np.sqrt(p[-1])) for i in range(len(x))])
-            elif self.n == 1:#self.inference_metadata['inference']['likelihood']['type'] == 'normal':
-                def _predictive_likelihood(p:list,x:list):
-                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),np.sqrt(p[-1])) for i in range(len(x))])
-            elif self.n > 1:
-                def _predictive_likelihood(p:list,x:list):
-                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),np.eye(self.n)*p[-1]) for i in range(len(x))])
-            else:
-                raise ValueError(f'Number of data points {self.n} are too few...')
-
-        MarkovChainMonteCarlo.predictive_likelihood.fset(self, _predictive_likelihood)

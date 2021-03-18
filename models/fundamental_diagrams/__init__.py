@@ -5,16 +5,19 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import os
 import toml
 import utils
+import warnings
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import scipy.optimize as so
+from distutils.util import strtobool
 matplotlib.rc('font', **{'size'   : 18})
 
 
 class FundamentalDiagram(object):
 
-    def __init__(self,name):
-        self.name = name
+    def __init__(self,data_id):
+        self.data_id = data_id
 
     def simulate(self,p):
         pass
@@ -26,12 +29,12 @@ class FundamentalDiagram(object):
         pass
 
     @property
-    def parameter_number(self):
-        return self.__parameter_number
+    def num_learning_parameters(self):
+        return self.__num_learning_parameters
 
-    @parameter_number.setter
-    def parameter_number(self,param_num):
-        self.__parameter_number = param_num
+    @num_learning_parameters.setter
+    def num_learning_parameters(self,num_learning_parameters):
+        self.__num_learning_parameters = num_learning_parameters
 
     @property
     def parameter_names(self):
@@ -49,22 +52,30 @@ class FundamentalDiagram(object):
     def simulation_flag(self,simulation_flag):
         self.__simulation_flag = simulation_flag
 
+    @property
+    def name(self):
+        return self.__name
+
+    @name.setter
+    def name(self,name):
+        self.__name = name
+
 
     @property
-    def jacobian(self):
-        return self.__jac
+    def ols_params(self):
+        return self.__ols_params
 
-    @jacobian.setter
-    def jacobian(self,jac):
-        self.__jac = jac
+    @ols_params.setter
+    def ols_params(self, ols_params):
+        self.__ols_params = ols_params
 
     @property
-    def hessian(self):
-        return self.__hess
+    def ols_q(self):
+        return self.__ols_q
 
-    @hessian.setter
-    def hessian(self,hess):
-        self.__hess = hess
+    @ols_q.setter
+    def ols_q(self, ols_q):
+        self.__ols_q = ols_q
 
     @property
     def rho(self):
@@ -107,9 +118,34 @@ class FundamentalDiagram(object):
         self.__simulation_metadata = simulation_metadata
 
 
-    def setup(self,data_id):
-        # Import metadata to FD object
-        self.import_simulation_metadata(data_id)
+    def populate(self):
+
+        # Get flag of whether data are a simulation or not
+        self.simulation_flag = strtobool(self.simulation_metadata['simulation_flag'])
+
+        # Get true parameters if they exist (i.e. data is a simulation)
+        if self.simulation_flag and bool(self.simulation_metadata['true_parameters']) and (len(list(self.simulation_metadata['true_parameters'].keys())) == self.num_learning_parameters + 1):
+            self.true_parameters = np.array([float(p) for p in self.simulation_metadata['true_parameters'].values()])
+
+            print('True parameters')
+            for i,pname in enumerate(self.parameter_names):
+                print(f'{pname} = {self.true_parameters[i]}')
+        else:
+            # Update simulation flag in case it was set to True by mistaked in metadata
+            self.simulation_flag = False
+            # Set true parameters to None
+            self.true_parameters = None
+
+        # Import q and rho
+        self.import_raw_data()
+
+        # Compute OLS estimate
+        self.ols_estimation()
+
+
+    def populate_rho(self):
+        # Make sure you have imported metadata
+        utils.validate_attribute_existence(self,['simulation_metadata'])
 
         # Define rho
         rho_intervals = []
@@ -120,11 +156,14 @@ class FundamentalDiagram(object):
             # Append to intervals
             rho_intervals.append(rho)
 
-        # Update rho attribute in object
+        # Update class attribute in object
         self.rho = np.concatenate(rho_intervals)
 
-
     def simulate_with_noise(self,p,**kwargs):
+
+        # Populate rho in metadata
+        self.populate_rho()
+
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['rho','simulation_metadata'])
 
@@ -139,90 +178,100 @@ class FundamentalDiagram(object):
         # Get dimension of rho data
         dim = self.rho.shape[0]
         # Simulate without noise
-        self.simulate(p)
+        self.q_true = self.simulate(p)
         # Generate white noise
-        noise = np.random.multivariate_normal(np.zeros(dim),np.eye(dim)*sigma2)
-
+        # noise = np.random.multivariate_normal(np.zeros(dim),np.eye(dim)*sigma2)
         # Update q (noisy) and q_true (noise-free)
-        self.q = self.q_true*np.exp(noise)
+        # self.q = self.q_true*np.exp(noise)
+        self.q = np.array([np.random.lognormal(mean = np.log(self.q_true[i]), sigma = np.sqrt(sigma2)) for i in range(len(self.q_true))])
         # Update true parameters
         self.true_parameters = p
 
+    def squared_error(self,p):
+        return np.sum((self.q-self.simulate(p))**2)
 
+    def ols_estimation(self):
 
-    def import_data(self,data_id):
+        warnings.simplefilter("ignore")
+
+        # Make sure you have imported metadata
+        utils.validate_attribute_existence(self,['simulation_metadata','simulate','hessian','squared_error','rho'])
+
+        # Get p0 from metadata
+        p0 = list(self.simulation_metadata['ols']['p0'])
+
+        # Define constraints on positivty and concavity
+        positivity_constraint = so.NonlinearConstraint(self.simulate,np.ones(len(self.rho))* np.inf,np.zeros(len(self.rho)))
+        concavity_constraint = so.NonlinearConstraint(self.hessian,np.ones(len(self.rho))* -np.inf,np.zeros(len(self.rho)))
+
+        # Optimise parameters for least squares
+        if self.simulation_metadata['ols']['method'] == '':
+            constrained_ls = so.minimize(self.squared_error, p0, constraints=[positivity_constraint,concavity_constraint])
+        else:
+            constrained_ls = so.minimize(self.squared_error, p0, constraints=[positivity_constraint,concavity_constraint],method=self.simulation_metadata['ols']['method'])
+        constrained_ls_params = constrained_ls.x
+        constrained_ls_q_hat = self.simulate(constrained_ls_params)
+
+        # Update class variables
+        self.ols_q = constrained_ls_q_hat
+        self.ols_params = constrained_ls_params
+
+    def import_raw_data(self):
 
         # Get data filename
-        data_filename = utils.prepare_output_simulation_filename(data_id)
+        data_filename = utils.prepare_output_simulation_filename(self.data_id)
 
         # Import rho
-        if os.path.exists((data_filename+'_rho.txt')):
-            rho = np.loadtxt((data_filename+'_rho.txt'))
+        if os.path.exists((data_filename+'rho.txt')):
+            rho = np.loadtxt((data_filename+'rho.txt'))
         else:
-            raise FileNotFoundError(f"File {(data_filename+'_rho.txt')} not found.")
+            raise FileNotFoundError(f"File {(data_filename+'rho.txt')} not found.")
         # Update attribute rho
         self.rho = rho
 
         # Import q
-        if os.path.exists((data_filename+'_q.txt')):
-            q = np.loadtxt((data_filename+'_q.txt'))
+        if os.path.exists((data_filename+'q.txt')):
+            q = np.loadtxt((data_filename+'q.txt'))
         else:
-            raise FileNotFoundError(f"File {(data_filename+'_rho.txt')} not found.")
+            raise FileNotFoundError(f"File {(data_filename+'rho.txt')} not found.")
         # Update attribute rho
         self.q = q
 
-    def import_simulation_metadata(self,data_id):
 
-        # Get data filename
-        metadata_filename = utils.prepare_input_simulation_filename(data_id)
-
-        # Import simulation metadata
-        if os.path.exists(metadata_filename):
-            _simulation_metadata  = toml.load(metadata_filename)
-        else:
-            raise FileNotFoundError(f'File {metadata_filename} not found.')
-
-        # Add to class attribute
-        self.simulation_metadata = _simulation_metadata
-        self.true_parameters = np.array([float(p) for p in _simulation_metadata['true_parameters'].values()])
-        self.simulation_flag = True
-
-
-
-    def export_data(self,data_id,**kwargs):
+    def export_data(self,**kwargs):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['rho','q_true'])
 
         # Get data filename
-        data_filename = utils.prepare_output_simulation_filename(data_id)
+        data_filename = utils.prepare_output_simulation_filename(self.data_id)
 
         # Export rho
 
         # Ensure directory exists otherwise create it
         utils.ensure_dir(data_filename)
         # Save to txt file
-        np.savetxt((data_filename+'_rho.txt'),self.rho)
+        np.savetxt((data_filename+'rho.txt'),self.rho)
         if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(data_filename+'_rho.txt')}")
+            if kwargs.get('prints'): print(f"File exported to {(data_filename+'rho.txt')}")
 
         # Export q_true
 
         # Ensure directory exists otherwise create it
         utils.ensure_dir(data_filename)
         # Save to txt file
-        np.savetxt((data_filename+'_q_true.txt'),self.q_true)
+        np.savetxt((data_filename+'q_true.txt'),self.q_true)
         if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(data_filename+'_q_true.txt')}")
+            if kwargs.get('prints'): print(f"File exported to {(data_filename+'q_true.txt')}")
 
         # Export q if it exists
         if hasattr(self,'q'):
             # Ensure directory exists otherwise create it
             utils.ensure_dir(data_filename)
             # Save to txt file
-            np.savetxt((data_filename+'_q.txt'),self.q)
+            np.savetxt((data_filename+'q.txt'),self.q)
             if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(data_filename+'_q.txt')}")
+                if kwargs.get('prints'): print(f"File exported to {(data_filename+'q.txt')}")
 
 
     def plot_simulation(self):
@@ -241,17 +290,17 @@ class FundamentalDiagram(object):
         return fig
 
 
-    def export_simulation_plot(self,data_id,show_plot:bool=False,**kwargs):
+    def export_simulation_plot(self,show_plot:bool=False,**kwargs):
 
         # Get data filename
-        data_filename = utils.prepare_output_simulation_filename(data_id)
+        data_filename = utils.prepare_output_simulation_filename(self.data_id)
 
         # Generate plot
         fig = self.plot_simulation()
 
         # Export plot to file
-        fig.savefig((data_filename+'.png'))
+        fig.savefig((data_filename+'simulation.png'))
         # Close plot
         plt.close(fig)
         if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(data_filename+'.png')}")
+            if kwargs.get('prints'): print(f"File exported to {(data_filename+'simulation.png')}")

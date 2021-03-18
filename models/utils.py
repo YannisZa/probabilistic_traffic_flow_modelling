@@ -32,15 +32,33 @@ def instantiate_fundamental_diagram(data_id):
     # Load simulation parameters
     simulation_params = import_simulation_metadata(data_id)
 
-    # Return instance of Fundamental Diagram object child class
-    return utils.map_name_to_fundamental_diagram(simulation_params['fundamental_diagram'])
+    # Get class object
+    FD = map_name_to_fundamental_diagram(simulation_params['fundamental_diagram'])
 
-def instantiate_inference_method(data_id,inference_id):
+    # Instantiate object
+    fd = FD(data_id)
+
+    # Update simulation metadata
+    fd.simulation_metadata = simulation_params
+
+    # Return instance of Fundamental Diagram object child class
+    return fd
+
+def instantiate_inference_method(inference_id):
     # Load inference parameters
-    inference_params = import_inference_metadata(data_id,inference_id)
+    inference_params = import_inference_metadata(inference_id)
+
+    # Get class object
+    Model = map_name_to_inference_method(inference_params['inference_model'])
+
+    # Instantiate object
+    inference_model = Model(inference_id)
+
+    # Update simulation metadata
+    inference_model.inference_metadata = inference_params
 
     # Return instance of MarkovChainMonteCarlo object child class
-    return utils.map_name_to_inference_method(inference_params['inference_model']),inference_params
+    return inference_model
 
 
 """ ---------------------------------------------------------------------------Checking existence of attributes/parameters-----------------------------------------------------------------------------"""
@@ -53,6 +71,19 @@ def find_lacking_attributes(_self,necessary_attributes):
             lacking_attributes.append(attr)
 
     return lacking_attributes
+
+def find_lacking_parameters(necessary_parameters,current_params):
+    # Initialise lacking parameters array
+    lacking_params = []
+    # Loop through necessary parameters
+    for p in necessary_parameters:
+        # If parameter does not exist or is nullprepare_simulation_filename
+        if p not in current_params.keys() or current_params[p] == '' or current_params[p] is None:
+            lacking_params.append(p)
+        if hasattr(p, "__len__") and len(p) < 1:
+            lacking_params.append(p)
+
+    return lacking_params
 
 def has_attributes(_self,necessary_attributes):
     # Find lacking attributes
@@ -70,19 +101,6 @@ def validate_attribute_existence(_self,necessary_attributes):
     # If there is at least one lacking attribute raise error
     if len(lacking_attributes) > 0:
         raise AttributeError(f'Attributes {lacking_attributes} not found.')
-
-def find_lacking_parameters(necessary_parameters,current_params):
-    # Initialise lacking parameters array
-    lacking_params = []
-    # Loop through necessary parameters
-    for p in necessary_parameters:
-        # If parameter does not exist or is nullprepare_simulation_filename
-        if p not in current_params.keys() or current_params[p] == '' or current_params[p] is None:
-            lacking_params.append(p)
-        if hasattr(p, "__len__") and len(p) < 1:
-            lacking_params.append(p)
-
-    return lacking_params
 
 def has_parameters(necessary_parameters,current_params):
 
@@ -109,14 +127,14 @@ def validate_parameter_existence(necessary_parameters,current_params):
 def map_name_to_fundamental_diagram(name):
 
     if name == 'exponential':
-        return ExponentialFD()
+        return ExponentialFD
     else:
         raise Exception(f'No fundamental diagram model found for {name.lower()}')
 
 def map_name_to_inference_method(name):
 
     if name.lower() == 'grwmh':
-        return GaussianRandomWalkMetropolisHastings()
+        return GaussianRandomWalkMetropolisHastings
     else:
         raise Exception(f'No probability distribution found for {name.lower()}')
 
@@ -153,25 +171,6 @@ def map_name_to_numpy_distribution(name):
 
 """ ---------------------------------------------------------------------------Prepare filenames for imports/exports-----------------------------------------------------------------------------"""
 
-
-def prepare_output_simulation_filename(simulation_id):
-    # Define output folder path
-    output_folder = os.path.join(root,'data/output/fundamental_diagram_data',simulation_id)
-    # Create new folder if it doesn't exist
-    ensure_dir(output_folder)
-    # Return simulation filename
-    return os.path.join(output_folder,simulation_id)
-
-def prepare_output_inference_filename(inference_id,*args,**kwargs):
-
-    # Define output folder path
-    if len(args) > 0: output_folder = os.path.join(root,'data/output/inference_experiments',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/',*[args[i]+'/' for i in range(len(args))])
-    else: output_folder = os.path.join(root,'data/output/inference_experiments',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/')
-    # Create new folder if it doesn't exist
-    ensure_dir(output_folder)
-    # Return simulation filename
-    return output_folder
-
 def prepare_input_simulation_filename(simulation_id):
     # Define input filepath
     input_file = os.path.join(root,'data/input/simulation_parameters',simulation_id+('.toml'))
@@ -181,15 +180,51 @@ def prepare_input_simulation_filename(simulation_id):
     # Return simulation filename
     return input_file
 
-def prepare_input_inference_filename(data_id,inference_id):
+def prepare_input_inference_filename(inference_id):
     # Define input filepath
     input_file = os.path.join(root,'data/input/inference_parameters',inference_id+('.toml'))
     # Ensure file exists
     if not os.path.exists(input_file):
-        raise ValueError(f'Simulation file {input_file} not found.')
+        raise ValueError(f'Inference file {input_file} not found.')
 
     # Return simulation filename
     return input_file
+
+def prepare_output_simulation_filename(simulation_id):
+    # Define output folder path
+    output_folder = os.path.join(root,'data/output/fundamental_diagram_data',simulation_id+'/')
+    # Create new folder if it doesn't exist
+    ensure_dir(output_folder)
+    # Return simulation filename
+    return output_folder
+
+def prepare_output_inference_filename(inference_id,*args,**kwargs):
+
+    # Define output folder path
+    if len(args) > 0: output_folder = os.path.join(root,'data/output/inference_data',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/',*[args[i]+'/' for i in range(len(args))])
+    else: output_folder = os.path.join(root,'data/output/inference_experiments',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/')
+    # Create new folder if it doesn't exist
+    ensure_dir(output_folder)
+    # Return simulation filename
+    return output_folder
+
+def prepare_input_experiment_filename(experiment_id):
+    # Define input filepath
+    input_file = os.path.join(root,'data/input/experiment_parameters',experiment_id+('.toml'))
+    # Ensure file exists
+    if not os.path.exists(input_file):
+        raise ValueError(f'Experiment file {input_file} not found.')
+    # Return simulation filename
+    return input_file
+
+def prepare_output_experiment_filename(experiment_id):
+    # Define output folder path
+    output_folder = os.path.join(root,'data/output/experiment_data',experiment_id+'/')
+    # Create new folder if it doesn't exist
+    ensure_dir(output_folder)
+    # Return simulation filename
+    return output_folder
+
 
 """ ---------------------------------------------------------------------------Import metadata from file-----------------------------------------------------------------------------"""
 
@@ -206,10 +241,10 @@ def import_simulation_metadata(data_id):
 
     return _simulation_metadata
 
-def import_inference_metadata(data_id,inference_id):
+def import_inference_metadata(inference_id):
 
     # Get data filename
-    metadata_filename = utils.prepare_input_inference_filename(data_id,inference_id)
+    metadata_filename = utils.prepare_input_inference_filename(inference_id)
 
     # Import simulation metadata
     if os.path.exists(metadata_filename):
@@ -218,3 +253,16 @@ def import_inference_metadata(data_id,inference_id):
         raise FileNotFoundError(f'File {metadata_filename} not found.')
 
     return _inference_metadata
+
+def import_experiment_metadata(experiment_id):
+
+    # Get data filename
+    metadata_filename = utils.prepare_input_experiment_filename(experiment_id)
+
+    # Import simulation metadata
+    if os.path.exists(metadata_filename):
+        _experiment_metadata  = toml.load(metadata_filename)
+    else:
+        raise FileNotFoundError(f'File {metadata_filename} not found.')
+
+    return _experiment_metadata

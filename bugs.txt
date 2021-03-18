@@ -1,15 +1,32 @@
 # Bugs
 
 ## Urgent
-Debug posterior predictive
-Debug thermodynamic integration mcmc
+
 
 ## Non-urgent
 Debug gelman and rubin criterion
+Change inference __init__.py to run parallel chains
 
 # Extensions
 
+## Urgent
+Parameter initialisation in vanilla mcmc
+
+
 ## Non-urgent
+Write validate attribute and parameter statements where necessary
 Implement sigma learning
-Implement Experiments class
+
+## Nice-to-have
+Function that updates a class attribute that does not exist
 Implement log posterior in c
+Allow transition kernel not to be symmetric - incroporate it into acceptance probability
+
+
+# Tidying up
+
+## Urgent
+
+## Non-urgent
+Update test simulation and inference parameter toml files
+
