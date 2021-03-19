@@ -1,7 +1,7 @@
 # Bugs
 
 ## Urgent
-
+Vanilla MCMC parameter posterior bias
 
 ## Non-urgent
 Debug gelman and rubin criterion
@@ -10,6 +10,7 @@ Change inference __init__.py to run parallel chains
 # Extensions
 
 ## Urgent
+Assert data id in simulation metadata = data id in inference metadata
 Parameter initialisation in vanilla mcmc
 
 

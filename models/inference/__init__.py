@@ -353,22 +353,21 @@ class MarkovChainMonteCarlo(object):
         for i in tqdm(range(N)):
 
             # Evaluate log function for current sample
-            lf_prev = self.__evaluate_log_target(p_prev)
+            lt_prev = self.__evaluate_log_target(p_prev)
 
             # Propose new sample
             p_new = self.propose_new_sample(p_prev)
 
             # Evaluate log function for proposed sample
-            lf_new = self.__evaluate_log_target(p_new)
+            lt_new = self.__evaluate_log_target(p_new)
 
             # Printing proposals every 0.1*Nth iteration
             if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                print('p_prev',p_prev,'lf_prev',lf_prev)
-                print('p_new',p_new,'lf_new',lf_new)
-                print(f'Acceptance rate {int(100*acc / N)}%')
+                print('p_prev',p_prev,'lf_prev',lt_prev)
+                print('p_new',p_new,'lf_new',lt_new)
 
             # Calculate acceptance probability
-            log_acc = lf_new - lf_prev
+            log_acc = lt_new - lt_prev
             # Sample from Uniform(0,1)
             log_u = np.log(np.random.random())
 
@@ -376,8 +375,9 @@ class MarkovChainMonteCarlo(object):
             # Compare log_alpha and log_u to accept/reject sample
             if min(np.exp(log_acc),1) >= np.exp(log_u):
                 if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                    print('Accepted!')
                     print('p_new =',p_prev)
+                    print('Accepted!')
+                    print(f'Acceptance rate {int(100*acc / N)}%')
                 # Increment accepted sample count
                 acc += 1
                 # Append to accepted and proposed sample arrays
@@ -388,6 +388,7 @@ class MarkovChainMonteCarlo(object):
             else:
                 if prints and (i in [int(j/10*N) for j in range(1,11)]):
                     print('Rejected...')
+                    print(f'Acceptance rate {int(100*acc / N)}%')
                 # Append to accepted and proposed sample arrays
                 theta.append(p_prev)
                 theta_proposed.append(p_new)

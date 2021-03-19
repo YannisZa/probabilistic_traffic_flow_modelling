@@ -1,6 +1,7 @@
 import os, sys
 import math
 import toml
+import json
 import collections.abc
 import scipy.stats as ss
 
@@ -31,6 +32,8 @@ def ensure_dir(dir):
 def instantiate_fundamental_diagram(data_id):
     # Load simulation parameters
     simulation_params = import_simulation_metadata(data_id)
+
+    # print(json.dumps(simulation_params,indent=2))
 
     # Get class object
     FD = map_name_to_fundamental_diagram(simulation_params['fundamental_diagram'])
@@ -139,32 +142,50 @@ def map_name_to_inference_method(name):
         raise Exception(f'No probability distribution found for {name.lower()}')
 
 
-def map_name_to_scipy_distribution(name):
+def map_name_to_scipy_distribution(name,**kwargs):
+
+    print_statements = False
+    if 'prints' in kwargs:
+        if kwargs.get('prints'): print_statements = True
 
     if name.lower() == 'beta':
+        if print_statements: print(name.lower())
         return ss.beta
     elif name.lower() == 'gamma':
+        if print_statements: print(name.lower())
         return ss.gamma
     elif name.lower() == 'mnormal':
+        if print_statements: print(name.lower())
         return ss.multivariate_normal
     elif name.lower() == 'normal':
+        if print_statements: print(name.lower())
         return ss.normal
     elif name.lower() == 'lognormal':
+        if print_statements: print(name.lower())
         return ss.lognorm
     else:
         raise Exception(f'No scipy probability distribution found for {name.lower()}')
 
-def map_name_to_numpy_distribution(name):
+def map_name_to_numpy_distribution(name,**kwargs):
+
+    print_statements = False
+    if 'prints' in kwargs:
+        if kwargs.get('prints'): print_statements = True
 
     if name.lower() == 'beta':
+        if print_statements: print(name.lower())
         return np.random.beta
     elif name.lower() == 'gamma':
+        if print_statements: print(name.lower())
         return np.random.gamma
     elif name.lower() == 'mnormal':
+        if print_statements: print(name.lower())
         return np.random.multivariate_normal
     elif name.lower() == 'normal':
+        if print_statements: print(name.lower())
         return np.random.normal
     elif name.lower() == 'lognormal' or name.lower() == 'mlognormal':
+        if print_statements: print(name.lower())
         return np.random.lognormal
     else:
         raise Exception(f'No numpy probability distribution found for {name.lower()}')

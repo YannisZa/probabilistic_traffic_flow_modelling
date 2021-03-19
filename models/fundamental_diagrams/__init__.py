@@ -119,7 +119,37 @@ class FundamentalDiagram(object):
 
 
     def populate(self):
+        # Import metadat
+        self.import_metadata()
 
+        # Import q and rho
+        self.import_raw_data()
+
+        # Compute OLS estimate
+        self.ols_estimation()
+
+
+    def populate_rho(self):
+
+        # Import metadat
+        self.import_metadata()
+
+        # Make sure you have imported metadata
+        utils.validate_attribute_existence(self,['simulation_metadata'])
+
+        # Define rho
+        rho_intervals = []
+        for interval in self.simulation_metadata['rho']:
+            rho = np.linspace(float(self.simulation_metadata['rho'][interval]['rho_min']),
+                        float(self.simulation_metadata['rho'][interval]['rho_max']),
+                        int(self.simulation_metadata['rho'][interval]['rho_steps']))
+            # Append to intervals
+            rho_intervals.append(rho)
+
+        # Update class attribute in object
+        self.rho = np.concatenate(rho_intervals)
+
+    def import_metadata(self):
         # Get flag of whether data are a simulation or not
         self.simulation_flag = strtobool(self.simulation_metadata['simulation_flag'])
 
@@ -135,29 +165,6 @@ class FundamentalDiagram(object):
             self.simulation_flag = False
             # Set true parameters to None
             self.true_parameters = None
-
-        # Import q and rho
-        self.import_raw_data()
-
-        # Compute OLS estimate
-        self.ols_estimation()
-
-
-    def populate_rho(self):
-        # Make sure you have imported metadata
-        utils.validate_attribute_existence(self,['simulation_metadata'])
-
-        # Define rho
-        rho_intervals = []
-        for interval in self.simulation_metadata['rho']:
-            rho = np.linspace(float(self.simulation_metadata['rho'][interval]['rho_min']),
-                        float(self.simulation_metadata['rho'][interval]['rho_max']),
-                        int(self.simulation_metadata['rho'][interval]['rho_steps']))
-            # Append to intervals
-            rho_intervals.append(rho)
-
-        # Update class attribute in object
-        self.rho = np.concatenate(rho_intervals)
 
     def simulate_with_noise(self,p,**kwargs):
 

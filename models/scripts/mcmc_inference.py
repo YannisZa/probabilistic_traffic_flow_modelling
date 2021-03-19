@@ -5,6 +5,7 @@ import json
 import toml
 import utils
 import numpy as np
+import matplotlib.pyplot as plt
 from inference.mcmc_inference_models import GaussianRandomWalkMetropolisHastings
 from distutils.util import strtobool
 
@@ -12,11 +13,11 @@ from distutils.util import strtobool
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]+"probabilistic_traffic_flow_modelling"
 
 # Define simulation id
-data_id = "exponential_fd_simulation_small"
+data_id = "exponential_fd_simulation_smaller"
 #"exponential_fd_simulation_small_medium_noise"
 #"exponential_fd_simulation_small"
 # Define experiment id
-inference_id = "grwmh_inference_wide_gamma_priors_sigma2_fixed"
+inference_id = "grwmh_inference_wide_gamma_priors_sigma2_fixed_smaller"
 #"grwmh_inference_wide_gamma_priors_sigma2_medium_fixed"
 #"grwmh_inference_wide_gamma_priors_sigma2_fixed"
 
@@ -46,24 +47,24 @@ inf_model.populate(fd)
 # inf_model.export_log_unnormalised_posterior_plots(fd,True)
 
 # Run MCMC
-# theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True,None)
+theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True,None)
 # Run thermodynamic integration MCMC
 # ti_theta_accepted,ti_acceptance = inf_model.thermodynamic_integration_mcmc(fd,True,None)
 
 # Export MCMC samples
-# inf_model.export_mcmc_samples()
+inf_model.export_mcmc_samples()
 # Import MCMC samples
-inf_model.import_mcmc_samples(fd)
+# inf_model.import_mcmc_samples(fd)
 
 # Export MCMC data
-# inf_model.export_mcmc_parameter_posterior_plots(fd,2,True)
-# inf_model.export_mcmc_space_exploration_plots(fd,True)
-# inf_model.export_mcmc_mixing_plots(fd,True)
-# inf_model.export_mcmc_acf_plots(fd,True)
+inf_model.export_mcmc_parameter_posterior_plots(fd,2,True)
+inf_model.export_mcmc_space_exploration_plots(fd,True)
+inf_model.export_mcmc_mixing_plots(fd,True)
+inf_model.export_mcmc_acf_plots(fd,True)
 # Export thermodynamic integration MCMC
-inf_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,False)
-inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,2,False)
-inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,False)
+# inf_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,False)
+# inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,2,False)
+# inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,False)
 
 # Compute posterior predictive
 # inf_model.evaluate_posterior_predictive_moments()
