@@ -1,13 +1,14 @@
 # Bugs
 
 ## Urgent
-Vanilla MCMC parameter posterior bias
 
 ## Non-urgent
 Debug gelman and rubin criterion
 Change inference __init__.py to run parallel chains
 
 # Extensions
+Compute compute_mle_estimate in __init__.py
+
 
 ## Urgent
 Assert data id in simulation metadata = data id in inference metadata

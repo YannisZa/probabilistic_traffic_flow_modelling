@@ -32,7 +32,6 @@ def ensure_dir(dir):
 def instantiate_fundamental_diagram(data_id):
     # Load simulation parameters
     simulation_params = import_simulation_metadata(data_id)
-
     # print(json.dumps(simulation_params,indent=2))
 
     # Get class object
@@ -43,6 +42,9 @@ def instantiate_fundamental_diagram(data_id):
 
     # Update simulation metadata
     fd.simulation_metadata = simulation_params
+
+    # Import metadata
+    fd.store_simulation_data()
 
     # Return instance of Fundamental Diagram object child class
     return fd
@@ -223,7 +225,7 @@ def prepare_output_inference_filename(inference_id,*args,**kwargs):
 
     # Define output folder path
     if len(args) > 0: output_folder = os.path.join(root,'data/output/inference_data',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/',*[args[i]+'/' for i in range(len(args))])
-    else: output_folder = os.path.join(root,'data/output/inference_experiments',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/')
+    else: output_folder = os.path.join(root,'data/output/inference_data',kwargs.get('dataset'),kwargs.get('method'),inference_id+'/')
     # Create new folder if it doesn't exist
     ensure_dir(output_folder)
     # Return simulation filename

@@ -37,6 +37,9 @@ class Experiment(object):
         fd.populate()
         inference_model.populate(fd)
 
+        # Compute MLE estimate
+        inference_model.compute_mle_estimate(fd,prints=strtobool(self.experiment_metadata['mle']['print']))
+
         # Plot univariate prior distributions
         if strtobool(self.experiment_metadata['priors']['export']): inference_model.export_univariate_prior_plots(fd,strtobool(self.experiment_metadata['priors']['show']))
 

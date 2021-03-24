@@ -9,20 +9,20 @@ from inference import *
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]+"probabilistic_traffic_flow_modelling"
 
 # Define path to experiment parameters
-data_id = 'exponential_fd_simulation_smaller'
+data_id = 'exponential_fd_simulation_small'
+        #'exponential_fd_simulation_smaller_more_data'
         #"exponential_fd_simulation_small_medium_noise"
         #'exponential_fd_simulation_small'
         #'exponential_fd_simulation'
 
+print('Data id:',data_id)
 # Instantiate specified Fundamental Diagram
 fd = utils.instantiate_fundamental_diagram(data_id)
 
-# Setup
-fd.populate_rho()
-
 # Compute q based on rho and specified parameters
-# fd.simulate(fd.true_parameters)
+# fd.populate()
 fd.simulate_with_noise(fd.true_parameters)
+
 
 # Export plot and data
 fd.export_simulation_plot(True)

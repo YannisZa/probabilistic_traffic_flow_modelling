@@ -119,8 +119,6 @@ class FundamentalDiagram(object):
 
 
     def populate(self):
-        # Import metadat
-        self.import_metadata()
 
         # Import q and rho
         self.import_raw_data()
@@ -130,9 +128,6 @@ class FundamentalDiagram(object):
 
 
     def populate_rho(self):
-
-        # Import metadat
-        self.import_metadata()
 
         # Make sure you have imported metadata
         utils.validate_attribute_existence(self,['simulation_metadata'])
@@ -149,7 +144,7 @@ class FundamentalDiagram(object):
         # Update class attribute in object
         self.rho = np.concatenate(rho_intervals)
 
-    def import_metadata(self):
+    def store_simulation_data(self):
         # Get flag of whether data are a simulation or not
         self.simulation_flag = strtobool(self.simulation_metadata['simulation_flag'])
 
@@ -167,7 +162,6 @@ class FundamentalDiagram(object):
             self.true_parameters = None
 
     def simulate_with_noise(self,p,**kwargs):
-
         # Populate rho in metadata
         self.populate_rho()
 
@@ -175,22 +169,26 @@ class FundamentalDiagram(object):
         utils.validate_attribute_existence(self,['rho','simulation_metadata'])
 
         # Fix random seed
-        if self.simulation_metadata['seed'] == '':np.random.seed(None)
+        if self.simulation_metadata['seed'] == '' or self.simulation_metadata['seed'] == 'None': np.random.seed(None)
         else: np.random.seed(int(self.simulation_metadata['seed']))
 
         # Define sigma2 to be the last parameter
         sigma2 = p[-1]
         if 'prints' in kwargs:
             if kwargs.get('prints'): print(f'Simulating with {sigma2} variance')
+        # Decide on pertubations
+        n_pertubations = int(self.simulation_metadata['n_pertubations'])
+
         # Get dimension of rho data
         dim = self.rho.shape[0]
         # Simulate without noise
         self.q_true = self.simulate(p)
-        # Generate white noise
-        # noise = np.random.multivariate_normal(np.zeros(dim),np.eye(dim)*sigma2)
-        # Update q (noisy) and q_true (noise-free)
-        # self.q = self.q_true*np.exp(noise)
-        self.q = np.array([np.random.lognormal(mean = np.log(self.q_true[i]), sigma = np.sqrt(sigma2)) for i in range(len(self.q_true))])
+        # Sample from Log Normal n_pertubations times and average them out to avoid introducing bias in the log target
+        simq = np.array([np.random.lognormal(mean = np.log(self.q_true[i]), sigma = np.sqrt(sigma2),size=n_pertubations) for i in range(len(self.q_true))])
+        self.q = np.mean(simq,axis=1)
+        # mysimnoise = np.random.multivariate_normal(np.zeros(len(self.q_true)),np.eye(len(self.q_true))*sigma2,size=n_pertubations)
+        # self.q = self.q_true*np.exp(np.mean(mysimnoise,axis=0))
+
         # Update true parameters
         self.true_parameters = p
 

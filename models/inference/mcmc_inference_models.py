@@ -84,7 +84,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
                 if 'prints' in kwargs:
                     if kwargs.get('prints'): print('multivariate lognormal')
                 def _log_likelihood(p):
-                    return np.sum([ss.lognorm.logpdf(x=self.y[i],s=np.sqrt(sigma_cov[i,i]),scale=fundamental_diagram.simulate(p)[i]) for i in range(self.n)])
+                    return (ss.multivariate_normal.logpdf(np.log(self.y),np.log(fundamental_diagram.simulate(p)),sigma_cov) - np.sum(np.log(self.y)))
         else:
             raise ValueError('Not implemented yet')
 
@@ -114,6 +114,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
                 if 'prints' in kwargs:
                     if kwargs.get('prints'): print('lognormal predictive likelihood')
                 def _predictive_likelihood(p:list,x:list):
+                    # This computation could be made using np.random.multivariate_normal
                     return np.array([likelihood_sampler(mean=np.log(fundamental_diagram.simulate_with_x(p,x[i])),sigma=np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
             elif self.n == 1:#self.inference_metadata['inference']['likelihood']['type'] == 'normal':
                 if 'prints' in kwargs:
@@ -145,7 +146,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         MarkovChainMonteCarlo.predictive_likelihood.fset(self, _predictive_likelihood)
 
 
-    def update_transition_kernel(self,fundamental_diagram,mcmc_type:str='vanilla_mcmc'):
+    def update_transition_kernel(self,fundamental_diagram,mcmc_type:str='vanilla_mcmc', **kwargs):
 
         # Get kernel parameters
         kernel_params = self.inference_metadata['inference'][mcmc_type]['transition_kernel']
@@ -153,9 +154,11 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         K_diagonal = list(kernel_params['K_diagonal'])
         beta_step = float(kernel_params['beta_step'])
 
-        print(mcmc_type)
-        print('Proposal var',K_diagonal)
-        print('Proposal beta step',beta_step)
+        if 'prints' in kwargs:
+            if kwargs.get('prints'):
+                print(mcmc_type)
+                print('Proposal var',K_diagonal)
+                print('Proposal beta step',beta_step)
 
         # Store number of parameters
         num_params = fundamental_diagram.num_learning_parameters
