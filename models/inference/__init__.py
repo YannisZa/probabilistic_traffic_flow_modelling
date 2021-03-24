@@ -264,26 +264,22 @@ class MarkovChainMonteCarlo(object):
         # Find lower and upper bounds
         lower_bound = list(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['lower_bound'])
         upper_bound = list(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['upper_bound'])
-
         # Constrain proposal
         for i in range(len(pnew)):
             if pnew[i] <= lower_bound[i]:
                 pnew[i] = -pnew[i]
             if pnew[i] >= upper_bound[i]:
                 pnew[i] = upper_bound[i]-pnew[i]
-
         return pnew
 
     def reject_proposal(self,pnew,mcmc_type):
         # Find lower and upper bounds
         lower_bound = list(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['lower_bound'])
         upper_bound = list(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['upper_bound'])
-
         # Constrain proposal
         for i in range(len(pnew)):
             if pnew[i] <= lower_bound[i] or pnew[i] >= upper_bound[i]:
                 return True
-
         return pnew
 
 
@@ -524,7 +520,7 @@ class MarkovChainMonteCarlo(object):
 
         # Initialise output variables
         theta = np.zeros((N,t_len,p_prev.shape[1]))
-        acc = 0
+        acc,prop = np.zeros(t_len),np.zeros(t_len)
 
         if prints:
             print('p0',p_prev)
@@ -534,7 +530,7 @@ class MarkovChainMonteCarlo(object):
         for i in tqdm(range(N)):
 
             # Select random temperature from schedule
-            random_t_index = random.choice(range(0,t_len))
+            random_t_index = np.random.randint(0,t_len)
 
             # Copy previously accepted sample
             p_new = copy.deepcopy(p_prev)
@@ -565,35 +561,34 @@ class MarkovChainMonteCarlo(object):
             # Sample from Uniform(0,1)
             log_u = np.log(np.random.random())
 
+            # Increment proposal counter
+            prop[random_t_index] += 1
+
             # Accept/Reject
             # Compare log_alpha and log_u to accept/reject sample
             if min(np.exp(log_acc),1) >= np.exp(log_u):
                 # Increment accepted sample count
-                acc += 1
+                acc[random_t_index] += 1
                 # Append to accepted and proposed sample arrays
                 theta[i,:,:] = p_new
                 # Update last accepted sample
                 p_prev = p_new
-
-                if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                    print('Accepted!')
-                    print(f'i = {random_t_index}, t_i = {self.temperature_schedule[random_t_index]}, p_new = {p_new[random_t_index,:]}')
-                    print(f'Acceptance rate {int(100*acc / N)}%')
             else:
                 # Append to accepted and proposed sample arrays
                 theta[i,:,:] = p_prev
 
-                if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                    print('Rejected...')
-                    print(f'i = {random_t_index}, t_i = {self.temperature_schedule[random_t_index]}, p_new = {p_new[random_t_index,:]}')
-                    print(f'Acceptance rate {int(100*acc / N)}%')
+            if prints and (i in [int(j/10*N) for j in range(1,11)]):
+                print('Rejected...')
+                print(f'i = {random_t_index}, t_i = {self.temperature_schedule[random_t_index]}, p_new = {p_new[random_t_index,:]}')
+                print(f'Total acceptance rate {int(100*np.sum(acc) / np.sum(prop))}%')
+                print(f'Temperature acceptance rate {int(100*acc[random_t_index] / prop[random_t_index])}%')
 
 
         # Update class attributes
         self.thermodynamic_integration_theta = np.array(theta)
 
         # Update metadata
-        utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"acceptance_rate":int(100*(acc / N))}})
+        utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"acceptance_rate":[int(100*a) for a in acc/prop],"acceptances":list(acc)},"proposals":list(prop)})
 
         result_summary = {"thermodynamic_integration_mcmc":{}}
         for i in range(self.thermodynamic_integration_theta.shape[2]):
@@ -603,9 +598,12 @@ class MarkovChainMonteCarlo(object):
         # Update metadata on results
         utils.update(self.__inference_metadata['results'],result_summary)
 
-        if prints: print(f'Acceptance rate {int(100*(acc / N))}%')
+        if prints:
+            print(f'Total acceptance rate {int(100*(np.sum(acc) / np.sum(prop)))}%')
+            print(f'Temperature acceptance rate {[(str(int(100*pr/N))+'%') for a in acc/prop]}%')
+            print(f"Choice probabilities {[(str(int(100*pr/N))+'%') for pr in prop]}")
 
-        return np.array(theta), int(100*(acc / N))
+        return np.array(theta), acc, prop
 
     def compute_mle_estimate(self,fundamental_diagram,**kwargs):
 

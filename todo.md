@@ -1,8 +1,7 @@
 # Bugs
 
 ## Urgent
-- Thermodynamic integration MCMC
-- Thermodynamic integration MCMC ML estimation
+- Thermodynamic integration MCMC acceptance rate tuning
 
 ## Non-urgent
 - Debug gelman and rubin criterion
@@ -10,7 +9,6 @@
 # Extensions
 
 ## Urgent
-- Assert data id in simulation metadata = data id in inference metadata
 - Implement sigma learning
 
 ## Non-urgent
@@ -20,7 +18,6 @@
 - Write tests for important functions
 
 ## Nice-to-have
-- Function that updates a class attribute that does not exist
 - Implement log posterior in C
 - Allow transition kernel not to be symmetric - incroporate it into acceptance probability
 
