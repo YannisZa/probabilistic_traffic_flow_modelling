@@ -26,7 +26,6 @@ def ensure_dir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
 
-
 """ ---------------------------------------------------------------------------Instantiators-----------------------------------------------------------------------------"""
 
 def instantiate_fundamental_diagram(data_id):
@@ -156,10 +155,10 @@ def map_name_to_scipy_distribution(name,**kwargs):
     elif name.lower() == 'gamma':
         if print_statements: print(name.lower())
         return ss.gamma
-    elif name.lower() == 'mnormal':
+    elif name.lower() in ['mnormal','mgaussian']:
         if print_statements: print(name.lower())
         return ss.multivariate_normal
-    elif name.lower() == 'normal':
+    elif name.lower() in ['normal','gaussian']:
         if print_statements: print(name.lower())
         return ss.normal
     elif name.lower() == 'lognormal':
@@ -180,10 +179,10 @@ def map_name_to_numpy_distribution(name,**kwargs):
     elif name.lower() == 'gamma':
         if print_statements: print(name.lower())
         return np.random.gamma
-    elif name.lower() == 'mnormal':
+    elif name.lower() in ['mnormal','mgaussian']:
         if print_statements: print(name.lower())
         return np.random.multivariate_normal
-    elif name.lower() == 'normal':
+    elif name.lower() in ['normal','gaussian']:
         if print_statements: print(name.lower())
         return np.random.normal
     elif name.lower() == 'lognormal' or name.lower() == 'mlognormal':

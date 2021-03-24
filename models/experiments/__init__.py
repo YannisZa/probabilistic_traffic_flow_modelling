@@ -30,8 +30,11 @@ class Experiment(object):
         data_id,inference_id = data_inference_pair
 
         # Instantiate objects
-        fd = utils.instantiate_fundamental_diagram(data_id)
         inference_model = utils.instantiate_inference_method(inference_id)
+        fd = utils.instantiate_fundamental_diagram(inference_model.inference_metadata['data_id'])
+
+        # Assert that data id is the same in inference and simulation metadata
+        assert inference_model.inference_metadata['data_id'] == fd.simulation_metadata['id']
 
         # Populate them with data
         fd.populate()

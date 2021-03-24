@@ -30,8 +30,8 @@ inference_id = "grwmh_inference_wide_gamma_priors_sigma2_fixed_small"
 inf_model = utils.instantiate_inference_method(inference_id)
 fd = utils.instantiate_fundamental_diagram(inf_model.inference_metadata['data_id'])
 
-print(inference_id)
-print(inf_model.inference_metadata['data_id'])
+print("Inference id:",inference_id)
+print("Data id:",inf_model.inference_metadata['data_id'])
 
 # Populate them with data
 fd.populate()
@@ -56,12 +56,12 @@ inf_model.import_log_unnormalised_posterior(['alpha','beta'])
 # Run MCMC
 # theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True,None)
 # Run thermodynamic integration MCMC
-ti_theta_accepted,ti_acceptance = inf_model.thermodynamic_integration_mcmc(fd,True,None)
+# ti_theta_accepted,ti_acceptance = inf_model.thermodynamic_integration_mcmc(fd,True,None)
 
 # Export MCMC samples
-inf_model.export_mcmc_samples()
+# inf_model.export_mcmc_samples()
 # Import MCMC samples
-# inf_model.import_mcmc_samples(fd)
+inf_model.import_mcmc_samples(fd)
 
 # Export MCMC data
 # inf_model.export_mcmc_parameter_posterior_plots(fd,2,True)
@@ -69,9 +69,9 @@ inf_model.export_mcmc_samples()
 # inf_model.export_mcmc_mixing_plots(fd,True)
 # inf_model.export_mcmc_acf_plots(fd,True)
 # Export thermodynamic integration MCMC
-inf_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,False)
-inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,2,False)
-inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,False)
+# inf_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,False)
+# inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,2,False)
+# inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,False)
 
 # Compute posterior predictive
 # inf_model.evaluate_posterior_predictive_moments()

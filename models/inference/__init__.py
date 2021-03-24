@@ -260,6 +260,32 @@ class MarkovChainMonteCarlo(object):
         # Update class attribute
         self.temperature_schedule = temperature_schedule_fn(nsteps,power)
 
+    def reflect_proposal(self,pnew,mcmc_type):
+        # Find lower and upper bounds
+        lower_bound = list(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['lower_bound'])
+        upper_bound = list(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['upper_bound'])
+
+        # Constrain proposal
+        for i in range(len(pnew)):
+            if pnew[i] <= lower_bound[i]:
+                pnew[i] = -pnew[i]
+            if pnew[i] >= upper_bound[i]:
+                pnew[i] = upper_bound[i]-pnew[i]
+
+        return pnew
+
+    def reject_proposal(self,pnew,mcmc_type):
+        # Find lower and upper bounds
+        lower_bound = list(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['lower_bound'])
+        upper_bound = list(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['upper_bound'])
+
+        # Constrain proposal
+        for i in range(len(pnew)):
+            if pnew[i] <= lower_bound[i] or pnew[i] >= upper_bound[i]:
+                return True
+
+        return pnew
+
 
     def propose_new_sample(self,p):
         utils.validate_attribute_existence(self,['transition_kernel'])
@@ -332,10 +358,17 @@ class MarkovChainMonteCarlo(object):
 
         p0 = None
         # Read p0 or randomly initialise it from prior
-        if utils.has_parameters(['p0'],self.inference_metadata['inference']['vanilla_mcmc']) and not strtobool(self.inference_metadata['inference']['vanilla_mcmc']['random_initialisation']):
+        if utils.has_parameters(['p0'],self.inference_metadata['inference']['vanilla_mcmc']) and self.inference_metadata['inference']['vanilla_mcmc']['param_initialisation'] == 'metadata':
             p0 = np.array(self.inference_metadata['inference']['vanilla_mcmc']['p0'])
+        elif utils.has_parameters(['p0'],self.inference_metadata['inference']['vanilla_mcmc']) and self.inference_metadata['inference']['vanilla_mcmc']['param_initialisation'] == 'mle':
+            # Use MLE estimate
+            p0 = np.array(self.mle_params)
+            # Update metadata
+            utils.update(self.__inference_metadata['inference']['thermodynamic_integration_mcmc'],{'p0':list(p0)})
         else:
+            # Sample from prior distributions
             p0 = self.sample_from_univariate_priors(fundamental_diagram,1)
+            # Update metadata
             utils.update(self.__inference_metadata['inference']['vanilla_mcmc'],{'p0':p0})
 
         # Initialise output variables
@@ -360,10 +393,6 @@ class MarkovChainMonteCarlo(object):
 
             # Propose new sample
             p_new = self.propose_new_sample(p_prev)
-            if (p_new<=0).any():
-                print('Negative proposal',p_new)
-                for i in range(len(p_new)):
-                    p_new[i] = -p_new[i]
 
             # Evaluate log function for proposed sample
             lt_new = self.__evaluate_log_target(p_new)
@@ -373,8 +402,14 @@ class MarkovChainMonteCarlo(object):
                 print('p_prev',p_prev,'lf_prev',lt_prev)
                 print('p_new',p_new,'lf_new',lt_new)
 
-            # Calculate acceptance probability
-            log_acc = lt_new - lt_prev
+            # If rejection scheme for constrained theta applies
+            if self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['action'] == 'reject':
+                # If theta is NOT within lower and upper bounds reject sample
+                if self.reject_proposal(p_new,'vanilla_mcmc'): log_acc = -1e9
+                # Calculate acceptance probability
+                else: log_acc = lt_new - lt_prev
+            else:
+                log_acc = lt_new - lt_prev
             # Sample from Uniform(0,1)
             log_u = np.log(np.random.random())
 
@@ -469,14 +504,18 @@ class MarkovChainMonteCarlo(object):
             p0 = np.array(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['p0'])
             # Repeat n times
             p0 = np.repeat([p0],t_len,axis=0)
-        elif utils.has_parameters(['p0'],self.inference_metadata['inference']['thermodynamic_integration_mcmc']) and self.inference_metadata['inference']['thermodynamic_integration_mcmc']['param_initialisation'] == 'ols':
-            # Use OLS estimate
-            p0 = np.array(fundamental_diagram.ols_params)
+        elif utils.has_parameters(['p0'],self.inference_metadata['inference']['thermodynamic_integration_mcmc']) and self.inference_metadata['inference']['thermodynamic_integration_mcmc']['param_initialisation'] == 'mle':
+            # Use MLE estimate
+            p0 = np.array(self.mle_params)
+            # Update metadata
+            utils.update(self.__inference_metadata['inference']['thermodynamic_integration_mcmc'],{'p0':list(p0)})
             # Repeat n times
             p0 = np.repeat([p0],t_len,axis=0)
         else:
             # Sample from prior distributions
             p0 = self.sample_from_univariate_priors(fundamental_diagram,t_len).reshape((t_len,fundamental_diagram.num_learning_parameters))
+            # Update metadata
+            utils.update(self.__inference_metadata['inference']['thermodynamic_integration_mcmc'],{'p0':list(p0)})
 
         # Store necessary parameters
         p_prev = p0
@@ -504,18 +543,25 @@ class MarkovChainMonteCarlo(object):
             p_new[random_t_index,:] = self.propose_new_sample_thermodynamic_integration(p_prev[random_t_index,:])
 
             # Evaluate log function for current sample
-            lf_prev = self.__evaluate_thermodynamic_integration_log_target(p_prev,random_t_index)
+            lt_prev = self.__evaluate_thermodynamic_integration_log_target(p_prev,random_t_index)
 
             # Evaluate log function for proposed sample
-            lf_new = self.__evaluate_thermodynamic_integration_log_target(p_new,random_t_index)
+            lt_new = self.__evaluate_thermodynamic_integration_log_target(p_new,random_t_index)
 
             # Printing proposals every 0.1*Nth iteration
             if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                print('p_prev',p_prev[random_t_index,:],'lf_prev',lf_prev)
-                print('p_new',p_new[random_t_index,:],'lf_new',lf_new)
+                print('p_prev',p_prev[random_t_index,:],'lt_prev',lt_prev)
+                print('p_new',p_new[random_t_index,:],'lt_new',lt_new)
 
             # Calculate acceptance probability
-            log_acc = lf_new - lf_prev
+            # If rejection scheme for constrained theta applies
+            if self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['action'] == 'reject':
+                # If theta is NOT within lower and upper bounds reject sample
+                if self.reject_proposal(p_new,'thermodynamic_integration_mcmc'): log_acc = -1e9
+                # Calculate acceptance probability
+                else: log_acc = lt_new - lt_prev
+            else:
+                log_acc = lt_new - lt_prev
             # Sample from Uniform(0,1)
             log_u = np.log(np.random.random())
 
@@ -591,17 +637,17 @@ class MarkovChainMonteCarlo(object):
         else:
             mle = so.minimize(negative_log_target, p0, method=self.inference_metadata['inference']['mle']['method'])
         # Get parameters
-        mle_params = list(mle.x)
+        self.mle_params = list(mle.x)
         # Evaluate log target
-        mle_log_target = self.__evaluate_log_target(mle_params)
+        mle_log_target = self.__evaluate_log_target(self.mle_params)
         true_log_target = self.__evaluate_log_target(fundamental_diagram.true_parameters)
 
         # Update class variables
-        utils.update(self.__inference_metadata['results'],{"mle":{"params":mle_params,"mle_log_target":mle_log_target,"true_log_target":true_log_target}})
+        utils.update(self.__inference_metadata['results'],{"mle":{"params":self.mle_params,"mle_log_target":mle_log_target,"true_log_target":true_log_target}})
 
         if 'prints' in kwargs:
             if kwargs.get('prints'):
-                print(f'MLE parameters: {mle_params}')
+                print(f'MLE parameters: {self.mle_params}')
                 print(f'MLE log target: {mle_log_target}')
                 print(f'True log target: {true_log_target}')
 
@@ -681,7 +727,7 @@ class MarkovChainMonteCarlo(object):
         #         lml += term
 
         # Initiliase lml
-        lml = np.sum([(self.temperature_schedule[ti] - self.temperature_schedule[ti-1])*(self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti,:])-self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti-1,:])) for ti in range(1,t_len) for j in range(burnin,N)])
+        lml = np.sum([(self.temperature_schedule[ti] - self.temperature_schedule[ti-1])*(self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti,:]) + self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti-1,:])) for ti in range(1,t_len) for j in range(burnin,N)])
         lml /= 2*(N-burnin)
         if 'prints' in kwargs:
             if kwargs.get('prints'):
@@ -1577,6 +1623,9 @@ class MarkovChainMonteCarlo(object):
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        # Get burnins for Vanilla MCMC and Thermodynamic integration MCMC
+        vanilla_burnin = np.max([int(self.inference_metadata['plot']['vanilla_mcmc']['burnin']),0])
+        ti_burnin = np.max([int(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['burnin']),0])
 
         # Load theta from txt file
         file = (inference_filename+f'theta.txt')
@@ -1588,7 +1637,7 @@ class MarkovChainMonteCarlo(object):
             for i in range(self.theta.shape[1]):
                 # Parameter name
                 param_name = str(fundamental_diagram.parameter_names[i]).replace("$","") .replace("\\","")
-                result_summary['vanilla_mcmc'][param_name] = {"mean":np.mean(self.theta[:,i]),"std":np.std(self.theta[:,i])}
+                result_summary['vanilla_mcmc'][param_name] = {"mean":np.mean(self.theta[vanilla_burnin:,i]),"std":np.std(self.theta[vanilla_burnin:,i])}
             # Update metadata on results
             utils.update(self.__inference_metadata['results'],result_summary)
 
@@ -1613,7 +1662,7 @@ class MarkovChainMonteCarlo(object):
             for i in range(self.thermodynamic_integration_theta.shape[2]):
                 # Parameter name
                 param_name = str(fundamental_diagram.parameter_names[i]).replace("$","") .replace("\\","")
-                result_summary['thermodynamic_integration_mcmc'][param_name] = {"mean":list(np.mean(self.thermodynamic_integration_theta[:,:,i],axis=0)),"std":list(np.std(self.thermodynamic_integration_theta[:,:,i],axis=0))}
+                result_summary['thermodynamic_integration_mcmc'][param_name] = {"mean":list(np.mean(self.thermodynamic_integration_theta[ti_burnin:,:,i],axis=0)),"std":list(np.std(self.thermodynamic_integration_theta[ti_burnin:,:,i],axis=0))}
             # Update metadata on results
             utils.update(self.__inference_metadata['results'],result_summary)
 

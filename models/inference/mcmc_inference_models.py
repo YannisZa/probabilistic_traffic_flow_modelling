@@ -168,14 +168,29 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
             raise LengthError(f'K_diagonal has length {len(K_diagonal)} and not {num_params}')
 
         # Depending on kernel type define proposal mechanism
-        if kernel_type in ['normal','mnormal']:
+        if kernel_type.lower() in ['normal','mnormal','gaussian','mgaussian']:
             # Get distribution corresponding to type of kernel
             kernel_distr = utils.map_name_to_numpy_distribution(kernel_type)
 
-            # Define Gaussian random walk proposal mechanism
-            def _kernel(p):
-                if num_params > 1: return p + beta_step*kernel_distr(np.zeros(num_params),np.diag(K_diagonal))
-                else: return p + beta_step*kernel_distr(0,K_diagonal[0])
+            if not strtobool(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['constrained']):
+                # Define Gaussian random walk proposal mechanism
+                def _kernel(p):
+                    pnew = None
+                    if num_params > 1:
+                        pnew = p + beta_step*kernel_distr(np.zeros(num_params),np.diag(K_diagonal))
+                    else:
+                        pnew = p + beta_step*kernel_distr(0,K_diagonal[0])
+
+            elif self.inference_metadata['inference'][mcmc_type]['transition_kernel']['action'] == 'reflect':
+                # Define Gaussian random walk proposal mechanism
+                def _kernel(p):
+                    pnew = None
+                    if num_params > 1:
+                        pnew = p + beta_step*kernel_distr(np.zeros(num_params),np.diag(K_diagonal))
+                    else:
+                        pnew = p + beta_step*kernel_distr(0,K_diagonal[0])
+
+                    return self.reflect_proposal(pnew,mcmc_type)
 
         # Update super class transition kernel attribute
         if mcmc_type == 'vanilla_mcmc':
