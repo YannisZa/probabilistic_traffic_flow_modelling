@@ -46,7 +46,7 @@ inf_model.export_univariate_prior_plots(fd)
 # Compute log unnormalised posterior
 # log_true_posterior,parameters_mesh = inf_model.evaluate_log_unnormalised_posterior(fd)
 # Import log unnormalised posterior
-# inf_model.import_log_unnormalised_posterior(['alpha','beta'])
+inf_model.import_log_unnormalised_posterior(['alpha','beta'])
 
 # Export log unnormalised posterior
 # inf_model.export_log_unnormalised_posterior(fd,prints=True)
