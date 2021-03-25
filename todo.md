@@ -1,7 +1,6 @@
 # Bugs
 
 ## Urgent
-- Thermodynamic integration MCMC acceptance rate tuning
 
 ## Non-urgent
 - Debug gelman and rubin criterion
@@ -9,12 +8,12 @@
 # Extensions
 
 ## Urgent
+- Change inference __init__.py to run parallel chains
 - Implement sigma learning
 
 ## Non-urgent
 - Allow transition kernel to sample from truncated gaussian
 - Write validate attribute and parameter statements where necessary
-- Change inference __init__.py to run parallel chains
 - Write tests for important functions
 
 ## Nice-to-have

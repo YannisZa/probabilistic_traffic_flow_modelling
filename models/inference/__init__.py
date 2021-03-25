@@ -267,9 +267,9 @@ class MarkovChainMonteCarlo(object):
         # Constrain proposal
         for i in range(len(pnew)):
             if pnew[i] <= lower_bound[i]:
-                pnew[i] = -pnew[i]
+                pnew[i] = 2*lower_bound[i]-pnew[i]
             if pnew[i] >= upper_bound[i]:
-                pnew[i] = upper_bound[i]-pnew[i]
+                pnew[i] = 2*upper_bound[i]-pnew[i]
         return pnew
 
     def reject_proposal(self,pnew,mcmc_type):
@@ -600,7 +600,7 @@ class MarkovChainMonteCarlo(object):
 
         if prints:
             print(f'Total acceptance rate {int(100*(np.sum(acc) / np.sum(prop)))}%')
-            print(f'Temperature acceptance rate {[(str(int(100*pr/N))+'%') for a in acc/prop]}%')
+            print(f"Temperature acceptance rate {[(str(int(100*a))+'%') for a in acc/prop]}")
             print(f"Choice probabilities {[(str(int(100*pr/N))+'%') for pr in prop]}")
 
         return np.array(theta), acc, prop
@@ -1210,7 +1210,7 @@ class MarkovChainMonteCarlo(object):
                 freq,_,_ = plt.hist(self.thermodynamic_integration_theta[burnin:,ti,p],bins=bins)
 
                 # Add labels
-                if show_titles: plt.title(f'Parameter posterior for {fundamental_diagram.parameter_names[p]} with burnin = {burnin}')
+                if show_titles: plt.title(f'Parameter posterior for {fundamental_diagram.parameter_names[p]} t = {self.temperature_schedule[ti]} with burnin = {burnin}')
                 plt.vlines(np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0),0,np.max(freq),color='red',label=r'$\mu$', linewidth=2)
                 plt.vlines((np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)-num_stds*np.std(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)),0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2)
                 plt.vlines((np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)+num_stds*np.std(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)),0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2)

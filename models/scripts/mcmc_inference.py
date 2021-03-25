@@ -56,12 +56,12 @@ inf_model.import_log_unnormalised_posterior(['alpha','beta'])
 # Run MCMC
 # theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True,None)
 # Run thermodynamic integration MCMC
-ti_theta_accepted,ti_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(fd,True,None)
+# ti_theta_accepted,ti_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(fd,True,None)
 
 # Export MCMC samples
 # inf_model.export_mcmc_samples()
 # Import MCMC samples
-# inf_model.import_mcmc_samples(fd)
+inf_model.import_mcmc_samples(fd)
 
 # Export MCMC data
 # inf_model.export_mcmc_parameter_posterior_plots(fd,2,True)
@@ -69,9 +69,9 @@ ti_theta_accepted,ti_accepted,ti_proposed = inf_model.thermodynamic_integration_
 # inf_model.export_mcmc_mixing_plots(fd,True)
 # inf_model.export_mcmc_acf_plots(fd,True)
 # Export thermodynamic integration MCMC
-inf_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,False)
-inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,2,False)
-inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,False)
+# inf_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,False)
+# inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,2,False)
+# inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,False)
 
 # Compute posterior predictive
 # inf_model.evaluate_posterior_predictive_moments()
@@ -88,7 +88,7 @@ inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,False
 
 
 # Compute marginal likelihood estimators
-# inf_model.compute_log_posterior_harmonic_mean_estimator(prints=True)
+inf_model.compute_log_posterior_harmonic_mean_estimator(prints=True)
 # inf_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(prints=True)
 
 # Export metadata
