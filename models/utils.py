@@ -164,6 +164,9 @@ def map_name_to_scipy_distribution(name,**kwargs):
     elif name.lower() == 'lognormal':
         if print_statements: print(name.lower())
         return ss.lognorm
+    elif name.lower() == 'geninvgauss':
+        if print_statements: print(name.lower())
+        return ss.geninvgauss
     else:
         raise Exception(f'No scipy probability distribution found for {name.lower()}')
 

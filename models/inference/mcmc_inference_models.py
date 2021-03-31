@@ -50,7 +50,6 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         for i,k in enumerate(list(self.inference_metadata['inference']['priors'])[0:num_params]):
             # Define prior distribution
             prior_distr = utils.map_name_to_scipy_distribution(self.inference_metadata['inference']['priors'][k]['distribution'])
-
             # print('hyperparams',hyperparams)
             # Define log pdf of prior distribution
             def make_log_univariate_prior_pdf(index):
@@ -74,48 +73,73 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         # If data is from a simulation and sigma parameter is not learned
         if ((fundamental_diagram.simulation_flag) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters)>0):
             # Define sigma
+            sigma2 = fundamental_diagram.true_parameters[-1]
             sigma_cov = np.eye(self.n)*fundamental_diagram.true_parameters[-1]
-            if self.inference_metadata['inference']['likelihood']['type'] in ['mnormal','normal']:
+            if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mnormal','normal']:
                 if 'prints' in kwargs:
                     if kwargs.get('prints'): print('multivariate normal')
                 def _log_likelihood(p):
                     return ss.multivariate_normal.logpdf(self.y,fundamental_diagram.simulate(p),sigma_cov)
-            if self.inference_metadata['inference']['likelihood']['type'] in ['mlognormal','lognormal']:
+            if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mlognormal','lognormal']:
                 if 'prints' in kwargs:
                     if kwargs.get('prints'): print('multivariate lognormal')
+                print('multivariate lognormal')
                 def _log_likelihood(p):
-                    return (ss.multivariate_normal.logpdf(np.log(self.y),np.log(fundamental_diagram.simulate(p)),sigma_cov) - np.sum(np.log(self.y)))
+                    q = fundamental_diagram.simulate(p)
+                    exp_mean = q / np.sqrt(1 + sigma2)
+                    mean = np.log(exp_mean)
+                    var = np.log(1 + sigma2)
+                    stdev = np.sqrt(var)
+                    # print(np.sum([ss.lognorm.logpdf(self.y[i],s=stdev,loc=0,scale=exp_mean[i]) for i in range(len(self.y))]))
+                    # print(-self.n*np.log(stdev) - (self.n/2)*np.log(2*np.pi) - np.sum(np.log(self.y)) - (1/(2*var)) * np.sum([(np.log(self.y[i])-mean[i])**2 for i in range(self.n)]))
+                    # print((ss.multivariate_normal.logpdf(np.log(self.y),mean=mean,cov=np.eye(self.n)*var) - np.sum(np.log(self.y))))
+                    return((ss.multivariate_normal.logpdf(np.log(self.y),mean=mean,cov=np.eye(self.n)*var) - np.sum(np.log(self.y))))
+                def _log_likelihood_jacobian(p):
+                    q = fundamental_diagram.simulate(p)
+                    exp_mean = q / np.sqrt(1 + sigma2)
+                    mean = np.log(exp_mean)
+                    var = np.log(1 + sigma2)
+                    stdev = np.sqrt(var)
+                    jac_alpha = (1/(var*p[0]))*np.sum((np.log(self.y)-mean))
+                    jac_beta = (1/var)*np.sum((np.log(self.y)-mean)*self.x)
+                    return [jac_alpha,jac_beta]
+
         else:
             raise ValueError('Not implemented yet')
 
-            if self.inference_metadata['inference']['likelihood']['type'] in ['mnormal','normal']:
+            if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mnormal','normal']:
                 def _log_likelihood(p):
                     return ss.multivariate_normal.logpdf(self.y,fundamental_diagram.simulate(p),np.eye(self.n)*p[-1])
-            if self.inference_metadata['inference']['likelihood']['type'] in ['mlognormal','lognormal']:
+            if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mlognormal','lognormal']:
                 def _log_likelihood(p):
                     return np.sum([ss.lognorm.logpdf(x=self.y[i],s=np.sqrt(p[-1]),scale=fundamental_diagram.simulate(p)[i]) for i in range(self.n)])
 
         MarkovChainMonteCarlo.log_likelihood.fset(self, _log_likelihood)
+        MarkovChainMonteCarlo.log_likelihood_jacobian.fset(self, _log_likelihood_jacobian)
 
     def update_predictive_likelihood(self,fundamental_diagram, **kwargs):
 
         # Get likelihood numpy sampler from metadata
-        likelihood_sampler = utils.map_name_to_numpy_distribution(self.inference_metadata['inference']['likelihood']['type'])
+        likelihood_sampler = utils.map_name_to_numpy_distribution(self.inference_metadata['inference']['likelihood']['type'].lower())
 
         if ((fundamental_diagram.simulation_flag) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters) > 0):
 
-            if self.n > 1 and self.inference_metadata['inference']['likelihood']['type'] in ['lognormal','normal']:
+            if self.n > 1 and self.inference_metadata['inference']['likelihood']['type'].lower() in ['lognormal','normal']:
                 raise ValueError(f"Univariate {self.inference_metadata['inference']['likelihood']['type']} likelihood does not work with {self.n}-dimensional data.")
 
             # Define sigma
             sigma_cov = np.eye(self.n)*fundamental_diagram.true_parameters[-1]
 
-            if 'lognormal' in self.inference_metadata['inference']['likelihood']['type'] and self.n >= 1:
+            print('Needs fixing')
+            # raise ValueError('Needs fixing')
+
+            if 'lognormal' in self.inference_metadata['inference']['likelihood']['type'].lower() and self.n >= 1:
                 if 'prints' in kwargs:
                     if kwargs.get('prints'): print('lognormal predictive likelihood')
                 def _predictive_likelihood(p:list,x:list):
+                    # Change the code below
                     # This computation could be made using np.random.multivariate_normal
-                    return np.array([likelihood_sampler(mean=np.log(fundamental_diagram.simulate_with_x(p,x[i])),sigma=np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
+                    return np.array([likelihood_sampler(mean=(np.log(fundamental_diagram.simulate_with_x(p,x[i]))),sigma=np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
             elif self.n == 1:#self.inference_metadata['inference']['likelihood']['type'] == 'normal':
                 if 'prints' in kwargs:
                     if kwargs.get('prints'): print('univariate normal predictive likelihood')
@@ -170,25 +194,28 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         # Depending on kernel type define proposal mechanism
         if kernel_type.lower() in ['normal','mnormal','gaussian','mgaussian']:
             # Get distribution corresponding to type of kernel
-            kernel_distr = utils.map_name_to_numpy_distribution(kernel_type)
+            kernel_distr = utils.map_name_to_scipy_distribution(kernel_type)
 
             if not strtobool(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['constrained']):
+                print('Unconstrained proposal')
                 # Define Gaussian random walk proposal mechanism
                 def _kernel(p):
                     pnew = None
                     if num_params > 1:
-                        pnew = p + beta_step*kernel_distr(np.zeros(num_params),np.diag(K_diagonal))
+                        pnew = p + beta_step*kernel_distr.rvs(np.zeros(num_params),np.diag(K_diagonal))
                     else:
-                        pnew = p + beta_step*kernel_distr(0,K_diagonal[0])
+                        pnew = p + beta_step*kernel_distr.rvs(0,K_diagonal[0])
+                    return pnew
 
             elif self.inference_metadata['inference'][mcmc_type]['transition_kernel']['action'] == 'reflect':
+                print('Constrained proposal')
                 # Define Gaussian random walk proposal mechanism
                 def _kernel(p):
                     pnew = None
                     if num_params > 1:
-                        pnew = p + beta_step*kernel_distr(np.zeros(num_params),np.diag(K_diagonal))
+                        pnew = p + beta_step*kernel_distr.rvs(np.zeros(num_params),np.diag(K_diagonal))
                     else:
-                        pnew = p + beta_step*kernel_distr(0,K_diagonal[0])
+                        pnew = p + beta_step*kernel_distr.rvs(0,K_diagonal[0])
 
                     return self.reflect_proposal(pnew,mcmc_type)
 
@@ -213,7 +240,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         # Loop through number of parameters
         for k in list(self.inference_metadata['inference']['priors'])[0:num_params]:
             # Define prior distribution
-            prior_distr = utils.map_name_to_numpy_distribution(self.inference_metadata['inference']['priors'][k]['distribution'])
+            prior_distr = utils.map_name_to_scipy_distribution(self.inference_metadata['inference']['priors'][k]['distribution'])
             # Get prior hyperparams
             prior_hyperparams = self.inference_metadata['inference']['priors'][k]
             # Remove name of prior distribution
@@ -222,7 +249,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
             for k, v in prior_hyperparams.items():
                 prior_hyperparams[k] = float(v)
             # Sample N times from univariate prior distribution
-            if N == 1: prior_samples.append(prior_distr(*prior_hyperparams.values()))
-            else: prior_samples.append(prior_distr(*prior_hyperparams.values(),size=N))
+            if N == 1: prior_samples.append(prior_distr.rvs(**prior_hyperparams.values()))
+            else: prior_samples.append(prior_distr.rvs(**prior_hyperparams.values(),size=N))
 
         return np.array(prior_samples)

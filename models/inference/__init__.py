@@ -83,6 +83,14 @@ class MarkovChainMonteCarlo(object):
         self.__log_likelihood = log_likelihood
 
     @property
+    def log_likelihood_jacobian(self):
+        return self.__log_likelihood_jacobian
+
+    @log_likelihood_jacobian.setter
+    def log_likelihood_jacobian(self,log_likelihood_jacobian):
+        self.__log_likelihood_jacobian = log_likelihood_jacobian
+
+    @property
     def predictive_likelihood(self):
         return self.__predictive_likelihood
 
@@ -298,6 +306,10 @@ class MarkovChainMonteCarlo(object):
     def evaluate_log_likelihood(self,p):
         utils.validate_attribute_existence(self,['log_likelihood'])
         return self.__log_likelihood(p)
+
+    def evaluate_log_likelihood_jacobian(self,p):
+        utils.validate_attribute_existence(self,['log_likelihood_jacobian'])
+        return self.__log_likelihood_jacobian(p)
 
     def evaluate_predictive_likelihood(self,p,x):
         utils.validate_attribute_existence(self,['predictive_likelihood'])
@@ -605,7 +617,7 @@ class MarkovChainMonteCarlo(object):
 
         return np.array(theta), acc, prop
 
-    def compute_mle_estimate(self,fundamental_diagram,**kwargs):
+    def compute_maximum_likelihood_estimate(self,fundamental_diagram,**kwargs):
 
         warnings.simplefilter("ignore")
 
@@ -614,39 +626,51 @@ class MarkovChainMonteCarlo(object):
         utils.validate_attribute_existence(fundamental_diagram,['num_learning_parameters','true_parameters'])
 
         # Fix random seed
-        np.random.seed(int(fundamental_diagram.simulation_metadata['seed']))
+        if fundamental_diagram.simulation_metadata['seed'] == '' or fundamental_diagram.simulation_metadata['seed'].lower() == 'none':
+            np.random.seed(None)
+        else:
+            np.random.seed(int(fundamental_diagram.simulation_metadata['seed']))
+
 
         # Get p0 from metadata
         p0 = list(self.inference_metadata['inference']['mle']['p0'])[0:fundamental_diagram.num_learning_parameters]
 
+        # If no p0 is provided set p0 to true parameter values
         if len(p0) < 1:
             if (not self.inference_metadata['simulation_flag']):
                 raise ValueError('True parameters cannot be found for MLE estimator initialisation.')
             else:
                 p0 = fundamental_diagram.true_parameters[0:fundamental_diagram.num_learning_parameters]
 
-        # Define negative of log target
-        def negative_log_target(p):
-            return (-1)*self.__evaluate_log_target(p)
+        # Define negative of log likelihood
+        def negative_log_likelihood(p):
+            return (-1)*self.evaluate_log_likelihood(p)
+        def negative_log_likelihood_jacobian(p):
+            return tuple([(-1)*x for x in self.evaluate_log_likelihood_jacobian(p)])
 
         # Optimise parameters for negative_log_target
         if self.inference_metadata['inference']['mle']['method'] == '':
-            mle = so.minimize(negative_log_target, p0, method='SLSQP')
+            mle = so.minimize(negative_log_likelihood, p0, method='L-BFGS-B', jac=negative_log_likelihood_jacobian, options={"disp": False, "maxiter" : 1e7})
         else:
-            mle = so.minimize(negative_log_target, p0, method=self.inference_metadata['inference']['mle']['method'])
+            mle = so.minimize(negative_log_likelihood, p0, method=self.inference_metadata['inference']['mle']['method'])
+
         # Get parameters
         self.mle_params = list(mle.x)
         # Evaluate log target
-        mle_log_target = self.__evaluate_log_target(self.mle_params)
-        true_log_target = self.__evaluate_log_target(fundamental_diagram.true_parameters)
+        mle_log_likelihood = self.evaluate_log_likelihood(self.mle_params)
+        true_log_likelihood = self.evaluate_log_likelihood(fundamental_diagram.true_parameters)
+        true_log_target = self.evaluate_log_target(fundamental_diagram.true_parameters)
+        true_log_prior = self.evaluate_log_joint_prior(fundamental_diagram.true_parameters)
 
         # Update class variables
-        utils.update(self.__inference_metadata['results'],{"mle":{"params":self.mle_params,"mle_log_target":mle_log_target,"true_log_target":true_log_target}})
+        utils.update(self.__inference_metadata['results'],{"mle":{"params":self.mle_params,"mle_log_likelihood":mle_log_likelihood,"true_log_likelihood":true_log_likelihood}})
 
         if 'prints' in kwargs:
             if kwargs.get('prints'):
                 print(f'MLE parameters: {self.mle_params}')
-                print(f'MLE log target: {mle_log_target}')
+                print(f'MLE log likelihood: {mle_log_likelihood}')
+                print(f'True log prior: {true_log_prior}')
+                print(f'True log likelihood: {true_log_likelihood}')
                 print(f'True log target: {true_log_target}')
 
     def compute_log_posterior_harmonic_mean_estimator(self,**kwargs):
@@ -955,8 +979,8 @@ class MarkovChainMonteCarlo(object):
                     hyperparams[k] = float(v)
 
             yrange = self.log_univariate_priors[i].pdf(xrange,**hyperparams)
-            prior_mean = np.round(self.log_univariate_priors[i].mean(**hyperparams),2)
-            prior_std = np.round(self.log_univariate_priors[i].std(**hyperparams),2)
+            prior_mean = np.round(self.log_univariate_priors[i].mean(**hyperparams),5)
+            prior_std = np.round(self.log_univariate_priors[i].std(**hyperparams),5)
 
             # Store distributio and parameter names
             distribution_name = prior_params[i]['distribution'].capitalize()
@@ -1021,13 +1045,13 @@ class MarkovChainMonteCarlo(object):
 
             # Plot true parameters if they exist
             if hasattr(fundamental_diagram,'true_parameters'):
-                plt.hlines(fundamental_diagram.true_parameters[p],xmin=burnin,xmax=(self.theta.shape[0]),label='True',linestyle='dashed',zorder=5)
+                plt.hlines(fundamental_diagram.true_parameters[p],xmin=burnin,xmax=(self.theta.shape[0]),color='black',label='True',zorder=5)
 
             print(fundamental_diagram.parameter_names[p])
             print('mean',np.mean(self.theta[burnin:,p],axis=0))
 
             # Plot inferred mean
-            plt.hlines(np.mean(self.theta[burnin:,p],axis=0),xmin=burnin,xmax=(self.theta.shape[0]),color='red',label=f'Posterior $\mu$',linestyle='dashed',zorder=4)
+            plt.hlines(np.mean(self.theta[burnin:,p],axis=0),xmin=burnin,xmax=(self.theta.shape[0]),color='red',label=f'Posterior $\mu$',zorder=4)
 
             # Add labels
             plt.xlabel('MCMC Iterations')
@@ -1074,7 +1098,7 @@ class MarkovChainMonteCarlo(object):
 
                 # Plot true parameters if they exist
                 if hasattr(fundamental_diagram,'true_parameters'):
-                    plt.hlines(fundamental_diagram.true_parameters[p],xmin=burnin,xmax=(self.thermodynamic_integration_theta.shape[0]),label='True',linestyle='dashed')
+                    plt.hlines(fundamental_diagram.true_parameters[p],xmin=burnin,xmax=(self.thermodynamic_integration_theta.shape[0]),label='True',color='black')
 
                 # Plot inferred mean
                 plt.hlines(np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0),xmin=burnin,xmax=(self.thermodynamic_integration_theta.shape[0]),color='red',label=f'Posterior $\mu$',linestyle='dashed')
@@ -1159,12 +1183,24 @@ class MarkovChainMonteCarlo(object):
             # Plot parameter posterior
             freq,_,_ = plt.hist(self.theta[burnin:,p],bins=bins)
 
+            # Compute posterior mean
+            sample_mean = np.mean(self.theta[burnin:,p])
+            sigma2 = fundamental_diagram.true_parameters[-1]
+            var = np.log(1+sigma2)
+
+            posterior_mean = sample_mean #*np.exp(var/2 - 3*var/(2*len(self.theta[burnin:,p])))
+
+            # print('posterior_mean',posterior_mean)
+            # print('sample_mean',sample_mean)
+
+            # Compute posterior std
+            posterior_std = np.std(self.theta[burnin:,p])
 
             # Add labels
             if show_titles: plt.title(f'Parameter posterior for {fundamental_diagram.parameter_names[p]} with burnin = {burnin}')
-            plt.vlines(np.mean(self.theta[burnin:,p]),0,np.max(freq),color='red',label=r'$\mu$', linewidth=2)
-            plt.vlines((np.mean(self.theta[burnin:,p])-num_stds*np.std(self.theta[burnin:,p])),0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2)
-            plt.vlines((np.mean(self.theta[burnin:,p])+num_stds*np.std(self.theta[burnin:,p])),0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2)
+            plt.vlines(posterior_mean,0,np.max(freq),color='red',label=r'$\mu$', linewidth=2)
+            plt.vlines(posterior_mean-num_stds*posterior_std,0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2)
+            plt.vlines(posterior_mean+num_stds*posterior_std,0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2)
             # Plot true parameters if they exist
             if hasattr(fundamental_diagram,'true_parameters'):
                 plt.vlines(fundamental_diagram.true_parameters[p],0,np.max(freq),label='True',color='black',linewidth=2)
@@ -1578,6 +1614,9 @@ class MarkovChainMonteCarlo(object):
 
         plt.scatter(self.x,self.y,label='Observed data',color='blue',zorder=2,s=10)
         plt.plot(self.posterior_predictive_x,q_mean,color='red',label=r'$\mu$',zorder=1)
+        if hasattr(fundamental_diagram,'true_parameters'):
+            q_true = fundamental_diagram.simulate_with_x(fundamental_diagram.true_parameters,self.posterior_predictive_x)
+            plt.plot(fundamental_diagram.rho,q_true,color='black',label='true',zorder=2)
         plt.fill_between(self.posterior_predictive_x,q_upper,q_lower,alpha=0.5,color='red',label=f"$\mu$ +/- {num_stds}$\sigma$",zorder=3)
         if show_titles: plt.title(f"Posterior predictive for {self.inference_metadata['fundamental_diagram']} FD")
         plt.xlabel(f'{self.x_name}')

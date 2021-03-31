@@ -9,7 +9,8 @@ from inference import *
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]+"probabilistic_traffic_flow_modelling"
 
 # Define path to experiment parameters
-data_id = 'exponential_fd_simulation_small'
+data_id = str(sys.argv[1])
+        #'exponential_fd_simulation_small'
         #'exponential_fd_simulation_smaller_more_data'
         #"exponential_fd_simulation_small_medium_noise"
         #'exponential_fd_simulation_small'

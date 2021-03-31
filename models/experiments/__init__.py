@@ -34,14 +34,14 @@ class Experiment(object):
         fd = utils.instantiate_fundamental_diagram(inference_model.inference_metadata['data_id'])
 
         # Assert that data id is the same in inference and simulation metadata
-        assert inference_model.inference_metadata['data_id'] == fd.simulation_metadata['id']
+        # assert inference_model.inference_metadata['data_id'] == fd.simulation_metadata['id']
 
         # Populate them with data
         fd.populate()
         inference_model.populate(fd)
 
         # Compute MLE estimate
-        inference_model.compute_mle_estimate(fd,prints=strtobool(self.experiment_metadata['mle']['print']))
+        inference_model.compute_maximum_likelihood_estimate(fd,prints=strtobool(self.experiment_metadata['mle']['print']))
 
         # Plot univariate prior distributions
         if strtobool(self.experiment_metadata['priors']['export']): inference_model.export_univariate_prior_plots(fd,strtobool(self.experiment_metadata['priors']['show']))

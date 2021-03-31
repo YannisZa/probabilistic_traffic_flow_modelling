@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import scipy.optimize as so
+from scipy import stats as ss
 from distutils.util import strtobool
 matplotlib.rc('font', **{'size'   : 18})
 
@@ -119,7 +120,6 @@ class FundamentalDiagram(object):
 
 
     def populate(self):
-
         # Import q and rho
         self.import_raw_data()
 
@@ -128,7 +128,6 @@ class FundamentalDiagram(object):
 
 
     def populate_rho(self):
-
         # Make sure you have imported metadata
         utils.validate_attribute_existence(self,['simulation_metadata'])
 
@@ -176,18 +175,31 @@ class FundamentalDiagram(object):
         sigma2 = p[-1]
         if 'prints' in kwargs:
             if kwargs.get('prints'): print(f'Simulating with {sigma2} variance')
-        # Decide on pertubations
-        n_pertubations = int(self.simulation_metadata['n_pertubations'])
 
         # Get dimension of rho data
         dim = self.rho.shape[0]
-        # Simulate without noise
+        # Simulate data without noise
         self.q_true = self.simulate(p)
-        # Sample from Log Normal n_pertubations times and average them out to avoid introducing bias in the log target
-        simq = np.array([np.random.lognormal(mean = np.log(self.q_true[i]), sigma = np.sqrt(sigma2),size=n_pertubations) for i in range(len(self.q_true))])
-        self.q = np.mean(simq,axis=1)
-        # mysimnoise = np.random.multivariate_normal(np.zeros(len(self.q_true)),np.eye(len(self.q_true))*sigma2,size=n_pertubations)
-        # self.q = self.q_true*np.exp(np.mean(mysimnoise,axis=0))
+        # Sample from Log Normal
+        # self.q = np.array([np.random.lognormal(mean = (np.log(self.q_true[i])),sigma = np.sqrt(sigma2)) for i in range(self.q_true)])
+        exp_mean = self.q_true / np.sqrt(1 + sigma2)
+        mean = np.log(exp_mean)
+        stdev = np.sqrt(np.log(1+sigma2))
+        self.q = np.array([ss.lognorm.rvs(s = stdev, loc = 0, scale = exp_mean[i]) for i in range(len(self.q_true))])
+
+
+        q = np.array([ss.lognorm.rvs(scale = (exp_mean[i]), s = stdev,size=100000) for i in range(len(self.q_true))])
+        # noise = np.random.multivariate_normal(np.zeros(len(self.q_true)),np.eye(len(self.q_true))*sigma2,size=100000)
+        # q = self.q_true*np.exp(noise)
+        q_mean = np.mean(q,axis=1)
+        q_std = np.std(q,axis=1)
+
+        # print(self.q_true-q_mean)
+        # print(q_mean*stdev-q_std)
+        # print(q_std)
+
+        # mysimnoise = np.random.multivariate_normal(np.zeros(len(self.q_true)),np.eye(len(self.q_true))*sigma2)
+        # self.q = self.q_true*np.exp(mysimnoise)
 
         # Update true parameters
         self.true_parameters = p
