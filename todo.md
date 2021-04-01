@@ -12,8 +12,10 @@ What can I check?
 [x] Tweaking proposal parameters 
 [x] Number of data points is sufficient
 [x] Random seed is set to None
-[] Is likelihood not identifiable? 
-[] Try transforming alpha to phi = exp(alpha)
+[x] Try transforming alpha to phi = log(alpha), psi = log(beta)
+[x] Is likelihood not identifiable? 
+[x] Try learning q = a x rho or q= exp(-b x rho)
+[] Remove np.random.seed
 
 Things to try out today
 [x] Compute MLE Jacobian to plug into scipy minimize and get unbiased MLE [COULD NOT BE DONE - MLE of one parameter is written in terms of the other]

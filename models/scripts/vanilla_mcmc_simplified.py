@@ -19,7 +19,7 @@ def ensure_dir(dir):
 # Fix random seed for simulating data
 simulation_seed = 2021
 # Define true parameters
-true_parameters = [0.6,0.1,0.0001]
+true_parameters = [0.6,0.1,0.001]
 # Define parameter names
 parameter_names = [r"$\alpha$",r"$\beta$",r"$\sigma^2$"]
 # Get observation noise
@@ -30,21 +30,21 @@ rho_max = 40
 # Number of data points
 n = 100
 # Number of learning parameters
-num_learning_parameters = 2
+num_learning_parameters = 1
 
 """ MCMC parameters """
 # Fix random seed for running MCMC
 mcmc_seed = None
 # Number of MCMC iterations
-N = 30000
+N = 20000
 # Step size in Random Walk proposal
-beta_step = 0.01
+beta_step = 1
 # Diagonal covariance matrix used in proposal
-K = np.diag([0.01125,0.00525])
+K = np.diag([0.4])#,0.0025])
 # Initial parameters for MCMC
-p0 = [0.4,0.2]
+p0 = [0.4]#,0.2]
 # Burnin for MCMC
-burnin = 10000
+burnin = 5000
 # Delta parameter for poisson estimator
 delta = 100
 
@@ -65,7 +65,7 @@ load_data = False
 
 """ Simulate data without noise """
 # Fix random seed
-np.random.seed(simulation_seed)
+# np.random.seed(simulation_seed)
 
 # Define rho
 # rho = np.concatenate([np.linspace(rho_min,rho_max,n1),np.linspace(rho_min,rho_max,n2)])
@@ -73,24 +73,22 @@ rho = np.linspace(rho_min,rho_max,n)
 
 # Define function for simulating data
 def simulate(p):
-    return p[0]*rho*np.exp(-p[1]*rho)
+    return p[0]*rho#*np.exp(-p[1]*rho)
 
 # Simulate q
 q_true = simulate(true_parameters)
 
 """ Sample q from Log Normal distribution """
 if not load_data:
-    exp_mean = q_true / np.sqrt(1 + sigma2)
-    mean = np.log(exp_mean)
-    stdev = np.sqrt(np.log(1+sigma2))
-    q = np.array([ss.lognorm.rvs(s = stdev, loc = 0, scale = exp_mean[i]) for i in range(len(q_true))])
-    np.savetxt(f"./data/output/debugging/q.txt",q)
+    q = ss.multivariate_normal.rvs(mean=q_true,cov=sigma2*np.eye(n))
+    np.savetxt(f"./data/output/debugging/simplified_q.txt",q)
 else:
-    q = np.loadtxt(f"./data/output/debugging/q.txt")
+    q = np.loadtxt(f"./data/output/debugging/simplified_q.txt")
 
 
 # Fix random seed
-# np.random.seed(mcmc_seed)
+    # np.random.seed(mcmc_seed)
+""" Define functions """
 
 def log_prior(p):
     p_trans = p #np.exp(p)
@@ -98,22 +96,13 @@ def log_prior(p):
     scale = 0.1
     b = 1./scale
     alpha_prior_logpdf = a*np.log(b) - loggamma(a) + a*p_trans[0] - b*np.exp(p_trans[0])
-    a = 2.
-    scale = 0.05
-    b = 1./scale
-    beta_prior_logpdf = a*np.log(b) - loggamma(a) + a*p_trans[1] - b*np.exp(p_trans[1])
-    return alpha_prior_logpdf  + beta_prior_logpdf
+    return alpha_prior_logpdf
+    # return ss.gamma.logpdf(p[0],a=6.,scale=0.1)
     #return ss.geninvgauss.logpdf(p[0],p=-1,b=0.61)+ ss.geninvgauss.logpdf(p[1],p=-2,b=0.209)
 
 def log_likelihood(p,data):
-    # Transform phi back to alpha
     p_trans = np.exp(p)
-    q_sim = simulate(p_trans)
-    exp_mean = q_sim / np.sqrt(1 + sigma2)
-    mean = np.log(exp_mean)
-    var = np.log(1 + sigma2)
-    stdev = np.sqrt(var)
-    return((ss.multivariate_normal.logpdf(np.log(data),mean=mean,cov=np.eye(n)*var) - np.sum(np.log(data))))
+    return ss.multivariate_normal.logpdf(data,mean=q,cov=np.eye(n)*sigma2)
 
 def log_posterior(p,data):
     return log_prior(p) + log_likelihood(p,data)
@@ -129,7 +118,7 @@ def poisson_mean_estimator(log_samples,delta):
     if J % 2 != 0: J += J % 2
     print('J =',J)
     assert J <= log_samples.shape[0]
-    return np.exp(delta - J * np.log(delta))*np.prod(log_samples[np.random.choice(range(log_samples.shape[0]),size=J)],axis=0)
+    return np.exp(delta)*(delta**(-J))*np.prod(log_samples[np.random.choice(range(log_samples.shape[0]),size=J)],axis=0)
 
 plt.figure(figsize=(10,10))
 plt.scatter(rho,q,color='blue')
@@ -139,13 +128,13 @@ plt.show()
 print('True parameters')
 for i,pname in enumerate(parameter_names):
     print(f'{pname} = {true_parameters[i]}')
-print('True log_prior',log_prior(np.log(true_parameters)))
-print('True log_likelihood',log_likelihood(np.log(true_parameters),q))
-print('True log target',log_posterior(np.log(true_parameters),q))
+print('True log_prior',log_prior(true_parameters))#np.log(true_parameters)))
+print('True log_likelihood',log_likelihood(true_parameters,q))#np.log(true_parameters),q))
+print('True log target',log_posterior(true_parameters,q))#np.log(true_parameters),q))
 
 # sys.exit(1)
 max_log_target = -1e9
-max_log_target_params = [-1,-1]
+max_log_target_params = [-1]
 if not load_data:
     # Initialise MCMC-related variables
     theta = []
@@ -166,7 +155,7 @@ if not load_data:
         ll_prev = log_likelihood(p_prev,q)
 
         # Propose new sample
-        p_new = p_prev + beta_step * ss.multivariate_normal.rvs(np.zeros(num_learning_parameters),K)
+        p_new = p_prev + beta_step * ss.multivariate_normal.rvs(mean=np.zeros(num_learning_parameters),cov=K)
 
         # Evaluate log function for proposed sample
         lt_new = log_posterior(p_new,q)
@@ -179,7 +168,6 @@ if not load_data:
             else: lt_new = -1e9
             print('lt_new after',lt_new)
 
-
         # Update maximum log-target
         if lt_new >= max_log_target:
             max_log_target = lt_new
@@ -187,8 +175,8 @@ if not load_data:
 
         # Printing proposals every 0.1*Nth iteration
         if prints and (i in [int(j/10*N) for j in range(1,11)]):
-            print('p_prev',np.exp(p_prev),'ll_prev',ll_prev,'lf_prev',lt_prev)
-            print('p_new',np.exp(p_new),'ll_new',ll_new,'lf_new',lt_new)
+            print('p_prev',np.exp(p_prev),'lt_prev',lt_prev)
+            print('p_new',np.exp(p_new),'lt_new',lt_new)
 
         # Calculate acceptance probability
         log_acc_ratio = log_acceptance_ratio(p_new,p_prev,q)
@@ -224,17 +212,17 @@ if not load_data:
     print(f'Acceptance rate {int(100*acc / N)}%')
 
     ensure_dir(f"./data/output/debugging/")
-    np.savetxt(f"./data/output/debugging/theta.txt",theta)
-    np.savetxt(f"./data/output/debugging/theta_proposed.txt",theta_proposed)
+    np.savetxt(f"./data/output/debugging/simplified_theta.txt",theta)
+    np.savetxt(f"./data/output/debugging/simplified_theta_proposed.txt",theta_proposed)
 
 else:
-    theta = np.loadtxt(f"./data/output/debugging/theta.txt")
-    theta_proposed = np.loadtxt(f"./data/output/debugging/theta_proposed.txt")
+    theta = np.loadtxt(f"./data/output/debugging/simplified_theta.txt")
+    theta_proposed = np.loadtxt(f"./data/output/debugging/simplified_theta_proposed.txt")
 
-print('True log target',log_posterior(np.log(true_parameters),q))
+print('True log target',log_posterior(true_parameters,q))#np.log(true_parameters),q))
 print('Max log target',max_log_target)
 print('Argmax log target',np.exp(max_log_target_params))
-print('Empirical variances during burnin',np.std(theta[0:burnin,:],axis=0))
+
 # Reshape theta
 theta = theta.reshape((N,num_learning_parameters))
 theta_proposed = theta_proposed.reshape((N,num_learning_parameters))
@@ -242,8 +230,8 @@ theta_proposed = theta_proposed.reshape((N,num_learning_parameters))
 """ Parameter posterior plots"""
 
 # Compute Poisson estimator for mean of log samples
-mu_hat = poisson_mean_estimator(theta[burnin:,:],delta)
-print('Poisson estimator',mu_hat)
+# mu_hat = poisson_mean_estimator(theta[burnin:,:],delta)
+# print('Poisson estimator',mu_hat)
 
 # Exponential log samples
 theta = np.exp(theta)
@@ -266,14 +254,14 @@ for par in range(num_learning_parameters):
     posterior_std = np.std(theta[burnin:,:],axis=0)
 
     # Plot parameter posterior
-    freq,_,_ = plt.hist(theta[burnin:,par],bins=bins)
+    freq,_,_ = plt.hist(theta[burnin:,par],bins=bins,zorder=1)
 
     # Add labels
     if show_titles: plt.title(f'Parameter posterior for {parameter_names[par]} with burnin = {burnin}')
-    plt.vlines(posterior_mean[par],0,np.max(freq),color='red',label=r'$\mu$', linewidth=2)
+    plt.vlines(posterior_mean[par],0,np.max(freq),color='red',label=r'$\mu$',linestyle='dashed', linewidth=2, zorder=3)
     plt.vlines(posterior_mean[par]-num_stds*posterior_std[par],0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2)
     plt.vlines(posterior_mean[par]+num_stds*posterior_std[par],0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2)
-    plt.vlines(true_parameters[par],0,np.max(freq),label='True',color='black',linewidth=2)
+    plt.vlines(true_parameters[par],0,np.max(freq),label='True',color='black',linewidth=2, zorder=2)
     # Add labels
     plt.xlabel(f'{parameter_names[par]}')
     plt.ylabel('Sample frequency')
@@ -293,14 +281,14 @@ for par in range(theta.shape[1]):
     # Add samples plot
     plt.plot(range(burnin,theta.shape[0]),theta[burnin:,par],color='blue',label='Samples',zorder=1)
 
-    # Plot true parameters if they exist
-    plt.hlines(true_parameters[par],xmin=burnin,xmax=(theta.shape[0]),color='black',label='True',zorder=5)
+    # Plot true parameters
+    plt.hlines(true_parameters[par],xmin=burnin,xmax=(theta.shape[0]),color='black',label='True',zorder=2)
 
     print(parameter_names[par])
     print('posterior mean',np.mean(theta[burnin:,par],axis=0))
 
     # Plot inferred mean
-    plt.hlines(np.mean(theta[burnin:,par],axis=0),xmin=burnin,xmax=(theta.shape[0]),color='red',label=f'Posterior $\mu$',zorder=4)
+    plt.hlines(np.mean(theta[burnin:,par],axis=0),xmin=burnin,xmax=(theta.shape[0]),color='red',linestyle='dashed',label=f'Posterior $\mu$',zorder=3)
 
     # Add labels
     plt.xlabel('MCMC Iterations')
