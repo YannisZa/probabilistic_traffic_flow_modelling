@@ -38,7 +38,7 @@ mcmc_seed = None
 # Number of MCMC iterations
 N = 30000
 # Step size in Random Walk proposal
-beta_step = 0.01
+beta_step = #0.01
 # Diagonal covariance matrix used in proposal
 K = np.diag([0.01125,0.00525])
 # Initial parameters for MCMC
@@ -218,6 +218,9 @@ if not load_data:
             theta.append(p_prev)
             theta_proposed.append(p_new)
 
+        if i == (burnin+1):
+            print('Empirical variances during burnin',np.var(theta[0:burnin]))
+            
     # Update class attributes
     theta = np.array(theta)
     theta_proposed = np.array(theta_proposed)
@@ -234,7 +237,7 @@ else:
 print('True log target',log_posterior(np.log(true_parameters),q))
 print('Max log target',max_log_target)
 print('Argmax log target',np.exp(max_log_target_params))
-print('Empirical variances during burnin',np.std(theta[0:burnin,:],axis=0))
+print('Empirical variances during burnin',np.var(theta[0:burnin,:],axis=0))
 # Reshape theta
 theta = theta.reshape((N,num_learning_parameters))
 theta_proposed = theta_proposed.reshape((N,num_learning_parameters))
