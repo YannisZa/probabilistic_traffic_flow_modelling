@@ -25,10 +25,10 @@ parameter_names = [r"$\alpha$",r"$\beta$",r"$\sigma^2$"]
 # Get observation noise
 sigma2 = true_parameters[2]
 # Rho (covariate) values
-rho_min = -2#0.01
-rho_max = 3#40
+rho_min = -0.5#0.01
+rho_max = 1.5#40
 # Number of data points
-n = 500
+n = 100
 # Number of learning parameters
 num_learning_parameters = 1
 
@@ -189,13 +189,6 @@ if not load_data:
         log_acc_ratio = log_acceptance_ratio(p_new,p_prev,q)
         if (log_acc_ratio) > 709: log_acc_ratio = 0
         acc_ratio = min(1,np.exp(log_acc_ratio))
-
-        # Make sure acceptance ratio is finite
-        # if not np.isfinite(log_acc_ratio):
-            # print('log_acc_ratio before',log_acc_ratio)
-            # if log_acc_ratio > 0: log_acc_ratio = 1e9
-        #     else: log_acc_ratio = -1e9
-        #     print('log_acc_ratio after',log_acc_ratio)
 
         # Sample from Uniform(0,1)
         # log_u = np.log(ss.uniform.rvs(0,1))
