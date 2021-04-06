@@ -17,7 +17,7 @@ def ensure_dir(dir):
 
 """ Simulation parameters """
 # Fix random seed for simulating data
-simulation_seed = 2021
+simulation_seed = None # 2021
 # Define true parameters
 true_parameters = [0.6,0.1,0.1]
 # Define parameter names
@@ -38,7 +38,7 @@ mcmc_seed = None
 # Number of MCMC iterations
 N = 20000
 # Diagonal covariance matrix used in proposal
-K = np.diag([0.2])#0.0009845481989923365
+K = np.diag([0.3])#0.0009845481989923365
 # Initial parameters for MCMC
 p0 = [0.4]#,0.2]
 # Burnin for MCMC
@@ -61,7 +61,7 @@ load_data = False
 
 """ Simulate data without noise """
 # Fix random seed
-np.random.seed(simulation_seed)
+# np.random.seed(simulation_seed)
 
 # Define rho
 # rho = np.concatenate([np.linspace(rho_min,rho_max,n1),np.linspace(rho_min,rho_max,n2)])
@@ -89,7 +89,7 @@ else:
 
 
 # Fix random seed
-np.random.seed(mcmc_seed)
+# np.random.seed(mcmc_seed)
 """ Define functions """
 
 def log_prior(p):

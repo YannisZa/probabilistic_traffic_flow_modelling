@@ -24,7 +24,11 @@ fd = utils.instantiate_fundamental_diagram(data_id)
 # fd.populate()
 fd.simulate_with_noise(fd.true_parameters)
 
+# print('true_parameters',fd.true_parameters)
+# print('rho',fd.rho)
+# print('log_q_true',fd.log_q_true)
+# print('q',fd.log_q)
 
 # Export plot and data
-fd.export_simulation_plot(True)
+fd.export_simulation_plot(False,True)
 fd.export_data()

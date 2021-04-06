@@ -7,11 +7,11 @@ import scipy.stats as ss
 
 from fundamental_diagrams.fundamental_diagram_definitions import *
 from inference.mcmc_inference_models import *
+from probability_distributions import *
 
 # Root directory
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]
 
-# def multivariate_log_normal
 
 """ ---------------------------------------------------------------------------General purpose-----------------------------------------------------------------------------"""
 def update(d, u):
@@ -25,6 +25,18 @@ def update(d, u):
 def ensure_dir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
+
+def mylog(x):
+    return np.log(x)
+
+def myexp(x):
+    return np.exp(x)
+
+def myreciprocal(x):
+    return 1/x
+
+def myidentity(x):
+    return 1/x
 
 """ ---------------------------------------------------------------------------Instantiators-----------------------------------------------------------------------------"""
 
@@ -51,6 +63,8 @@ def instantiate_fundamental_diagram(data_id):
 def instantiate_inference_method(inference_id):
     # Load inference parameters
     inference_params = import_inference_metadata(inference_id)
+    # Load simulation parameters
+    simulation_params = import_simulation_metadata(inference_params['data_id'])
 
     # Get class object
     Model = map_name_to_inference_method(inference_params['inference_model'])
@@ -58,8 +72,9 @@ def instantiate_inference_method(inference_id):
     # Instantiate object
     inference_model = Model(inference_id)
 
-    # Update simulation metadata
+    # Update inference and  simulation metadata
     inference_model.inference_metadata = inference_params
+    inference_model.simulation_metadata = simulation_params
 
     # Return instance of MarkovChainMonteCarlo object child class
     return inference_model
@@ -128,6 +143,7 @@ def validate_parameter_existence(necessary_parameters,current_params):
 
 """ ---------------------------------------------------------------------------String to function maps-----------------------------------------------------------------------------"""
 
+
 def map_name_to_fundamental_diagram(name):
 
     if name == 'exponential':
@@ -142,35 +158,42 @@ def map_name_to_inference_method(name):
     else:
         raise Exception(f'No probability distribution found for {name.lower()}')
 
+def map_name_to_parameter_transformation(name):
+    if name.lower() == 'log':
+        return True, mylog, myexp
+    elif name.lower() == 'reciprocal':
+        return True, myreciprocal, myreciprocal
+    elif name.lower() == 'identity':
+        return False, myidentity, myidentity
+    else:
+        raise ValueError(f'No parameter transformation found for {name.lower()}')
 
-def map_name_to_scipy_distribution(name,**kwargs):
+def map_name_to_multivariate_logpdf(name,iid,**kwargs):
 
     print_statements = False
     if 'prints' in kwargs:
         if kwargs.get('prints'): print_statements = True
 
-    if name.lower() == 'beta':
+    if 'gaussian' in name.lower() or 'normal' in name.lower():
         if print_statements: print(name.lower())
-        return ss.beta
-    elif name.lower() == 'gamma':
-        if print_statements: print(name.lower())
-        return ss.gamma
-    elif name.lower() in ['mnormal','mgaussian']:
-        if print_statements: print(name.lower())
-        return ss.multivariate_normal
-    elif name.lower() in ['normal','gaussian']:
-        if print_statements: print(name.lower())
-        return ss.normal
-    elif name.lower() == 'lognormal':
-        if print_statements: print(name.lower())
-        return ss.lognorm
-    elif name.lower() == 'geninvgauss':
-        if print_statements: print(name.lower())
-        return ss.geninvgauss
+        if iid: return multivariate_gaussian_iid
+        else: return multivariate_gaussian
     else:
-        raise Exception(f'No scipy probability distribution found for {name.lower()}')
+        raise Exception(f'No suitable likelihood probability distribution found for {name.lower()}')
 
-def map_name_to_numpy_distribution(name,**kwargs):
+def map_name_to_univariate_logpdf(name,**kwargs):
+
+    print_statements = False
+    if 'prints' in kwargs:
+        if kwargs.get('prints'): print_statements = True
+
+    if 'gaussian' in name.lower() or 'normal' in name.lower():
+        if print_statements: print(name.lower())
+        return gaussian
+    else:
+        raise Exception(f'No suitable likelihood probability distribution found for {name.lower()}')
+
+def map_name_to_distribution_sampler(name,**kwargs):
 
     print_statements = False
     if 'prints' in kwargs:

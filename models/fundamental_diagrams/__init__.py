@@ -46,21 +46,12 @@ class FundamentalDiagram(object):
         self.__parameter_names = param_names
 
     @property
-    def simulation_flag(self):
-        return self.__simulation_flag
-
-    @simulation_flag.setter
-    def simulation_flag(self,simulation_flag):
-        self.__simulation_flag = simulation_flag
-
-    @property
     def name(self):
         return self.__name
 
     @name.setter
     def name(self,name):
         self.__name = name
-
 
     @property
     def ols_params(self):
@@ -87,20 +78,20 @@ class FundamentalDiagram(object):
         self.__rho = rho
 
     @property
-    def q(self):
-        return self.__q
+    def log_q(self):
+        return self.__log_q
 
-    @q.setter
-    def q(self, q):
-        self.__q = q
+    @log_q.setter
+    def log_q(self, log_q):
+        self.__log_q = log_q
 
     @property
-    def q_true(self):
-        return self.__q_true
+    def log_q_true(self):
+        return self.__log_q_true
 
-    @q_true.setter
-    def q_true(self, q_true):
-        self.__q_true = q_true
+    @log_q_true.setter
+    def log_q_true(self, log_q_true):
+        self.__log_q_true = log_q_true
 
     @property
     def true_parameters(self):
@@ -171,6 +162,7 @@ class FundamentalDiagram(object):
         if self.simulation_metadata['seed'] == '' or self.simulation_metadata['seed'] == 'None': np.random.seed(None)
         else: np.random.seed(int(self.simulation_metadata['seed']))
 
+
         # Define sigma2 to be the last parameter
         sigma2 = p[-1]
         if 'prints' in kwargs:
@@ -178,34 +170,33 @@ class FundamentalDiagram(object):
 
         # Get dimension of rho data
         dim = self.rho.shape[0]
-        # Simulate data without noise
-        self.q_true = self.simulate(p)
-        # Sample from Log Normal
-        # self.q = np.array([np.random.lognormal(mean = (np.log(self.q_true[i])),sigma = np.sqrt(sigma2)) for i in range(self.q_true)])
-        exp_mean = self.q_true / np.sqrt(1 + sigma2)
-        mean = np.log(exp_mean)
-        stdev = np.sqrt(np.log(1+sigma2))
-        self.q = np.array([ss.lognorm.rvs(s = stdev, loc = 0, scale = exp_mean[i]) for i in range(len(self.q_true))])
 
+        # Simulate log data without noise using log parameters
+        self.log_q_true = self.log_simulate(p)
 
-        q = np.array([ss.lognorm.rvs(scale = (exp_mean[i]), s = stdev,size=100000) for i in range(len(self.q_true))])
-        # noise = np.random.multivariate_normal(np.zeros(len(self.q_true)),np.eye(len(self.q_true))*sigma2,size=100000)
-        # q = self.q_true*np.exp(noise)
-        q_mean = np.mean(q,axis=1)
-        q_std = np.std(q,axis=1)
+        # Generate error
+        error = np.random.normal(loc=0,scale=np.sqrt(sigma2),size=len(self.log_q_true))
 
-        # print(self.q_true-q_mean)
-        # print(q_mean*stdev-q_std)
-        # print(q_std)
+        # Simulate log data from multivariate normal distribution
+        if strtobool(self.simulation_metadata['error']['multiplicative']):
+            # Multiplicative error
+            self.log_q = self.log_q_true + error
+        else:
+            print('Might be wrong')
+            # Additive error
+            self.log_q = np.log(np.exp(self.log_q_true) + error)
 
-        # mysimnoise = np.random.multivariate_normal(np.zeros(len(self.q_true)),np.eye(len(self.q_true))*sigma2)
-        # self.q = self.q_true*np.exp(mysimnoise)
+        # q = np.array([ss.lognorm.rvs(scale = (exp_mean[i]), s = stdev,size=100000) for i in range(len(self.q_true))])
+        # # noise = np.random.multivariate_normal(np.zeros(len(self.q_true)),np.eye(len(self.q_true))*sigma2,size=100000)
+        # # q = self.q_true*np.exp(noise)
+        # q_mean = np.mean(q,axis=1)
+        # q_std = np.std(q,axis=1)
 
         # Update true parameters
         self.true_parameters = p
 
     def squared_error(self,p):
-        return np.sum((self.q-self.simulate(p))**2)
+        return np.sum((np.exp(self.log_q)-np.exp(self.log_simulate(p)))**2)
 
     def ols_estimation(self):
 
@@ -247,18 +238,18 @@ class FundamentalDiagram(object):
         self.rho = rho
 
         # Import q
-        if os.path.exists((data_filename+'q.txt')):
-            q = np.loadtxt((data_filename+'q.txt'))
+        if os.path.exists((data_filename+'log_q.txt')):
+            log_q = np.loadtxt((data_filename+'log_q.txt'))
         else:
-            raise FileNotFoundError(f"File {(data_filename+'rho.txt')} not found.")
+            raise FileNotFoundError(f"File {(data_filename+'log_q.txt')} not found.")
         # Update attribute rho
-        self.q = q
+        self.log_q = log_q
 
 
     def export_data(self,**kwargs):
 
         # Make sure you have stored the necessary attributes
-        utils.validate_attribute_existence(self,['rho','q_true'])
+        utils.validate_attribute_existence(self,['rho','log_q_true'])
 
         # Get data filename
         data_filename = utils.prepare_output_simulation_filename(self.data_id)
@@ -277,47 +268,52 @@ class FundamentalDiagram(object):
         # Ensure directory exists otherwise create it
         utils.ensure_dir(data_filename)
         # Save to txt file
-        np.savetxt((data_filename+'q_true.txt'),self.q_true)
+        np.savetxt((data_filename+'log_q_true.txt'),self.log_q_true)
         if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(data_filename+'q_true.txt')}")
+            if kwargs.get('prints'): print(f"File exported to {(data_filename+'log_q_true.txt')}")
 
         # Export q if it exists
-        if hasattr(self,'q'):
+        if hasattr(self,'log_q'):
             # Ensure directory exists otherwise create it
             utils.ensure_dir(data_filename)
             # Save to txt file
-            np.savetxt((data_filename+'q.txt'),self.q)
+            np.savetxt((data_filename+'log_q.txt'),self.log_q)
             if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(data_filename+'q.txt')}")
+                if kwargs.get('prints'): print(f"File exported to {(data_filename+'log_q.txt')}")
 
 
-    def plot_simulation(self):
+    def plot_simulation(self,log:bool=True):
 
         # Make sure you have stored the necessary attributes
-        utils.validate_attribute_existence(self,['rho','q_true'])
+        utils.validate_attribute_existence(self,['rho','log_q_true'])
 
         fig = plt.figure(figsize=(10,10))
-        if hasattr(self,'q'):
-            plt.scatter(self.rho,self.q,color='blue',label='Simulated')
-        plt.plot(self.rho,self.q_true,color='red',label='True')
+        if hasattr(self,'log_q'):
+            if log: plt.scatter(self.rho,self.log_q,color='blue',label='Log simulated')
+            else: plt.scatter(self.rho,np.exp(self.log_q),color='blue',label='Simulated')
+        if log:
+            plt.plot(self.rho,self.log_q_true,color='black',label='Log true')
+            plt.ylabel(r'$\log q$')
+        else:
+            plt.plot(self.rho,np.exp(self.log_q_true),color='black',label='True')
+            plt.ylabel(r'$q$')
         plt.xlabel(r'$\rho$')
-        plt.ylabel(r'$q$')
         plt.legend()
         plt.show()
         return fig
 
 
-    def export_simulation_plot(self,show_plot:bool=False,**kwargs):
+    def export_simulation_plot(self,log:bool=True,show_plot:bool=False,**kwargs):
 
         # Get data filename
         data_filename = utils.prepare_output_simulation_filename(self.data_id)
 
         # Generate plot
-        fig = self.plot_simulation()
+        fig = self.plot_simulation(log)
 
         # Export plot to file
-        fig.savefig((data_filename+'simulation.png'))
+        fig.savefig((data_filename+'log_simulation.png'))
         # Close plot
         plt.close(fig)
         if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(data_filename+'simulation.png')}")
+            if kwargs.get('prints'): print(f"File exported to {(data_filename+'log_simulation.png')}")

@@ -19,25 +19,20 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
     def __init__(self,inference_id):
         super().__init__(inference_id)
         MarkovChainMonteCarlo.method.fset(self, 'grwmh')
-        MarkovChainMonteCarlo.evaluate_log_target.fset(self, super().evaluate_log_posterior)
-        MarkovChainMonteCarlo.evaluate_thermodynamic_integration_log_target.fset(self, super().evaluate_thermodynamic_integration_log_posterior)
+        MarkovChainMonteCarlo.log_target.fset(self, super().evaluate_log_posterior)
+        MarkovChainMonteCarlo.thermodynamic_integration_log_target.fset(self, super().evaluate_thermodynamic_integration_log_posterior)
 
     def update_log_prior_log_pdf(self,fundamental_diagram,**kwargs):
 
         prior_distribution_log_pdfs = []
-        prior_distributions = []
-
-        # Store number of parameters
-        num_params = fundamental_diagram.num_learning_parameters
-
         # Make sure you have enough priors
-        if len(self.inference_metadata['inference']['priors'].keys()) < num_params:
-            raise ParameterError(f"The model has {num_params} parameter but only {len(self.inference_metadata['inference']['priors'].keys())} priors were provided.")
+        if len(self.inference_metadata['inference']['priors'].keys()) < self.num_learning_parameters:
+            raise ValueError(f"The model has {self.num_learning_parameters} parameter(s) but only {len(self.inference_metadata['inference']['priors'].keys())} priors were provided.")
 
         # Define list of hyperparameters
         hyperparams_list = []
         # Loop through number of parameters
-        for k in list(self.inference_metadata['inference']['priors'])[0:num_params]:
+        for k in list(self.inference_metadata['inference']['priors'])[0:self.num_learning_parameters]:
             # Get prior hyperparameter kwargs
             hyperparams = {}
             for key, v in self.inference_metadata['inference']['priors'][k].items():
@@ -47,80 +42,88 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
             hyperparams_list.append(hyperparams)
 
         # Loop through number of parameters
-        for i,k in enumerate(list(self.inference_metadata['inference']['priors'])[0:num_params]):
+        for i,k in enumerate(list(self.inference_metadata['inference']['priors'])[0:self.num_learning_parameters]):
             # Define prior distribution
-            prior_distr = utils.map_name_to_scipy_distribution(self.inference_metadata['inference']['priors'][k]['distribution'])
+            prior_distr = utils.map_name_to_univariate_logpdf(self.inference_metadata['inference']['priors'][k]['distribution'])
             # print('hyperparams',hyperparams)
             # Define log pdf of prior distribution
             def make_log_univariate_prior_pdf(index):
                 def _log_univariate_prior_pdf(p):
-                    return prior_distr.logpdf(p,**hyperparams_list[index])
+                    return prior_distr(p,**hyperparams_list[index])
                 return _log_univariate_prior_pdf
             # Append function to list of prior distributions
             prior_distribution_log_pdfs.append(make_log_univariate_prior_pdf(i))
-            prior_distributions.append(prior_distr)
 
         # Define multivaraite prior log pdf
         def _log_multivariate_prior_pdf(p):
-            return np.sum([prior(p[j]) for j,prior in enumerate(prior_distribution_log_pdfs)])
+            return np.sum([prior(p[j])[0] for j,prior in enumerate(prior_distribution_log_pdfs)])
 
         # Update super class attributes for univariate and joint priors
         MarkovChainMonteCarlo.log_joint_prior.fset(self, _log_multivariate_prior_pdf)
-        MarkovChainMonteCarlo.log_univariate_priors.fset(self, prior_distributions)
+        MarkovChainMonteCarlo.log_univariate_priors.fset(self, prior_distribution_log_pdfs)
 
     def update_log_likelihood_log_pdf(self,fundamental_diagram,**kwargs):
 
         # If data is from a simulation and sigma parameter is not learned
-        if ((fundamental_diagram.simulation_flag) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters)>0):
+        if ((self.simulation_metadata['simulation_flag']) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters)>0):
             # Define sigma
+            # TO DO: use function to construct covariance matrix based on metadata
             sigma2 = fundamental_diagram.true_parameters[-1]
             sigma_cov = np.eye(self.n)*fundamental_diagram.true_parameters[-1]
-            if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mnormal','normal']:
-                if 'prints' in kwargs:
-                    if kwargs.get('prints'): print('multivariate normal')
-                def _log_likelihood(p):
-                    return ss.multivariate_normal.logpdf(self.y,fundamental_diagram.simulate(p),sigma_cov)
-            if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mlognormal','lognormal']:
-                if 'prints' in kwargs:
-                    if kwargs.get('prints'): print('multivariate lognormal')
-                print('multivariate lognormal')
-                def _log_likelihood(p):
-                    q = fundamental_diagram.simulate(p)
-                    exp_mean = q / np.sqrt(1 + sigma2)
-                    mean = np.log(exp_mean)
-                    var = np.log(1 + sigma2)
-                    stdev = np.sqrt(var)
-                    # print(np.sum([ss.lognorm.logpdf(self.y[i],s=stdev,loc=0,scale=exp_mean[i]) for i in range(len(self.y))]))
-                    # print(-self.n*np.log(stdev) - (self.n/2)*np.log(2*np.pi) - np.sum(np.log(self.y)) - (1/(2*var)) * np.sum([(np.log(self.y[i])-mean[i])**2 for i in range(self.n)]))
-                    # print((ss.multivariate_normal.logpdf(np.log(self.y),mean=mean,cov=np.eye(self.n)*var) - np.sum(np.log(self.y))))
-                    return((ss.multivariate_normal.logpdf(np.log(self.y),mean=mean,cov=np.eye(self.n)*var) - np.sum(np.log(self.y))))
-                def _log_likelihood_jacobian(p):
-                    q = fundamental_diagram.simulate(p)
-                    exp_mean = q / np.sqrt(1 + sigma2)
-                    mean = np.log(exp_mean)
-                    var = np.log(1 + sigma2)
-                    stdev = np.sqrt(var)
-                    jac_alpha = (1/(var*p[0]))*np.sum((np.log(self.y)-mean))
-                    jac_beta = (1/var)*np.sum((np.log(self.y)-mean)*self.x)
-                    return [jac_alpha,jac_beta]
 
+            # Store distribution name
+            distribution_name = self.inference_metadata['inference']['likelihood']['type'].lower()
+            # Store flag for whether distribution is composed of iid observations
+            iid_data = strtobool(self.simulation_metadata['error']['iid'])
+            # Store flag for whether model is additive or multiplicative
+            multiplicative_model = strtobool(self.simulation_metadata['error']['multiplicative'])
+            # Store flag and type of parameter transformation
+            transformed_parameters, parameter_transformation, parameter_inverse_transformation = utils.map_name_to_parameter_transformation(self.inference_metadata['parameter_transformation'])
+            # Get distribution
+            logpdf = utils.map_name_to_multivariate_logpdf(distribution_name,iid_data)
+            # Print distribution name
+            if 'prints' in kwargs:
+                if kwargs.get('prints'): print(distribution_name,'iid data:',iid_data)
+
+            if multiplicative_model:
+                def _log_likelihood(p):
+                    p_transformed = parameter_inverse_transformation(p)
+                    return logpdf(self.log_y,loc = fundamental_diagram.log_simulate(p_transformed), scale = sigma_cov)
+            else:
+                def _log_likelihood(p):
+                    p_transformed = parameter_inverse_transformation(p)
+                    return logpdf(np.exp(self.log_y),loc = np.exp(fundamental_diagram.log_simulate(p_transformed)), scale = sigma_cov)
+
+            # if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mlognormal','lognormal']:
+            #     if 'prints' in kwargs:
+            #         if kwargs.get('prints'): print('multivariate lognormal')
+            #     print('multivariate lognormal')
+            #     def _log_likelihood(p):
+            #         q = fundamental_diagram.simulate(p)
+            #         exp_mean = q / np.sqrt(1 + sigma2)
+            #         mean = np.log(exp_mean)
+            #         var = np.log(1 + sigma2)
+            #         stdev = np.sqrt(var)
+            #         # print(np.sum([ss.lognorm.logpdf(self.log_y[i],s=stdev,loc=0,scale=exp_mean[i]) for i in range(len(self.log_y))]))
+            #         # print(-self.n*np.log(stdev) - (self.n/2)*np.log(2*np.pi) - np.sum(np.log(self.log_y)) - (1/(2*var)) * np.sum([(np.log(self.log_y[i])-mean[i])**2 for i in range(self.n)]))
+            #         # print((ss.multivariate_normal.logpdf(np.log(self.log_y),mean=mean,cov=np.eye(self.n)*var) - np.sum(np.log(self.log_y))))
+            #         return((ss.multivariate_normal.logpdf(np.log(self.log_y),mean=mean,cov=np.eye(self.n)*var) - np.sum(np.log(self.log_y))))
         else:
             raise ValueError('Not implemented yet')
 
             if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mnormal','normal']:
                 def _log_likelihood(p):
-                    return ss.multivariate_normal.logpdf(self.y,fundamental_diagram.simulate(p),np.eye(self.n)*p[-1])
+                    return ss.multivariate_normal.logpdf(self.log_y,fundamental_diagram.simulate(p),np.eye(self.n)*p[-1])
             if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mlognormal','lognormal']:
                 def _log_likelihood(p):
-                    return np.sum([ss.lognorm.logpdf(x=self.y[i],s=np.sqrt(p[-1]),scale=fundamental_diagram.simulate(p)[i]) for i in range(self.n)])
+                    return np.sum([ss.lognorm.logpdf(x=self.log_y[i],s=np.sqrt(p[-1]),scale=fundamental_diagram.simulate(p)[i]) for i in range(self.n)])
 
         MarkovChainMonteCarlo.log_likelihood.fset(self, _log_likelihood)
-        MarkovChainMonteCarlo.log_likelihood_jacobian.fset(self, _log_likelihood_jacobian)
 
     def update_predictive_likelihood(self,fundamental_diagram, **kwargs):
 
         # Get likelihood numpy sampler from metadata
-        likelihood_sampler = utils.map_name_to_numpy_distribution(self.inference_metadata['inference']['likelihood']['type'].lower())
+        likelihood_sampler = utils.map_name_to_distribution_sampler(self.inference_metadata['inference']['likelihood']['type'].lower())
 
         if ((fundamental_diagram.simulation_flag) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters) > 0):
 
@@ -175,49 +178,34 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         # Get kernel parameters
         kernel_params = self.inference_metadata['inference'][mcmc_type]['transition_kernel']
         kernel_type = str(kernel_params['type'])
-        K_diagonal = list(kernel_params['K_diagonal'])
+        proposal_stds = list(kernel_params['proposal_stds'])
+        K_diagonal = np.diag([proposal_stds[i]**2 for i in range(len(proposal_stds))])
         beta_step = float(kernel_params['beta_step'])
 
         if 'prints' in kwargs:
             if kwargs.get('prints'):
                 print(mcmc_type)
-                print('Proposal var',K_diagonal)
+                print('Proposal covariance',K_diagonal)
+                print('Proposal standard deviations',[np.sqrt(v) for v in np.diagonal(K_diagonal)])
                 print('Proposal beta step',beta_step)
 
-        # Store number of parameters
-        num_params = fundamental_diagram.num_learning_parameters
+        # If K_diagonal does not have length equal to self.num_learning_parameters raise error
+        if len(K_diagonal) != self.num_learning_parameters:
+            raise LengthError(f'K_diagonal has length {len(K_diagonal)} and not {self.num_learning_parameters}')
 
-        # If K_diagonal does not have length equal to num_params raise error
-        if len(K_diagonal) != num_params:
-            raise LengthError(f'K_diagonal has length {len(K_diagonal)} and not {num_params}')
 
-        # Depending on kernel type define proposal mechanism
-        if kernel_type.lower() in ['normal','mnormal','gaussian','mgaussian']:
-            # Get distribution corresponding to type of kernel
-            kernel_distr = utils.map_name_to_scipy_distribution(kernel_type)
+        # Get distribution corresponding to type of kernel
+        distribution_sampler = utils.map_name_to_distribution_sampler(kernel_type)
 
-            if not strtobool(self.inference_metadata['inference'][mcmc_type]['transition_kernel']['constrained']):
-                print('Unconstrained proposal')
-                # Define Gaussian random walk proposal mechanism
-                def _kernel(p):
-                    pnew = None
-                    if num_params > 1:
-                        pnew = p + beta_step*kernel_distr.rvs(np.zeros(num_params),np.diag(K_diagonal))
-                    else:
-                        pnew = p + beta_step*kernel_distr.rvs(0,K_diagonal[0])
-                    return pnew
+        # Define proposal mechanism
+        def _kernel(p):
+            pnew = None
+            if self.num_learning_parameters > 1:
+                pnew = p + beta_step*distribution_sampler.rvs(np.zeros(self.num_learning_parameters),np.diag(K_diagonal))
+            else:
+                pnew = p + beta_step*distribution_sampler.rvs(0,K_diagonal[0])
+            return pnew
 
-            elif self.inference_metadata['inference'][mcmc_type]['transition_kernel']['action'] == 'reflect':
-                print('Constrained proposal')
-                # Define Gaussian random walk proposal mechanism
-                def _kernel(p):
-                    pnew = None
-                    if num_params > 1:
-                        pnew = p + beta_step*kernel_distr.rvs(np.zeros(num_params),np.diag(K_diagonal))
-                    else:
-                        pnew = p + beta_step*kernel_distr.rvs(0,K_diagonal[0])
-
-                    return self.reflect_proposal(pnew,mcmc_type)
 
         # Update super class transition kernel attribute
         if mcmc_type == 'vanilla_mcmc':
@@ -230,17 +218,14 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         # Initialise array for prior samples
         prior_samples = []
 
-        # Get number of parameters
-        num_params = fundamental_diagram.num_learning_parameters
-
         # Make sure you have enough priors
-        if len(self.inference_metadata['inference']['priors'].keys()) < num_params:
-            raise ParameterError(f"The model has {num_params} parameter but only {len(self.inference_metadata['inference']['priors'].keys())} priors were provided.")
+        if len(self.inference_metadata['inference']['priors'].keys()) < self.num_learning_parameters:
+            raise ValueError(f"The model has {self.num_learning_parameters} parameter(s) but only {len(self.inference_metadata['inference']['priors'].keys())} priors were provided.")
 
         # Loop through number of parameters
-        for k in list(self.inference_metadata['inference']['priors'])[0:num_params]:
+        for k in list(self.inference_metadata['inference']['priors'])[0:self.num_learning_parameters]:
             # Define prior distribution
-            prior_distr = utils.map_name_to_scipy_distribution(self.inference_metadata['inference']['priors'][k]['distribution'])
+            prior_distr = utils.map_name_to_distribution_sampler(self.inference_metadata['inference']['priors'][k]['distribution'])
             # Get prior hyperparams
             prior_hyperparams = self.inference_metadata['inference']['priors'][k]
             # Remove name of prior distribution
