@@ -123,7 +123,7 @@ class Experiment(object):
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
                                                                     show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
                     _ = inference_model.generate_mcmc_space_exploration_plots(fd,
-                                                                    show_posterior=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_posterior']),
+                                                                    show_posterior=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_true_posterior']),
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
                                                                     show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
                     _ = inference_model.generate_mcmc_mixing_plots(fd,
@@ -155,7 +155,7 @@ class Experiment(object):
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
                                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
                 _ = inference_model.generate_thermodynamic_integration_mcmc_space_exploration_plots(fd,
-                                                                                    show_posterior=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_posterior']),
+                                                                                    show_posterior=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_true_posterior']),
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
                                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
 
