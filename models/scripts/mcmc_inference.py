@@ -42,7 +42,7 @@ inf_model.populate(fd)
 inf_model.compute_maximum_likelihood_estimate(fd,prints=True)
 
 # Plot univariate prior distributions
-inf_model.export_univariate_prior_plots(fd)
+# inf_model.export_univariate_prior_plots(fd)
 
 # Compute log unnormalised posterior
 # log_true_posterior,parameters_mesh = inf_model.evaluate_log_unnormalised_posterior(fd)
@@ -55,27 +55,30 @@ inf_model.export_univariate_prior_plots(fd)
 # inf_model.export_log_unnormalised_posterior_plots(fd,True)
 
 # Run MCMC
-theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True,None)
+# theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True)
+# Import MCMC samples
+# inf_model.import_vanilla_mcmc_samples(fd)
+
 # Run thermodynamic integration MCMC
 # ti_theta_accepted,ti_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(fd,True,None)
+# Import MCMC samples
+# inf_model.import_thermodynamic_integration_mcmc_samples(fd)
 
 # Export MCMC samples
-inf_model.export_mcmc_samples()
-# Import MCMC samples
-# inf_model.import_mcmc_samples(fd)
+# inf_model.export_mcmc_samples()
 
 # Export MCMC data
-inf_model.export_mcmc_parameter_posterior_plots(fd,2,True)
-inf_model.export_mcmc_space_exploration_plots(fd,True)
-inf_model.export_mcmc_mixing_plots(fd,True)
-inf_model.export_mcmc_acf_plots(fd,True)
+# inf_model.export_mcmc_parameter_posterior_plots(fd,2,True)
+# inf_model.export_mcmc_space_exploration_plots(fd,True)
+# inf_model.export_mcmc_mixing_plots(fd,True)
+# inf_model.export_mcmc_acf_plots(fd,True)
 # Export thermodynamic integration MCMC
 # inf_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,False)
 # inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,2,False)
 # inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,False)
 
 # Compute posterior predictive
-# inf_model.evaluate_posterior_predictive_moments()
+# inf_model.evaluate_posterior_predictive_moments(prints=True)
 # inf_model.import_posterior_predictive()
 
 # Export posterior predictive

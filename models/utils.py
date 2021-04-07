@@ -158,15 +158,17 @@ def map_name_to_inference_method(name):
     else:
         raise Exception(f'No probability distribution found for {name.lower()}')
 
-def map_name_to_parameter_transformation(name):
-    if name.lower() == 'log':
-        return True, mylog, myexp
-    elif name.lower() == 'reciprocal':
-        return True, myreciprocal, myreciprocal
-    elif name.lower() == 'identity':
-        return False, myidentity, myidentity
-    else:
-        raise ValueError(f'No parameter transformation found for {name.lower()}')
+def map_name_to_parameter_transformation(priors,num_learning_parameters):
+    transformations = []
+    for prior in list(priors.keys())[0:num_learning_parameters]:
+        if priors[prior]['transformation'].lower() == '\log':
+            transformations.append([mylog, myexp])
+        elif priors[prior]['transformation'].lower() == '1/':
+            transformations.append([myreciprocal, myreciprocal])
+        else:
+            transformations.append([myidentity, myidentity])
+    return transformations
+
 
 def map_name_to_multivariate_logpdf(name,iid,**kwargs):
 

@@ -1,36 +1,15 @@
 # Bugs
 
-Parameter posterior mean bias
-
-What is going wrong?
-- MLE and Metropolis Hastings MCMC parameter posterior mean are biased
-
-What can I check?
-[x] Likelihood is correctly defined
-[x] Data is correctly simulated
-[x] Noise is not too large
-[x] Tweaking proposal parameters 
-[x] Number of data points is sufficient
-[x] Random seed is set to None
-[x] Try transforming alpha to phi = log(alpha), psi = log(beta)
-[x] Is likelihood not identifiable? 
-[x] Try learning q = a x rho or q= exp(-b x rho)
-[] Remove np.random.seed
-
-Things to try out today
-[x] Compute MLE Jacobian to plug into scipy minimize and get unbiased MLE [COULD NOT BE DONE - MLE of one parameter is written in terms of the other]
-[x] Effect of Jacobian transformation on proposal in MCMC
-[] Poisson estimator
-
-
 ## Urgent
+- Debug gelman and rubin criterion
+- Log posterior grid search
 
 ## Non-urgent
-- Debug gelman and rubin criterion
 
 # Extensions
 
 ## Urgent
+- Move Show titles to experiments
 - Change inference __init__.py to run parallel chains
 - Implement sigma learning
 
@@ -40,9 +19,8 @@ Things to try out today
 - Write tests for important functions
 
 ## Nice-to-have
-- Implement log posterior in C
+- Allow onstruction of non-diagonal covariance matrices
 - Allow transition kernel not to be symmetric - incroporate it into acceptance probability
-
 
 # Tidying up
 

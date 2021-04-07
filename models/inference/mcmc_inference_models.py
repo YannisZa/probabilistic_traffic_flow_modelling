@@ -36,8 +36,11 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
             # Get prior hyperparameter kwargs
             hyperparams = {}
             for key, v in self.inference_metadata['inference']['priors'][k].items():
-                if key != "distribution":
+                if key not in ["distribution","transformation"]:
                     hyperparams[key] = float(v)
+                elif key == "transformation":
+                    hyperparams[key] = v
+
             # Append to list
             hyperparams_list.append(hyperparams)
 
@@ -45,7 +48,6 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         for i,k in enumerate(list(self.inference_metadata['inference']['priors'])[0:self.num_learning_parameters]):
             # Define prior distribution
             prior_distr = utils.map_name_to_univariate_logpdf(self.inference_metadata['inference']['priors'][k]['distribution'])
-            # print('hyperparams',hyperparams)
             # Define log pdf of prior distribution
             def make_log_univariate_prior_pdf(index):
                 def _log_univariate_prior_pdf(p):
@@ -65,49 +67,33 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
     def update_log_likelihood_log_pdf(self,fundamental_diagram,**kwargs):
 
         # If data is from a simulation and sigma parameter is not learned
-        if ((self.simulation_metadata['simulation_flag']) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters)>0):
+        if not self.noise_learning:
             # Define sigma
             # TO DO: use function to construct covariance matrix based on metadata
-            sigma2 = fundamental_diagram.true_parameters[-1]
-            sigma_cov = np.eye(self.n)*fundamental_diagram.true_parameters[-1]
+            sigma_cov = np.eye(self.n)*self.sigma2
 
             # Store distribution name
             distribution_name = self.inference_metadata['inference']['likelihood']['type'].lower()
             # Store flag for whether distribution is composed of iid observations
             iid_data = strtobool(self.simulation_metadata['error']['iid'])
-            # Store flag for whether model is additive or multiplicative
-            multiplicative_model = strtobool(self.simulation_metadata['error']['multiplicative'])
-            # Store flag and type of parameter transformation
-            transformed_parameters, parameter_transformation, parameter_inverse_transformation = utils.map_name_to_parameter_transformation(self.inference_metadata['parameter_transformation'])
+            # Store flag for whether data should be kept in log scale or transformed
+            multiplicative_error = strtobool(self.simulation_metadata['error']['multiplicative'])
             # Get distribution
             logpdf = utils.map_name_to_multivariate_logpdf(distribution_name,iid_data)
             # Print distribution name
             if 'prints' in kwargs:
                 if kwargs.get('prints'): print(distribution_name,'iid data:',iid_data)
 
-            if multiplicative_model:
+            if multiplicative_error:
                 def _log_likelihood(p):
-                    p_transformed = parameter_inverse_transformation(p)
+                    p_transformed = self.transform_parameters(p,True)
                     return logpdf(self.log_y,loc = fundamental_diagram.log_simulate(p_transformed), scale = sigma_cov)
             else:
+                print('Might have a bug - check again')
                 def _log_likelihood(p):
-                    p_transformed = parameter_inverse_transformation(p)
+                    p_transformed = self.transform_parameters(p,True)
                     return logpdf(np.exp(self.log_y),loc = np.exp(fundamental_diagram.log_simulate(p_transformed)), scale = sigma_cov)
 
-            # if self.inference_metadata['inference']['likelihood']['type'].lower() in ['mlognormal','lognormal']:
-            #     if 'prints' in kwargs:
-            #         if kwargs.get('prints'): print('multivariate lognormal')
-            #     print('multivariate lognormal')
-            #     def _log_likelihood(p):
-            #         q = fundamental_diagram.simulate(p)
-            #         exp_mean = q / np.sqrt(1 + sigma2)
-            #         mean = np.log(exp_mean)
-            #         var = np.log(1 + sigma2)
-            #         stdev = np.sqrt(var)
-            #         # print(np.sum([ss.lognorm.logpdf(self.log_y[i],s=stdev,loc=0,scale=exp_mean[i]) for i in range(len(self.log_y))]))
-            #         # print(-self.n*np.log(stdev) - (self.n/2)*np.log(2*np.pi) - np.sum(np.log(self.log_y)) - (1/(2*var)) * np.sum([(np.log(self.log_y[i])-mean[i])**2 for i in range(self.n)]))
-            #         # print((ss.multivariate_normal.logpdf(np.log(self.log_y),mean=mean,cov=np.eye(self.n)*var) - np.sum(np.log(self.log_y))))
-            #         return((ss.multivariate_normal.logpdf(np.log(self.log_y),mean=mean,cov=np.eye(self.n)*var) - np.sum(np.log(self.log_y))))
         else:
             raise ValueError('Not implemented yet')
 
@@ -125,36 +111,39 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         # Get likelihood numpy sampler from metadata
         likelihood_sampler = utils.map_name_to_distribution_sampler(self.inference_metadata['inference']['likelihood']['type'].lower())
 
-        if ((fundamental_diagram.simulation_flag) or not strtobool(self.inference_metadata['inference']['learn_noise'])) and (len(fundamental_diagram.true_parameters) > 0):
-
-            if self.n > 1 and self.inference_metadata['inference']['likelihood']['type'].lower() in ['lognormal','normal']:
-                raise ValueError(f"Univariate {self.inference_metadata['inference']['likelihood']['type']} likelihood does not work with {self.n}-dimensional data.")
-
+        if not self.noise_learning:
             # Define sigma
-            sigma_cov = np.eye(self.n)*fundamental_diagram.true_parameters[-1]
+            # TO DO: use function to construct covariance matrix based on metadata
+            sigma_cov = np.eye(self.n)*self.sigma2
 
-            print('Needs fixing')
-            # raise ValueError('Needs fixing')
+            # Store distribution name
+            distribution_name = self.inference_metadata['inference']['likelihood']['type'].lower()
 
-            if 'lognormal' in self.inference_metadata['inference']['likelihood']['type'].lower() and self.n >= 1:
-                if 'prints' in kwargs:
-                    if kwargs.get('prints'): print('lognormal predictive likelihood')
-                def _predictive_likelihood(p:list,x:list):
-                    # Change the code below
-                    # This computation could be made using np.random.multivariate_normal
-                    return np.array([likelihood_sampler(mean=(np.log(fundamental_diagram.simulate_with_x(p,x[i]))),sigma=np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
-            elif self.n == 1:#self.inference_metadata['inference']['likelihood']['type'] == 'normal':
-                if 'prints' in kwargs:
-                    if kwargs.get('prints'): print('univariate normal predictive likelihood')
-                def _predictive_likelihood(p:list,x:list):
-                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
-            elif self.n > 1:
-                if 'prints' in kwargs:
-                    if kwargs.get('prints'): print('multivariate normal predictive likelihood')
-                def _predictive_likelihood(p:list,x:list):
-                    return np.array([likelihood_sampler(fundamental_diagram.simulate_with_x(p,x[i]),sigma_cov) for i in range(len(x))])
+            # Make sure you use univariate distribution - and sum over each dimension
+            # if distribution_name.startswith('m'):
+                # distribution_name = distribution_name[1:]
+            if not distribution_name.startswith('m'):
+                distribution_name = 'm' + distribution_name
+
+            # Store flag for whether data should be kept in log scale or transformed
+            multiplicative_error = strtobool(self.simulation_metadata['error']['multiplicative'])
+            # Get distribution
+            distribution_sampler = utils.map_name_to_distribution_sampler(distribution_name)
+            # Print distribution name
+            if 'prints' in kwargs:
+                if kwargs.get('prints'): print(distribution_name,'iid data:',iid_data)
+
+            if multiplicative_error:
+                def _predictive_likelihood(p,x):
+                    p_transformed = self.transform_parameters(p,True)
+                    return distribution_sampler(mean = fundamental_diagram.log_simulate_with_x(p_transformed,x), cov = sigma_cov)
+                    # return np.array([distribution_sampler(loc=(fundamental_diagram.log_simulate_with_x(p_transformed,x[i])),scale=np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
             else:
-                raise ValueError(f'Number of data points {self.n} are too few...')
+                def _predictive_likelihood(p,x):
+                    p_transformed = self.transform_parameters(p,True)
+                    return distribution_sampler(mean = np.exp(fundamental_diagram.log_simulate_with_x(p_transformed,x)), cov = sigma_cov)
+                    # return np.array([distribution_sampler(loc=np.exp(fundamental_diagram.log_simulate_with_x(p_transformed,x[i])),scale=np.sqrt(sigma_cov[i,i])) for i in range(len(x))])
+
         else:
             raise ValueError('Not implemented yet')
 
@@ -179,20 +168,19 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         kernel_params = self.inference_metadata['inference'][mcmc_type]['transition_kernel']
         kernel_type = str(kernel_params['type'])
         proposal_stds = list(kernel_params['proposal_stds'])
-        K_diagonal = np.diag([proposal_stds[i]**2 for i in range(len(proposal_stds))])
+        K = np.diag([proposal_stds[i]**2 for i in range(len(proposal_stds))])
         beta_step = float(kernel_params['beta_step'])
 
         if 'prints' in kwargs:
             if kwargs.get('prints'):
                 print(mcmc_type)
-                print('Proposal covariance',K_diagonal)
-                print('Proposal standard deviations',[np.sqrt(v) for v in np.diagonal(K_diagonal)])
+                print('Proposal covariance',K)
+                print('Proposal standard deviations',[np.sqrt(v) for v in np.diagonal(K)])
                 print('Proposal beta step',beta_step)
 
-        # If K_diagonal does not have length equal to self.num_learning_parameters raise error
-        if len(K_diagonal) != self.num_learning_parameters:
-            raise LengthError(f'K_diagonal has length {len(K_diagonal)} and not {self.num_learning_parameters}')
-
+        # If K does not have length equal to self.num_learning_parameters raise error
+        if len(np.diagonal(K)) != self.num_learning_parameters:
+            raise LengthError(f'K diagonal has length {len(np.diagonal(K))} and not {self.num_learning_parameters}')
 
         # Get distribution corresponding to type of kernel
         distribution_sampler = utils.map_name_to_distribution_sampler(kernel_type)
@@ -201,20 +189,28 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         def _kernel(p):
             pnew = None
             if self.num_learning_parameters > 1:
-                pnew = p + beta_step*distribution_sampler.rvs(np.zeros(self.num_learning_parameters),np.diag(K_diagonal))
+                pnew = p + beta_step*distribution_sampler(np.zeros(self.num_learning_parameters),K)
             else:
-                pnew = p + beta_step*distribution_sampler.rvs(0,K_diagonal[0])
+                pnew = p + beta_step*distribution_sampler(0,K[0,0])
             return pnew
 
+        def _log_kernel(pnew,pold):
+            # TODO: define log_kernel
+            return 0
 
         # Update super class transition kernel attribute
         if mcmc_type == 'vanilla_mcmc':
             MarkovChainMonteCarlo.transition_kernel.fset(self, _kernel)
+            MarkovChainMonteCarlo.log_kernel.fset(self, _log_kernel)
         elif mcmc_type == 'thermodynamic_integration_mcmc':
             MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _kernel)
+            MarkovChainMonteCarlo.log_kernel.fset(self, _log_kernel)
 
 
     def sample_from_univariate_priors(self,fundamental_diagram,N):
+
+        print('sample_from_univariate_priors needs fixing')
+
         # Initialise array for prior samples
         prior_samples = []
 

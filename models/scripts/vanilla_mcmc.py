@@ -51,12 +51,12 @@ proposal_cov = 0
 # K = np.array([[proposal_stds[0]**2,proposal_cov],[proposal_cov,proposal_stds[1]**2]])
 K = np.diag([ps**2 for ps in proposal_stds])# [0.01125,0.00525]
 # Prior sds
-prior_sds = [0.05,0.02]
+prior_sds = [0.01,0.005]
 # Initial parameters for MCMC
 p0 = [0.4,0.2]
 log_p0 = np.log(p0)
 # Burnin for MCMC
-burnin = int(N//10)
+burnin = 2000#int(N//10)
 
 """ Miscellaneous parameters """
 # Number of standard deviations to plot parameter posterior for
@@ -190,6 +190,33 @@ plt.legend()
 plt.show()
 
 
+# def alpha_log_prior(p):
+#     a = 6.
+#     scale = 0.1
+#     b = 1./scale
+#     alpha_prior_logpdf = -(1/2)*np.log(2*np.pi*(prior_sds[0]**2)) - (1/2)*((np.exp(p)-true_parameters[0])/prior_sds[0])**2 + p
+#     return alpha_prior_logpdf
+# plt.figure(figsize=(10,10))
+# print(true_parameters[0])
+# print(prior_sds[0])
+# # plt.scatter(rho,log_q,color='blue')
+# # plt.plot(rho,log_q_true,color='black',label='True')
+# # plt.plot(rho,log_simulate_log_params(log_mle),color='red',label='MLE-fitted')
+# xrange = np.log(np.linspace(0.01,3,1000))
+# logprior = np.array([alpha_log_prior(par) for par in xrange])
+# plt.plot(xrange,logprior,color='blue')
+# plt.vlines(np.log(true_parameters[0]),-1000,1)
+# xmin = xrange[np.min(np.where(logprior>=-1000))]
+# xmax = xrange[np.max(np.where(logprior>=-1000))]
+# print(xmin)
+# print(xmax)
+# plt.xlim(left=xmin,right=xmax)
+# plt.ylim(bottom=-1000,top=np.max(logprior))
+# plt.show()
+
+# sys.exit(1)
+
+
 max_log_target = -1e9
 max_log_likelihood = -1e9
 max_log_likelihood_params = [-1e9,-1e9]
@@ -282,6 +309,8 @@ theta = theta.reshape((N,num_learning_parameters))
 theta_proposed = theta_proposed.reshape((N,num_learning_parameters))
 
 """ Parameter posterior plots"""
+
+print(theta[-1000:-1,:])
 
 # Compute Poisson estimator for mean of log samples
 # mu_hat = poisson_mean_estimator(theta[burnin:,:],delta)

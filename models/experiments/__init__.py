@@ -44,74 +44,157 @@ class Experiment(object):
         inference_model.compute_maximum_likelihood_estimate(fd,prints=strtobool(self.experiment_metadata['mle']['print']))
 
         # Plot univariate prior distributions
-        if strtobool(self.experiment_metadata['priors']['export']): inference_model.export_univariate_prior_plots(fd,strtobool(self.experiment_metadata['priors']['show']))
+        if strtobool(self.experiment_metadata['priors']['export']):
+            # print('Export priors')
+            inference_model.export_univariate_prior_plots(fd,
+                                                        show_plot=strtobool(self.experiment_metadata['priors']['show_plot']),
+                                                        show_title=strtobool(self.experiment_metadata['priors']['show_title']))
+        elif strtobool(self.experiment_metadata['priors']['show_plot']):
+            inference_model.generate_univariate_prior_plots(fd,
+                                                        show_plot=strtobool(self.experiment_metadata['priors']['show_plot']),
+                                                        show_title=strtobool(self.experiment_metadata['priors']['show_title']))
 
         # Import/compute log unnormalised posterior
-        if strtobool(self.experiment_metadata['log_unnormalised_posterior']['import']):
+        if strtobool(self.experiment_metadata['log_unnormalised_posterior']['import']) and strtobool(self.experiment_metadata['log_unnormalised_posterior']['compute']):
+            print('Import log unnormalised posterior')
             inference_model.import_log_unnormalised_posterior(fd.parameter_names[:-1])
-        else:
+        elif not strtobool(self.experiment_metadata['log_unnormalised_posterior']['import']) and strtobool(self.experiment_metadata['log_unnormalised_posterior']['compute']):
+            print('Compute log unnormalised posterior')
             log_true_posterior,parameters_mesh = inference_model.evaluate_log_unnormalised_posterior(fd)
 
         # Export/store log unnormalised posterior
         if strtobool(self.experiment_metadata['log_unnormalised_posterior']['export_data']):
+            print('Export log unnormalised posterior')
             inference_model.export_log_unnormalised_posterior(fd,prints=strtobool(self.experiment_metadata['compute']['log_unnormalised_posterior']['print']))
         if strtobool(self.experiment_metadata['log_unnormalised_posterior']['export_plot']):
+            print('Export log unnormalised posterior plots')
             inference_model.export_log_unnormalised_posterior_plots(fd,
-                                                                strtobool(self.experiment_metadata['log_unnormalised_posterior']['show']),
+                                                                show_plot=strtobool(self.experiment_metadata['log_unnormalised_posterior']['show_plot']),
+                                                                show_title=strtobool(self.experiment_metadata['log_unnormalised_posterior']['show_title']),
                                                                 prints=strtobool(self.experiment_metadata['log_unnormalised_posterior']['print']))
 
-        # Import MCMC chains
-        if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) or strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']):
-            inference_model.import_mcmc_samples(fd)
 
         # Run MCMC
-        if not strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']):
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
+            # Import Vanilla MCMC chain
+            print('Import Vanilla MCMC samples')
+            inference_model.import_vanilla_mcmc_samples(fd)
+        elif not strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
+            print('Run MCMC')
             theta_accepted,theta_proposed,acceptance = inference_model.vanilla_mcmc(fd,
-                                                                            strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['print']),
-                                                                            None)
+                                                                            prints = strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['print']))
+
         # Run thermodynamic integration MCMC
-        if not strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']):
+        if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
+            # Import Thermodynamic Integration MCMC chain
+            print('Import Thermodynamic Integration MCMC samples')
+            inference_model.import_thermodynamic_integration_mcmc_samples(fd)
+        elif not strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
+            print('Run thermodynamic integration MCMC')
             ti_theta_accepted,ti_acceptance = inference_model.thermodynamic_integration_mcmc(fd,
-                                                                                    strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['print']),
-                                                                                    None)
+                                                                                    prints = strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['print']))
+
         # Export MCMC chains
         if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['export']) or strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['export']):
+            print('Export MCMC samples')
             inference_model.export_mcmc_samples()
 
 
         # Export vanilla MCMC plots
-        if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['export']):
-            inference_model.export_mcmc_parameter_posterior_plots(fd,2,strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show']))
-            inference_model.export_mcmc_space_exploration_plots(fd,strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show']))
-            inference_model.export_mcmc_mixing_plots(fd,strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show']))
-            inference_model.export_mcmc_acf_plots(fd,strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show']))
-
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
+            if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['export']):
+                print('Export Vanilla MCMC plots')
+                inference_model.export_mcmc_parameter_posterior_plots(fd,
+                                                                    num_stds=2,
+                                                                    show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                inference_model.export_mcmc_space_exploration_plots(fd,
+                                                                    show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                inference_model.export_mcmc_mixing_plots(fd,
+                                                        show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                                                        show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                inference_model.export_mcmc_acf_plots(fd,
+                                                        show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                                                        show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+            elif strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']):
+                    _ = inference_model.generate_mcmc_parameter_posterior_plots(fd,
+                                                                    num_stds=2,
+                                                                    show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                    _ = inference_model.generate_mcmc_space_exploration_plots(fd,
+                                                                    show_posterior=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_posterior']),
+                                                                    show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                    _ = inference_model.generate_mcmc_mixing_plots(fd,
+                                                                show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                                                                show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                    _ = inference_model.generate_mcmc_acf_plots(fd,
+                                                                show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                                                                show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
         # Export thermodynamic integration MCMC plots
-        if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['export']):
-            inference_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show']))
-            inference_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,2,strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show']))
-            inference_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show']))
+        if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
+            if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['export']):
+                print('Export thermodynamic integration MCMC plots')
+                inference_model.export_thermodynamic_integration_mcmc_mixing_plots(fd,
+                                                                                    show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                inference_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,
+                                                                                    num_stds=2,
+                                                                                    show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                inference_model.export_thermodynamic_integration_mcmc_space_exploration_plots(fd,
+                                                                                    show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+            elif strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']):
+                _ = inference_model.generate_thermodynamic_integration_mcmc_mixing_plots(fd,
+                                                                                    show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                _ = inference_model.generate_thermodynamic_integration_mcmc_parameter_posterior_plots(fd,
+                                                                                    num_stds=2,
+                                                                                    show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                _ = inference_model.generate_thermodynamic_integration_mcmc_space_exploration_plots(fd,
+                                                                                    show_posterior=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_posterior']),
+                                                                                    show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
 
         # Import/Compute posterior predictive
-        if strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['import']):
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['compute']):
+            print('Import posterior predictive')
             inference_model.import_posterior_predictive()
-        else:
-            inference_model.evaluate_posterior_predictive_moments()
+        elif not strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['compute']):
+            print('Compute posterior predictive')
+            inference_model.evaluate_posterior_predictive_moments(prints=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['print']))
 
         # Expore/Store posterior predictive
-        if strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['export']):
-            inference_model.export_posterior_predictive()
-            inference_model.export_mcmc_posterior_predictive_plot(fd,2,strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['show']))
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['compute']):
+            if strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['export']):
+                print('Export posterior predictive')
+                inference_model.export_posterior_predictive()
+                inference_model.export_mcmc_posterior_predictive_plot(fd,
+                                                                        num_stds=2,
+                                                                        show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['show_plot']),
+                                                                        show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['show_title']))
+            elif strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['show_plot']):
+                _ = inference_model.generate_posterior_predictive_plot(fd,
+                                                                    num_stds=2,
+                                                                    show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['show_plot']),
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['show_title']))
 
         # Marginal likelihood estimators
 
         # Compute Vanilla MCMC marginal likelihood estimator
-        if not strtobool(self.experiment_metadata['vanilla_mcmc']['marginal_likelihood']['import']):
-            inference_model.compute_log_posterior_harmonic_mean_estimator(prints=strtobool(self.experiment_metadata['vanilla_mcmc']['marginal_likelihood']['print']))
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
+            if strtobool(self.experiment_metadata['vanilla_mcmc']['marginal_likelihood']['compute']):
+                print('Compute posterior harmonic mean marginal likelihood estimator')
+                inference_model.compute_log_posterior_harmonic_mean_estimator(prints=strtobool(self.experiment_metadata['vanilla_mcmc']['marginal_likelihood']['print']))
 
         # Compute thermodynamic integration MCMC marginal likelihood estimator
-        if not strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['marginal_likelihood']['import']):
-            inference_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['marginal_likelihood']['print']))
+        if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
+            if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['marginal_likelihood']['compute']):
+                print('Compute thermodynamic integration marginal likelihood estimator')
+                inference_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['marginal_likelihood']['print']))
 
         # Export metadata
         inference_model.export_metadata()

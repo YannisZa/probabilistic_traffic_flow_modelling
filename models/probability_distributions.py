@@ -12,11 +12,10 @@ from inference.mcmc_inference_models import *
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]
 
 
-def gaussian(p,loc,scale,transformation:str='identity'):
-    if transformation == 'log': return -(1/2)*np.log(2*np.pi*(scale**2)) - (1/2)*((np.exp(p)-loc)/scale)**2 + p, loc, scale
-    elif transformation == 'reciprocal': return -(1/2)*np.log(2*np.pi*(scale**2)) - (1/2)*((1./p-loc)/scale)**2 + 2*p, loc, scale
-    elif transformation == 'identity': return -(1/2)*np.log(2*np.pi*(scale**2)) - (1/2)*((p-loc)/scale)**2, loc, scale
-    else: raise ValueError(f'No parameter transformation found for {transformation.lower()}')
+def gaussian(p,loc,scale,transformation):
+    if 'log' in transformation.lower(): return -(1/2)*np.log(2*np.pi*(scale**2)) - (1/2)*((np.exp(p)-loc)/scale)**2 + p, loc, scale
+    elif '1/' in transformation.lower(): return -(1/2)*np.log(2*np.pi*(scale**2)) - (1/2)*((1./p-loc)/scale)**2 + 2*np.log(p), loc, scale
+    else: return -(1/2)*np.log(2*np.pi*(scale**2)) - (1/2)*((p-loc)/scale)**2, loc, scale
 
 def multivariate_gaussian(p,loc,scale):
     try:

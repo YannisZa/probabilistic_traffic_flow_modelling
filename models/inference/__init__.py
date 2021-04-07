@@ -23,7 +23,7 @@ from distutils.util import strtobool
 from . import temperature_schedules as tp
 
 # matplotlib settings
-matplotlib.rc('font', **{'size' : 18})
+matplotlib.rc('font', **{'size' : 16})
 
 class MarkovChainMonteCarlo(object):
 
@@ -81,6 +81,14 @@ class MarkovChainMonteCarlo(object):
     @log_likelihood.setter
     def log_likelihood(self,log_likelihood):
         self.__log_likelihood = log_likelihood
+
+    @property
+    def log_kernel(self):
+        return self.__log_kernel
+
+    @log_kernel.setter
+    def log_kernel(self,log_kernel):
+        self.__log_kernel = log_kernel
 
     @property
     def predictive_likelihood(self):
@@ -242,18 +250,26 @@ class MarkovChainMonteCarlo(object):
             print('Raw data (non-simulation)')
             self.num_learning_parameters = len(fundamental_diagram.simulation_metadata['true_parameters'].keys())-1
             self.parameter_names = fundamental_diagram.parameter_names[0:self.num_learning_parameters]
+            self.noise_learning = True
         elif (not strtobool(self.inference_metadata['learn_noise'])) and (len(fundamental_diagram.true_parameters)>0):
             print('Simulation without sigma learning')
             self.num_learning_parameters = len(fundamental_diagram.simulation_metadata['true_parameters'].keys())-1
-            self.true_parameters = fundamental_diagram.true_parameters
             self.parameter_names = fundamental_diagram.parameter_names[0:self.num_learning_parameters]
+            self.true_parameters = fundamental_diagram.true_parameters[0:self.num_learning_parameters]
+            self.sigma2 = fundamental_diagram.true_parameters[-1]
+            self.noise_learning = False
         else:
             print('Simulation with sigma learning')
             self.num_learning_parameters = len(fundamental_diagram.simulation_metadata['true_parameters'].keys())
             self.true_parameters = fundamental_diagram.true_parameters
             self.parameter_names = fundamental_diagram.parameter_names[0:self.num_learning_parameters]
+            self.sigma2 = fundamental_diagram.true_parameters[-1]
+            self.noise_learning = True
 
         print('Number of learning parameters',self.num_learning_parameters)
+
+        # Define parameter transformations
+        self.transformations = utils.map_name_to_parameter_transformation(self.inference_metadata['inference']['priors'],self.num_learning_parameters)
 
         # Update data and parameters in inference model
         self.update_data(fundamental_diagram.rho,fundamental_diagram.log_q,r"$\rho$",r"$\log q$")
@@ -277,6 +293,19 @@ class MarkovChainMonteCarlo(object):
         # Add results key to metadata
         self.__inference_metadata['results'] = {}
 
+    def transform_parameters(self,p,inverse:bool=False):
+        try:
+            assert len(p) == len(self.transformations)
+        except:
+            raise ValueError(f'Parameter length {len(p)} and transformation list length {len(transformations)} do not match.')
+
+        transformed_params = []
+        for i in range(len(p)):
+            if inverse: transformed_params.append(self.transformations[i][1](p[i]))
+            else: transformed_params.append(self.transformations[i][0](p[i]))
+
+        return transformed_params
+
 
     def update_data(self,x,y,x_name,y_name):
         self.x = x
@@ -284,6 +313,11 @@ class MarkovChainMonteCarlo(object):
         self.x_name = x_name
         self.log_y_name = y_name
         self.n = y.shape[0]
+
+        # Make sure you have more than one data point
+        if self.n <= 1:
+            raise ValueError(f'Not enough data points: {self.n} <= 1.')
+
 
     def update_temperature_schedule(self):
         # Get temperature schedule function
@@ -329,9 +363,9 @@ class MarkovChainMonteCarlo(object):
         utils.validate_attribute_existence(self,['log_target'])
         return self.__log_target(p)
 
-    def evaluate_log_target_thermodynamic_integration(self,p):
-        utils.validate_attribute_existence(self,['log_target_thermodynamic_integration'])
-        return self.__log_target_thermodynamic_integration(p)
+    def evaluate_log_target_thermodynamic_integration(self,p,t):
+        utils.validate_attribute_existence(self,['thermodynamic_integration_log_target'])
+        return self.__thermodynamic_integration_log_target(p,t)
 
     def evaluate_log_joint_prior(self,p):
         utils.validate_attribute_existence(self,['log_joint_prior'])
@@ -349,14 +383,14 @@ class MarkovChainMonteCarlo(object):
     def evaluate_log_posterior(self,p):
         return self.evaluate_log_likelihood(p) + self.evaluate_log_joint_prior(p)
 
-    def evaluate_log_kernel(self,p):
+    def evaluate_log_kernel(self,pnew,prev):
         utils.validate_attribute_existence(self,['log_kernel'])
-        return self.__log_kernel(p)
+        return self.__log_kernel(pnew,prev)
 
     def evaluate_thermodynamic_integration_log_posterior(self,p,t):
         return self.evaluate_log_joint_prior(p[t,:]) + self.temperature_schedule[t]*self.evaluate_log_likelihood(p[t,:])
 
-    def log_acceptance_ratio(pnew,pprev):
+    def log_acceptance_ratio(self,pnew,pprev):
         log_pnew = self.evaluate_log_target(pnew) + self.evaluate_log_kernel(pnew,pprev)
         log_pold = self.evaluate_log_target(pprev) + self.evaluate_log_kernel(pprev,pnew)
         log_acc = log_pnew - log_pold
@@ -364,8 +398,16 @@ class MarkovChainMonteCarlo(object):
         if log_acc >= 709: return 0, log_pnew, log_pold
         else: return log_acc, log_pnew, log_pold
 
+    def log_thermodynamic_integration_acceptance_ratio(self,pnew,pprev,t):
+        log_pnew = self.evaluate_log_target_thermodynamic_integration(pnew,t) + self.evaluate_log_kernel(pnew,pprev)
+        log_pold = self.evaluate_log_target_thermodynamic_integration(pprev,t) + self.evaluate_log_kernel(pprev,pnew)
+        log_acc = log_pnew - log_pold
+        # If exp floating point exceeded
+        if log_acc >= 709: return 0, log_pnew, log_pold
+        else: return log_acc, log_pnew, log_pold
 
-    def vanilla_mcmc(self,fundamental_diagram,prints:bool=False,seed:int=None):
+
+    def vanilla_mcmc(self,fundamental_diagram,prints:bool=False):
         """Vanilla MCMC method for sampling from pdf defined by log_function
 
         Parameters
@@ -396,6 +438,10 @@ class MarkovChainMonteCarlo(object):
             theta_proposed - accepted samples from target distribution
             acc/n_iters - the proportion of accepted samples"""
 
+        # Get seed from metadata
+        if self.inference_metadata['inference']['vanilla_mcmc']['seed'] in ['','None']: seed = None
+        else: seed = int(self.inference_metadata['inference']['vanilla_mcmc']['seed'])
+
         # Fix random seed
         np.random.seed(seed)
 
@@ -404,7 +450,7 @@ class MarkovChainMonteCarlo(object):
 
         # Make sure you have stored necessary attributes
         utils.validate_parameter_existence(['N'],self.inference_metadata['inference']['vanilla_mcmc'])
-        utils.validate_parameter_existence(['K_diagonal','beta_step'],self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel'])
+        utils.validate_parameter_existence(['proposal_stds','beta_step'],self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel'])
 
         p0 = None
         # Read p0 or randomly initialise it from prior
@@ -421,6 +467,9 @@ class MarkovChainMonteCarlo(object):
             # Update metadata
             utils.update(self.__inference_metadata['inference']['vanilla_mcmc'],{'p0':p0})
 
+        # Transform p0
+        p0 = self.transform_parameters(p0,False)
+
         # Initialise output variables
         theta = []
         theta_proposed = []
@@ -430,10 +479,10 @@ class MarkovChainMonteCarlo(object):
         p_prev = p0
         # Store number of iterations
         N = max(int(self.inference_metadata['inference']['vanilla_mcmc']['N']),1)
-        burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['N'])
+        burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
 
         if prints:
-            print('p0',p_prev)
+            print('p0',self.transform_parameters(p0,True))
             print(f'Running MCMC with {N} iterations')
 
         # Loop through MCMC iterations
@@ -464,14 +513,14 @@ class MarkovChainMonteCarlo(object):
 
             # Printing proposals every 0.1*Nth iteration
             if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                print('p_prev',p_prev,'lt_prev',lt_prev)
-                print('p_new',p_new,'lt_new',lt_new)
+                print('p_prev',self.transform_parameters(p_prev,True),'lt_prev',lt_prev)
+                print('p_new',self.transform_parameters(p_new,True),'lt_new',lt_new)
 
             # Accept/Reject
             # Compare log_alpha and log_u to accept/reject sample
             if acc_ratio >= u:
                 if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                    print('p_new =',p_new)
+                    print('p_new =',self.transform_parameters(p_new,True))
                     print('Accepted!')
                     print(f'Acceptance rate {int(100*acc / N)}%')
                 # Increment accepted sample count
@@ -490,8 +539,8 @@ class MarkovChainMonteCarlo(object):
                 theta_proposed.append(p_new)
 
         # Update class attributes
-        self.theta = np.array(theta).reshape((N,len(p0)))
-        self.theta_proposed = np.array(theta_proposed).reshape((N,len(p0)))
+        self.theta = np.array(theta).reshape((N,self.num_learning_parameters))
+        self.theta_proposed = np.array(theta_proposed).reshape((N,self.num_learning_parameters))
 
         # Update metadata
         utils.update(self.__inference_metadata['results'],{"vanilla_mcmc": {"acceptance_rate":int(100*(acc / N))}})
@@ -500,13 +549,16 @@ class MarkovChainMonteCarlo(object):
         for i in range(self.theta.shape[1]):
             # Parameter name
             param_name = str(self.parameter_names[i]).replace("$","").replace("\\","")
-            result_summary['vanilla_mcmc'][param_name] = {"mean":np.mean(self.theta[burnin:,i]),"std":np.std(self.theta[burnin:,i])}
+            result_summary['vanilla_mcmc'][param_name] = {"mean":self.transform_parameters(np.mean(self.theta[burnin:,:],axis=0),True)[i],"std":self.transform_parameters(np.std(self.theta[burnin:,:],axis=0),True)[i]}
         # Update metadata on results
         utils.update(self.__inference_metadata['results'],result_summary)
 
-        if prints: print(f'Acceptance rate {int(100*(acc / N))}%')
+        if prints:
+            print(f'Acceptance rate {int(100*(acc / N))}%')
+            print('Posterior means', self.transform_parameters(np.mean(self.theta[burnin:,:],axis=0),True))
+            print('Posterior stds', np.std(self.theta[burnin:,:],axis=0))
 
-        return np.array(theta).reshape((N,len(p0))), np.array(theta_proposed).reshape((N,len(p0))), int(100*(acc / N))
+        return self.theta, self.theta_proposed, int(100*(acc / N))
 
     def thermodynamic_integration_mcmc(self,fundamental_diagram,prints:bool=False,seed:int=None):
         """Thermodynamic integration MCMC method for sampling from pdf defined by log_function
@@ -528,7 +580,7 @@ class MarkovChainMonteCarlo(object):
             the proportion of accepted samples
         """
 
-        """ Vanilla MCMC method for sampling from pdf defined by log_function
+        """ Thermodynamic integration MCMC method for sampling from pdf defined by log_function
         Inputs:
             log_function - log-target distribution function
             kernel - proposal mechanism
@@ -537,9 +589,12 @@ class MarkovChainMonteCarlo(object):
             theta_proposed - accepted samples from target distribution
             acc/n_iters - the proportion of accepted samples"""
 
+        # Get seed from metadata
+        if self.inference_metadata['inference']['thermodynamic_integration_mcmc']['seed'] in ['','None']: seed = None
+        else: seed = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['seed'])
+
         # Fix random seed
         np.random.seed(seed)
-        random.seed(seed)
 
         # Make sure you have stored necessary attributes
         utils.validate_attribute_existence(self,['evaluate_log_target','temperature_schedule'])
@@ -556,11 +611,15 @@ class MarkovChainMonteCarlo(object):
         if utils.has_parameters(['p0'],self.inference_metadata['inference']['thermodynamic_integration_mcmc']) and self.inference_metadata['inference']['thermodynamic_integration_mcmc']['param_initialisation'] == 'metadata':
             # Use p0 from inference metadata
             p0 = np.array(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['p0'])
+            # Transform p0
+            p0 = self.transform_parameters(p0,False)
             # Repeat n times
             p0 = np.repeat([p0],t_len,axis=0)
         elif utils.has_parameters(['p0'],self.inference_metadata['inference']['thermodynamic_integration_mcmc']) and self.inference_metadata['inference']['thermodynamic_integration_mcmc']['param_initialisation'] == 'mle':
             # Use MLE estimate
             p0 = np.array(self.mle_params)
+            # Transform p0
+            p0 = self.transform_parameters(p0,False)
             # Update metadata
             utils.update(self.__inference_metadata['inference']['thermodynamic_integration_mcmc'],{'p0':list(p0)})
             # Repeat n times
@@ -568,6 +627,8 @@ class MarkovChainMonteCarlo(object):
         else:
             # Sample from prior distributions
             p0 = self.sample_from_univariate_priors(fundamental_diagram,t_len).reshape((t_len,self.num_learning_parameters))
+            # Transform p0
+            p0 = self.transform_parameters(p0,False)
             # Update metadata
             utils.update(self.__inference_metadata['inference']['thermodynamic_integration_mcmc'],{'p0':list(p0)})
 
@@ -582,7 +643,7 @@ class MarkovChainMonteCarlo(object):
 
         if prints:
             print('p0',p_prev)
-            print(f'Running MCMC with {N} iterations')
+            print(f'Running Thermodynamic Integration MCMC with {N} iterations')
 
         # Loop through MCMC iterations
         for i in tqdm(range(N)):
@@ -596,35 +657,37 @@ class MarkovChainMonteCarlo(object):
             # Copy previously accepted sample
             p_new[random_t_index,:] = self.propose_new_sample_thermodynamic_integration(p_prev[random_t_index,:])
 
-            # Evaluate log function for current sample
-            lt_prev = self.evaluate_thermodynamic_integration_log_target(p_prev,random_t_index)
+            # If rejection scheme for constrained theta applies
+            if strtobool(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['constrained']) and self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['action'] == 'reflect':
+              # If theta is NOT within lower and upper bounds reject sample
+              p_new[random_t_index,:] = self.reflect_proposal(p_new[random_t_index,:],'thermodynamic_integration_mcmc')
 
-            # Evaluate log function for proposed sample
-            lt_new = self.evaluate_thermodynamic_integration_log_target(p_new,random_t_index)
+            # Calculate acceptance probability
+            if strtobool(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['constrained']) and self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['action'] == 'reject':
+              # If theta is NOT within lower and upper bounds reject sample
+              if self.reject_proposal(p_new[random_t_index,:],'thermodynamic_integration_mcmc'): log_acc_ratio = -1e9
+              lt_new = self.evaluate_log_target_thermodynamic_integration(p_new,random_t_index)
+              lt_prev = self.evaluate_log_target_thermodynamic_integration(p_prev,random_t_index)
+            else:
+              log_acc_ratio,lt_new,lt_prev = self.log_thermodynamic_integration_acceptance_ratio(p_new,p_prev,random_t_index)
+
+            # Compute acceptance probability
+            acc_ratio = min(1,np.exp(log_acc_ratio))
+
+            # Sample from Uniform(0,1)
+            u = np.random.random()
 
             # Printing proposals every 0.1*Nth iteration
             if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                print('p_prev',p_prev[random_t_index,:],'lt_prev',lt_prev)
-                print('p_new',p_new[random_t_index,:],'lt_new',lt_new)
-
-            # Calculate acceptance probability
-            # If rejection scheme for constrained theta applies
-            if self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['action'] == 'reject':
-                # If theta is NOT within lower and upper bounds reject sample
-                if self.reject_proposal(p_new,'thermodynamic_integration_mcmc'): log_acc = -1e9
-                # Calculate acceptance probability
-                else: log_acc = lt_new - lt_prev
-            else:
-                log_acc = lt_new - lt_prev
-            # Sample from Uniform(0,1)
-            log_u = np.log(np.random.random())
+                print('p_prev',self.transform_parameters(p_prev[random_t_index,:],True),'lt_prev',lt_prev)
+                print('p_new',self.transform_parameters(p_new[random_t_index,:],True),'lt_new',lt_new)
 
             # Increment proposal counter
             prop[random_t_index] += 1
 
             # Accept/Reject
             # Compare log_alpha and log_u to accept/reject sample
-            if min(np.exp(log_acc),1) >= np.exp(log_u):
+            if acc_ratio >= u:
                 # Increment accepted sample count
                 acc[random_t_index] += 1
                 # Append to accepted and proposed sample arrays
@@ -637,13 +700,13 @@ class MarkovChainMonteCarlo(object):
 
             if prints and (i in [int(j/10*N) for j in range(1,11)]):
                 print('Rejected...')
-                print(f'i = {random_t_index}, t_i = {self.temperature_schedule[random_t_index]}, p_new = {p_new[random_t_index,:]}')
+                print(f'i = {random_t_index}, t_i = {self.temperature_schedule[random_t_index]}, p_new = {self.transform_parameters(p_new[random_t_index,:],True)}')
                 print(f'Total acceptance rate {int(100*np.sum(acc) / np.sum(prop))}%')
                 print(f'Temperature acceptance rate {int(100*acc[random_t_index] / prop[random_t_index])}%')
 
 
         # Update class attributes
-        self.thermodynamic_integration_theta = np.array(theta)
+        self.thermodynamic_integration_theta = np.array(theta).reshape((N,t_len,self.num_learning_parameters))
 
         # Update metadata
         utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"acceptance_rate":[int(100*a) for a in acc/prop],"acceptances":list(acc)},"proposals":list(prop)})
@@ -661,7 +724,7 @@ class MarkovChainMonteCarlo(object):
             print(f"Temperature acceptance rate {[(str(int(100*a))+'%') for a in acc/prop]}")
             print(f"Choice probabilities {[(str(int(100*pr/N))+'%') for pr in prop]}")
 
-        return np.array(theta), acc, prop
+        return self.thermodynamic_integration_theta, acc, prop
 
     def compute_maximum_likelihood_estimate(self,fundamental_diagram,**kwargs):
 
@@ -680,13 +743,15 @@ class MarkovChainMonteCarlo(object):
 
         # Get p0 from metadata
         p0 = list(self.inference_metadata['inference']['mle']['p0'])
+        # Transform parameter
+        p0 = self.transform_parameters(p0,False)
 
         # If no p0 is provided set p0 to true parameter values
         if len(p0) < 1:
             if (not self.inference_metadata['simulation_flag']):
                 raise ValueError('True parameters cannot be found for MLE estimator initialisation.')
             else:
-                p0 = self.true_parameters
+                p0 = self.transform_parameters(self.true_parameters,False)
 
         # Define negative of log likelihood
         def negative_log_likelihood(p):
@@ -699,16 +764,16 @@ class MarkovChainMonteCarlo(object):
         self.mle_params = mle
         # Evaluate log target
         mle_log_likelihood = self.evaluate_log_likelihood(self.mle_params)
-        true_log_likelihood = self.evaluate_log_likelihood(self.true_parameters)
-        true_log_target = self.evaluate_log_target(self.true_parameters)
-        true_log_prior = self.evaluate_log_joint_prior(self.true_parameters)
+        true_log_likelihood = self.evaluate_log_likelihood(self.transform_parameters(self.true_parameters,False))
+        true_log_target = self.evaluate_log_target(self.transform_parameters(self.true_parameters,False))
+        true_log_prior = self.evaluate_log_joint_prior(self.transform_parameters(self.true_parameters,False))
 
         # Update class variables
-        utils.update(self.__inference_metadata['results'],{"mle":{"params":self.mle_params,"mle_log_likelihood":mle_log_likelihood,"true_log_likelihood":true_log_likelihood}})
+        utils.update(self.__inference_metadata['results'],{"mle":{"params":list(self.mle_params),"mle_log_likelihood":mle_log_likelihood,"true_log_likelihood":true_log_likelihood}})
 
         if 'prints' in kwargs:
             if kwargs.get('prints'):
-                print(f'MLE parameters: {self.mle_params}')
+                print(f'MLE parameters: {self.transform_parameters(self.mle_params,True)}')
                 print(f'MLE log likelihood: {mle_log_likelihood}')
                 print(f'True log prior: {true_log_prior}')
                 print(f'True log likelihood: {true_log_likelihood}')
@@ -719,14 +784,14 @@ class MarkovChainMonteCarlo(object):
         # Make sure you have stored necessary attributes
         utils.validate_attribute_existence(self,['theta'])
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print('Computing marginal likelihood estimate based on vanilla MCMC')
-
         # Time execution
         tic = time.perf_counter()
 
         # Get burnin and acf lags from plot metadata
-        burnin = np.max([int(self.inference_metadata['plot']['vanilla_mcmc']['burnin']),0])
+        n_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['marginal_likelihood_samples'])
+
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f'Computing marginal likelihood estimate based on {n_samples} vanilla MCMC samples')
 
         # Get number of MCMC iterations
         N = self.theta.shape[0]
@@ -739,7 +804,7 @@ class MarkovChainMonteCarlo(object):
         #     sys.exit(1)
 
         # Compute log marginal likelihood
-        ml = N * ( np.sum([np.exp(self.evaluate_log_likelihood(self.theta[i,:]))**(-1) for i in range(burnin,N)]) )**(-1)
+        ml = n_samples * ( np.sum([np.exp(self.evaluate_log_likelihood(self.theta[i,:]))**(-1) for i in range(N-n_samples,N)]) )**(-1)
         lml = np.log(ml)
 
         # Update metadata
@@ -760,17 +825,18 @@ class MarkovChainMonteCarlo(object):
         # Make sure you have stored necessary attributes
         utils.validate_attribute_existence(self,['thermodynamic_integration_theta'])
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print('Computing marginal likelihood estimate based on thermodynamic integration MCMC')
-
         # Time execution
         tic = time.perf_counter()
 
         # Get burnin and acf lags from plot metadata
-        burnin = np.max([int(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['burnin']),0])
+        n_samples = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['marginal_likelihood_samples'])
 
         # Get number of MCMC iterations
         N = self.thermodynamic_integration_theta.shape[0]
+
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f'Computing marginal likelihood estimate based on {n_samples} thermodynamic integration MCMC samples')
+
 
         # Store length of temperature schedule
         t_len = self.temperature_schedule.shape[0]
@@ -790,8 +856,8 @@ class MarkovChainMonteCarlo(object):
         #         lml += term
 
         # Initiliase lml
-        lml = np.sum([(self.temperature_schedule[ti] - self.temperature_schedule[ti-1])*(self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti,:]) + self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti-1,:])) for ti in range(1,t_len) for j in range(burnin,N)])
-        lml /= 2*(N-burnin)
+        lml = np.sum([(self.temperature_schedule[ti] - self.temperature_schedule[ti-1])*(self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti,:]) + self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti-1,:])) for ti in range(1,t_len) for j in range(N-n_samples,N)])
+        lml /= 2*n_samples
         if 'prints' in kwargs:
             if kwargs.get('prints'):
                 # Print log marginal likelihood
@@ -898,7 +964,7 @@ class MarkovChainMonteCarlo(object):
 
     """---------------------------------------------------------------------------Evaluate and generate posterior data/plots-----------------------------------------------------------------------------"""
 
-    def evaluate_posterior_predictive_moments(self,*args,seed:int=None,**kwargs):
+    def evaluate_posterior_predictive_moments(self,*args,**kwargs):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['theta'])
@@ -906,8 +972,11 @@ class MarkovChainMonteCarlo(object):
         # Time execution
         tic = time.perf_counter()
 
-        # Get burnin and acf lags from plot metadata
-        burnin = int(self.inference_metadata['plot']['vanilla_mcmc']['burnin'])
+        # Get number of posterior predictive samples to use and acf lags from plot metadata
+        posterior_predictive_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['posterior_predictive_samples'])
+
+        if 'prints' in kwargs:
+            if kwargs.get('prints'): print(f'Computing posterior predictive moments over {posterior_predictive_samples} samples...')
 
         # Set posterior predictive range to covariate range
         x = self.x
@@ -915,15 +984,30 @@ class MarkovChainMonteCarlo(object):
         if len(args) == 1 and hasattr(args[0],'__len__'):
             x = args[0]
 
+        # Get seed from metadata
+        if self.inference_metadata['inference']['vanilla_mcmc']['seed'] in ['','None']: seed = None
+        else: seed = int(self.inference_metadata['inference']['vanilla_mcmc']['seed'])
+
         # Fix random seed
         np.random.seed(seed)
 
+
         # Sample from predictive likelihood
-        pp = np.array([self.evaluate_predictive_likelihood(self.theta[j,:],x) for j in range(burnin,self.theta.shape[0])])
+        pp = np.array([self.evaluate_predictive_likelihood(self.theta[j,:],x) for j in range(self.theta.shape[0]-posterior_predictive_samples,self.theta.shape[0])])
         # Compute posterior predictive mean
         pp_mean = np.mean(pp,axis=0)
         # Compute posterior predictive standard deviation
         pp_var = np.mean(pp**2,axis=0) - pp_mean**2
+
+        #np.mean(pp**2,axis=0) - pp_mean**2
+        #(pp.T @ pp) * (1/M) - pp_mean.T @ pp_mean
+        # np.mean(pp**2,axis=0) - pp_mean**2
+
+        # print(pp.shape)
+        # print(pp_mean.shape)
+        # print('e_x2',e_x2.shape)
+        # print('ex_2',ex_2.shape)
+        # print(pp_var.shape)
 
         # Update class variables
         self.posterior_predictive_mean = pp_mean
@@ -992,68 +1076,81 @@ class MarkovChainMonteCarlo(object):
 
         return log_unnormalised_posterior,params_mesh[::-1]
 
-    def generate_univariate_prior_plots(self,fundamental_diagram,show_plot:bool=False,prints:bool=False):
+    def generate_univariate_prior_plots(self,fundamental_diagram,show_plot:bool=False,prints:bool=False,show_title:bool=True):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['log_univariate_priors'])
 
-        # # Create sublots
-        # fig, axs = plt.subplots(figsize=(10,10*fundamental_diagram.num_learning_parameters),nrows=fundamental_diagram.num_learning_parameters,ncols=1)
-
         # Get prior distribution parameters
         prior_params = list(self.inference_metadata['inference']['priors'].values())
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
 
         figs = []
         # Loop through parameter number
         for i in range(0,self.num_learning_parameters):
+            # Define parameter transformation
+            transformation = self.inference_metadata['inference']['priors'][self.parameter_names[i].replace("\\","").replace("$","")]['transformation']
 
             fig = plt.figure(figsize=(10,8))
 
             # Define x range
-            xrange = np.linspace(0,3,1000)
-            # Store prior hyperparameter kwargs from metadata
-            hyperparams = {}
-            prior_key = list(self.inference_metadata['inference']['priors'].keys())[i]
-            for k, v in self.inference_metadata['inference']['priors'][prior_key].items():
-                if k != "distribution":
-                    hyperparams[k] = float(v)
+            xrange = np.linspace(0.01,3,1000)
+            lower_limit = 4.5399929762484854e-05
 
-            yrange = self.log_univariate_priors[i](xrange,**hyperparams)[0]
-            prior_mean = np.round(self.log_univariate_priors[i](xrange,**hyperparams)[1],5)
-            prior_std = np.round(self.log_univariate_priors[i](xrange,**hyperparams)[2],5)
+            # Transform x range
+            xrange = self.transformations[i][0](xrange)
+            # Store prior hyperparameter kwargs from metadata
+            # hyperparams = {}
+            # prior_key = list(self.inference_metadata['inference']['priors'].keys())[i]
+            # for k, v in self.inference_metadata['inference']['priors'][prior_key].items():
+            #     if k != "distribution":
+            #         hyperparams[k] = float(v)
+
+            yrange = self.log_univariate_priors[i](xrange)[0]
+            prior_mean = np.round(self.log_univariate_priors[i](xrange)[1],5)
+            prior_std = np.round(self.log_univariate_priors[i](xrange)[2],5)
 
             # Store distributio and parameter names
             distribution_name = prior_params[i]['distribution'].capitalize()
             parameter_name = self.parameter_names[i]
 
             # Plot pdf
-            plt.plot(xrange,yrange,color='blue',label='pdf')
-            # Plot prior mean
-            plt.vlines(prior_mean,ymin=-1,ymax=np.max(yrange[np.isfinite(yrange)]),color='red',label=f'mean = {prior_mean}')
-            # Plot prior mean +/- prior std
-            plt.hlines(np.max(yrange)/2,xmin=(prior_mean-prior_std),xmax=(prior_mean+prior_std),color='green',label=f'mean +/- std, std = {prior_std}')
+            plt.plot(xrange,yrange,color='blue',label='logdf')
 
             # Print hyperparameters
-            if prints: print(f'Prior hypeparameters for {self.parameter_names[i]}:',', '.join(['{}={!r}'.format(k, v) for k, v in hyperparams.items()]))
+            if prints: print(f'Prior hypeparameters for ${transformation}${self.parameter_names[i]}:',', '.join(['{}={!r}'.format(k, v) for k, v in hyperparams.items()]))
+
+            # Change x,y limits
+            xmin = xrange[np.min(np.where(yrange>=self.transformations[i][0](lower_limit)))]
+            xmax = xrange[np.max(np.where(yrange>=self.transformations[i][0](lower_limit)))]
+            ymin = self.transformations[i][0](lower_limit)
+            ymax = np.max(yrange[np.isfinite(yrange)])*100/99
+            # print('xmin',xmin)
+            # print('xmax',xmax)
+            plt.xlim(left=xmin,right=xmax)
+            # Change y limit
+            plt.ylim(bottom=ymin,top=ymax)
 
             # Plot true parameter if it exists
             if hasattr(self,'true_parameters'):
-                plt.vlines(self.true_parameters[i],ymin=0,ymax=np.max(yrange[np.isfinite(yrange)]),color='black',label='true',linestyle='dashed')
-            # Change x limit
-            print('X limit needs fixing')
-            # plt.xlim(0,self.log_univariate_priors[i].interval(.999,**hyperparams)[1])
-            # Change y limit
-            plt.ylim(0,np.max(yrange[np.isfinite(yrange)])*100/99)
+                plt.vlines(self.transform_parameters(self.true_parameters,False)[i],ymin=ymin,ymax=ymax,color='black',label='Simulation parameter',linestyle='dashed',zorder=5)
+            # Plot prior mean
+            # plt.vlines(self.transformations[i][0](prior_mean),ymin=ymin,ymax=ymax,color='red',label=f'mean = {prior_mean}',zorder=4)
+            # Plot prior mean +/- prior std
+            # plt.hlines((ymax+ymin)/2,xmin=(self.transformations[i][0](prior_mean)-prior_std),xmax=(self.transformations[i][0](prior_mean)+prior_std),color='green',label=f'mean +/- std, std = {prior_std}')
+
             # Set title
-            if show_titles: plt.title(f"{distribution_name} prior for {parameter_name} parameter")
+            if show_title: plt.title(f"{distribution_name} prior for ${transformation}${parameter_name} parameter")
             # Plot legend
-            plt.legend()
+            plt.legend(fontsize=10)
+
+            # Xlabel
+            plt.xlabel(f"${transformation}${parameter_name}")
+            plt.ylabel(f"Log pdf")
 
             # Plot figure
             if show_plot: plt.show()
             # Append to figures
-            figs.append({"parameters":[self.parameter_names[i]],"figure":fig})
+            figs.append({"parameters":[(transformation.replace("\\","")+self.parameter_names[i])],"figure":fig})
             # Close plot
             plt.close(fig)
 
@@ -1061,7 +1158,7 @@ class MarkovChainMonteCarlo(object):
         return figs
 
 
-    def generate_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False):
+    def generate_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['theta','theta_proposed'])
@@ -1071,13 +1168,15 @@ class MarkovChainMonteCarlo(object):
             raise ValueError(f'Posterior has {self.theta.shape[1]} parameters instead of at least {self.num_learning_parameters}')
 
         # Get burnin and acf lags from plot metadata
-        burnin = int(self.inference_metadata['plot']['vanilla_mcmc']['burnin'])
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
+        burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
 
         figs = []
         # Loop through parameter indices
         for p in range(self.theta.shape[1]):
+            # Define parameter transformation
+            transformation = self.inference_metadata['inference']['priors'][self.parameter_names[p].replace("\\","").replace("$","")]['transformation']
+            # Get transformation name
+            transformation_name = transformation.replace("\\","")
 
             # Generate figure
             fig = plt.figure(figsize=(10,8))
@@ -1087,32 +1186,32 @@ class MarkovChainMonteCarlo(object):
 
             # Plot true parameters if they exist
             if hasattr(self,'true_parameters'):
-                plt.hlines(self.true_parameters[p],xmin=burnin,xmax=(self.theta.shape[0]),color='black',label='True',zorder=5)
+                plt.hlines(self.transform_parameters(self.true_parameters,False)[p],xmin=burnin,xmax=(self.theta.shape[0]),color='black',label='Simulation parameter',zorder=5)
 
             print(self.parameter_names[p])
-            print('mean',np.mean(self.theta[burnin:,p],axis=0))
+            print('Posterior mean',self.transform_parameters(np.mean(self.theta[burnin:,:],axis=0),True)[p])
 
             # Plot inferred mean
             plt.hlines(np.mean(self.theta[burnin:,p],axis=0),xmin=burnin,xmax=(self.theta.shape[0]),color='red',label=f'Posterior $\mu$',zorder=4)
 
             # Add labels
             plt.xlabel('MCMC Iterations')
-            plt.ylabel(f'MCMC Samples')
-            if show_titles: plt.title(f'Mixing for {self.parameter_names[p]} with burnin = {burnin}')
+            plt.ylabel(f"{transformation_name} MCMC Samples")
+            if show_title: plt.title(f'Mixing for ${transformation}${self.parameter_names[p]} with burnin = {burnin}')
 
             # Add legend
-            plt.legend()
+            plt.legend(fontsize=10)
 
             # Show plot
             if show_plot: plt.show()
             # Append plot to list
-            figs.append({"parameters":[self.parameter_names[p]],"figure":fig})
+            figs.append({"parameters":[(transformation.replace('\\','')+self.parameter_names[p])],"figure":fig})
             # Close current plot
             plt.close(fig)
 
         return figs
 
-    def generate_thermodynamic_integration_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False):
+    def generate_thermodynamic_integration_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['thermodynamic_integration_theta'])
 
@@ -1121,49 +1220,56 @@ class MarkovChainMonteCarlo(object):
             raise ValueError(f'Posterior has {self.theta.shape[1]} parameters instead of at least {self.num_learning_parameters}')
 
         # Get burnin and acf lags from plot metadata
-        burnin = int(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['burnin'])
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
+        burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
 
         figs = []
+
+        # Get number of steps and power
+        nsteps = np.max([1,int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_nsteps'])])
+        power = np.max([1,int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_power'])])
+
         # Loop through parameter indices
         for ti in range(self.thermodynamic_integration_theta.shape[1]):
 
             # Loop through parameter indices
             for p in range(self.thermodynamic_integration_theta.shape[2]):
+                # Define parameter transformation
+                transformation = self.inference_metadata['inference']['priors'][self.parameter_names[p].replace("\\","").replace("$","")]['transformation']
+                # Get transformation name
+                transformation_name = transformation.replace("\\","")
 
                 # Generate figure
                 fig = plt.figure(figsize=(10,8))
 
                 # Add samples plot
-                plt.plot(range(burnin,self.thermodynamic_integration_theta.shape[0]),self.thermodynamic_integration_theta[burnin:,ti,p],color='blue',label='Samples')
+                plt.plot(range(burnin,self.thermodynamic_integration_theta.shape[0]),self.thermodynamic_integration_theta[burnin:,ti,p],color='blue',label='Samples',zorder=2)
 
                 # Plot true parameters if they exist
                 if hasattr(self,'true_parameters'):
-                    plt.hlines(self.true_parameters[p],xmin=burnin,xmax=(self.thermodynamic_integration_theta.shape[0]),label='True',color='black')
+                    plt.hlines(self.transform_parameters(self.true_parameters,False)[p],xmin=burnin,xmax=(self.thermodynamic_integration_theta.shape[0]),label='Simulation parameter',color='black',zorder=3)
 
                 # Plot inferred mean
-                plt.hlines(np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0),xmin=burnin,xmax=(self.thermodynamic_integration_theta.shape[0]),color='red',label=f'Posterior $\mu$',linestyle='dashed')
+                plt.hlines(np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0),xmin=burnin,xmax=(self.thermodynamic_integration_theta.shape[0]),color='red',label=f'Posterior $\mu$',linestyle='dashed',zorder=4)
 
                 # Add labels
                 plt.xlabel('MCMC Iterations')
-                plt.ylabel(f'MCMC Samples')
-                if show_titles: plt.title(f'Mixing for {self.parameter_names[p]}, t = {np.round(self.temperature_schedule[ti],5)} with burnin = {burnin}')
+                plt.ylabel(f"{transformation_name} MCMC Samples")
+                if show_title: plt.title(f'Mixing ${transformation}${self.parameter_names[p]}, t = ({ti}/{nsteps})^{power}, burnin = {burnin}')
 
                 # Add legend
-                plt.legend()
+                plt.legend(fontsize=10)
 
                 # Show plot
                 if show_plot: plt.show()
                 # Append plot to list
-                figs.append({"parameters":[self.parameter_names[p]+("_temperature_")+str(ti)],"figure":fig})
+                figs.append({"parameters":[transformation.replace('\\','')+self.parameter_names[p]+("_temperature_")+str(ti)],"figure":fig})
                 # Close current plot
                 plt.close(fig)
 
         return figs
 
 
-    def generate_mcmc_acf_plots(self,fundamental_diagram,show_plot:bool=False):
+    def generate_mcmc_acf_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['theta'])
@@ -1173,35 +1279,36 @@ class MarkovChainMonteCarlo(object):
             raise ValueError(f'Posterior has {self.theta.shape[1]} parameters instead of at least {self.num_learning_parameters}')
 
         # Get burnin and acf lags from plot metadata
-        burnin = int(self.inference_metadata['plot']['vanilla_mcmc']['burnin'])
+        burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
         lags = np.min([int(self.inference_metadata['plot']['vanilla_mcmc']['acf_lags']),(self.theta[burnin:,:].shape[0]-1)])
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
 
         figs = []
         # Loop through parameter indices
         for p in range(self.theta.shape[1]):
+            # Define parameter transformation
+            transformation = self.inference_metadata['inference']['priors'][self.parameter_names[p].replace("\\","").replace("$","")]['transformation']
+
             # Generate figure
             fig,ax = plt.subplots(1,figsize=(10,8))
 
             # Add ACF plot
-            if show_titles: sm.graphics.tsa.plot_acf(self.theta[burnin:,p], ax=ax, lags=lags, title=f'ACF plot for {self.parameter_names[p]} with burnin = {burnin}')
+            if show_title: sm.graphics.tsa.plot_acf(self.theta[burnin:,p], ax=ax, lags=lags, title=f'ACF plot for ${transformation}${self.parameter_names[p]} with burnin = {burnin}')
             else: sm.graphics.tsa.plot_acf(self.theta[burnin:,p], ax=ax, lags=lags, title="")
 
             # Add labels
-            ax.set_ylabel(f'{self.parameter_names[p]}')
+            ax.set_ylabel(f'${transformation}${self.parameter_names[p]}')
             ax.set_xlabel('Lags')
 
             # Show plot
             if show_plot: plt.show()
             # Append plot to list
-            figs.append({"parameters":[self.parameter_names[p]],"figure":fig})
+            figs.append({"parameters":[(transformation.replace("\\","")+self.parameter_names[p])],"figure":fig})
             # Close current plot
             plt.close(fig)
 
         return figs
 
-    def generate_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False):
+    def generate_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['theta'])
@@ -1211,56 +1318,50 @@ class MarkovChainMonteCarlo(object):
             raise ValueError(f'Posterior has {self.theta.shape[1]} parameters instead of at least {self.num_learning_parameters}')
 
         # Get burnin and histogram bins from plot metadata
-        burnin = int(self.inference_metadata['plot']['vanilla_mcmc']['burnin'])
+        burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
         bins = np.max([int(self.inference_metadata['plot']['vanilla_mcmc']['hist_bins']),10])
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
 
         figs = []
+
+        # Compute posterior mean
+        posterior_mean = np.mean(self.theta[burnin:,:],axis=0)
+        # Compute posterior std
+        posterior_std = np.std(self.theta[burnin:,:],axis=0)
+
         # Loop through parameter indices
         for p in range(self.theta.shape[1]):
+            # Define parameter transformation
+            transformation = self.inference_metadata['inference']['priors'][self.parameter_names[p].replace("\\","").replace("$","")]['transformation']
+
             # Generate figure
             fig = plt.figure(figsize=(10,8))
 
             # Plot parameter posterior
             freq,_,_ = plt.hist(self.theta[burnin:,p],bins=bins)
 
-            # Compute posterior mean
-            sample_mean = np.mean(self.theta[burnin:,p])
-            # sigma2 = self.true_parameters[-1]
-            # var = np.log(1+sigma2)
-
-            posterior_mean = sample_mean #*np.exp(var/2 - 3*var/(2*len(self.theta[burnin:,p])))
-
-            # print('posterior_mean',posterior_mean)
-            # print('sample_mean',sample_mean)
-
-            # Compute posterior std
-            posterior_std = np.std(self.theta[burnin:,p])
-
             # Add labels
-            if show_titles: plt.title(f'Parameter posterior for {self.parameter_names[p]} with burnin = {burnin}')
-            plt.vlines(posterior_mean,0,np.max(freq),color='red',label=r'$\mu$', linewidth=2)
-            plt.vlines(posterior_mean-num_stds*posterior_std,0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2)
-            plt.vlines(posterior_mean+num_stds*posterior_std,0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2)
+            if show_title: plt.title(f'Parameter posterior for ${transformation}${self.parameter_names[p]} with burnin = {burnin}')
+            plt.vlines(posterior_mean[p],0,np.max(freq),color='red',label=r'$\mu$', linewidth=2)
+            plt.vlines(posterior_mean[p]-num_stds*posterior_std[p],0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2)
+            plt.vlines(posterior_mean[p]+num_stds*posterior_std[p],0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2)
             # Plot true parameters if they exist
             if hasattr(self,'true_parameters'):
-                plt.vlines(self.true_parameters[p],0,np.max(freq),label='True',color='black',linewidth=2)
-            plt.xlabel(f'{self.parameter_names[p]}')
+                plt.vlines(self.transform_parameters(self.true_parameters,False)[p],0,np.max(freq),label='Simulation parameter',color='black',linewidth=2)
+            plt.xlabel(f'${transformation}${self.parameter_names[p]}')
             plt.ylabel('Sample frequency')
-            plt.legend()
+            plt.legend(fontsize=10)
 
             # Show plot
             if show_plot: plt.show()
             # Append plot to list
-            figs.append({"parameters":[self.parameter_names[p]],"figure":fig})
+            figs.append({"parameters":[(transformation.replace('\\',"")+self.parameter_names[p])],"figure":fig})
             # Close current plot
             plt.close(fig)
 
         return figs
 
 
-    def generate_thermodynamic_integration_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False):
+    def generate_thermodynamic_integration_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['thermodynamic_integration_theta'])
 
@@ -1269,47 +1370,52 @@ class MarkovChainMonteCarlo(object):
             raise ValueError(f'Posterior has {self.theta.shape[1]} parameters instead of at least {self.num_learning_parameters}')
 
         # Get burnin and histogram bins from plot metadata
-        burnin = int(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['burnin'])
+        burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
         bins = np.max([int(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['hist_bins']),10])
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
 
         figs = []
+
+        # Get number of steps and power
+        nsteps = np.max([1,int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_nsteps'])])
+        power = np.max([1,int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_power'])])
+
         # Loop through parameter indices
         for ti in range(self.thermodynamic_integration_theta.shape[1]):
 
             # Loop through parameter indices
             for p in range(self.thermodynamic_integration_theta.shape[2]):
+                # Define parameter transformation
+                transformation = self.inference_metadata['inference']['priors'][self.parameter_names[p].replace("\\","").replace("$","")]['transformation']
 
                 # Generate figure
                 fig = plt.figure(figsize=(10,8))
 
                 # Plot parameter posterior
-                freq,_,_ = plt.hist(self.thermodynamic_integration_theta[burnin:,ti,p],bins=bins)
+                freq,_,_ = plt.hist(self.thermodynamic_integration_theta[burnin:,ti,p],bins=bins,zorder=2)
 
                 # Add labels
-                if show_titles: plt.title(f'Parameter posterior for {self.parameter_names[p]} t = {self.temperature_schedule[ti]} with burnin = {burnin}')
-                plt.vlines(np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0),0,np.max(freq),color='red',label=r'$\mu$', linewidth=2)
-                plt.vlines((np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)-num_stds*np.std(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)),0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2)
-                plt.vlines((np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)+num_stds*np.std(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)),0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2)
+                if show_title: plt.title(f'Parameter posterior ${transformation}${self.parameter_names[p]}, t = ({ti}/{nsteps})^{power}, burnin = {burnin}')
+                plt.vlines(np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0),0,np.max(freq),color='red',label=r'$\mu$', linewidth=2,zorder=3)
+                plt.vlines((np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)-num_stds*np.std(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)),0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2,zorder=3)
+                plt.vlines((np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)+num_stds*np.std(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)),0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2,zorder=3)
                 # Plot true parameters if they exist
                 if hasattr(self,'true_parameters'):
-                    plt.vlines(self.true_parameters[p],0,np.max(freq),label='True',color='black',linewidth=2)
-                plt.xlabel(f'{self.parameter_names[p]}')
+                    plt.vlines(self.transform_parameters(self.true_parameters,False)[p],0,np.max(freq),label='Simulation parameter',color='black',linewidth=2,zorder=4)
+                plt.xlabel(f'${transformation}${self.parameter_names[p]}')
                 plt.ylabel('Sample frequency')
-                plt.legend()
+                plt.legend(fontsize=10)
 
 
                 # Show plot
                 if show_plot: plt.show()
                 # Append plot to list
-                figs.append({"parameters":[self.parameter_names[p]+("_temperature_")+str(ti)],"figure":fig})
+                figs.append({"parameters":[transformation.replace("\\","")+self.parameter_names[p]+("_temperature_")+str(ti)],"figure":fig})
                 # Close current plot
                 plt.close(fig)
 
         return figs
 
-    def generate_mcmc_space_exploration_plots(self,fundamental_diagram,include_posterior:bool=False,show_plot:bool=False):
+    def generate_mcmc_space_exploration_plots(self,fundamental_diagram,show_posterior:bool=False,show_plot:bool=False,show_title:bool=True):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['theta','theta_proposed'])
@@ -1323,9 +1429,6 @@ class MarkovChainMonteCarlo(object):
         # Get plot combinations
         parameter_indices = list(itertools.combinations(range(0,fundamental_diagram.num_learning_parameters), 2))
         parameter_names = list(itertools.combinations(self.parameter_names, 2))
-
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
 
         # Avoid plotting more than 3 plots
         if num_plots > 3:
@@ -1343,7 +1446,7 @@ class MarkovChainMonteCarlo(object):
             fig = plt.figure(figsize=(10,8))
 
             # Get burnin
-            burnin = int(self.inference_metadata['plot']['vanilla_mcmc']['burnin'])
+            burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
 
             # Get parameters to plot
             theta_subset = self.theta[burnin:,list(index)]
@@ -1354,7 +1457,9 @@ class MarkovChainMonteCarlo(object):
             plt.scatter(theta_proposed_subset[:,index[0]],theta_proposed_subset[:,index[1]],color='purple',label='Proposed',marker='x',s=50,zorder=4)
 
             # Get log unnormalised posterior plot
-            if include_posterior:
+            if show_posterior:
+                raise ValueError('generate_mcmc_space_exploration_plots needs fixing for transformed parameters')
+
                 utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
                 # Set Q_hat to log posterior
                 Q_hat = self.log_unnormalised_posterior
@@ -1398,31 +1503,34 @@ class MarkovChainMonteCarlo(object):
                 # Get limits from plotting metadata
                 plot_limits = self.inference_metadata['plot']['vanilla_mcmc']
 
-                plt.xlim([float(plot_limits['xmin']),float(plot_limits['xmax'])])
-                plt.ylim([float(plot_limits['ymin']),float(plot_limits['ymax'])])
+            # Define parameter transformation
+            transformation_0 = self.inference_metadata['inference']['priors'][self.parameter_names[index[0]].replace("\\","").replace("$","")]['transformation']
+            transformation_1 = self.inference_metadata['inference']['priors'][self.parameter_names[index[1]].replace("\\","").replace("$","")]['transformation']
 
             # Plot true parameters if they exist
             if hasattr(self,'true_parameters'):
-                plt.scatter(self.true_parameters[index[0]],self.true_parameters[index[1]],label='True',marker='x',s=100,color='black',zorder=7)
+                plt.scatter(self.transform_parameters(self.true_parameters,False)[index[0]],self.transform_parameters(self.true_parameters,False)[index[1]],label='Simulation parameter',marker='x',s=100,color='black',zorder=7)
 
             # Add labels
-            plt.xlabel(f'{parameter_names[i][index[0]]}')
-            plt.ylabel(f'{parameter_names[i][index[1]]}')
+            plt.xlabel(f'${transformation_0}${parameter_names[i][index[0]]}')
+            plt.ylabel(f'${transformation_1}${parameter_names[i][index[1]]}')
             # Add title
-            if show_titles: plt.title(f'{parameter_names[i][index[0]]},{parameter_names[i][index[1]]} space exploration with burnin = {burnin}')
+            if show_title: plt.title(f'${transformation_0}${parameter_names[i][index[0]]},${transformation_1}${parameter_names[i][index[1]]} space exploration with burnin = {burnin}')
             # Add legend
-            plt.legend()
+            plt.legend(fontsize=10)
 
             # Show plot
             if show_plot: plt.show()
             # Append plot to list
-            figs.append({"parameters":[parameter_names[i][index[0]],parameter_names[i][index[1]]],"figure":fig})
+            figs.append({"parameters":[(transformation_0.replace('\\','')+parameter_names[i][index[0]]),
+                                    (transformation_0.replace('\\','')+parameter_names[i][index[1]])],
+                        "figure":fig})
             # Close current plot
             plt.close(fig)
 
         return figs
 
-    def generate_thermodynamic_integration_mcmc_space_exploration_plots(self,fundamental_diagram,include_posterior:bool=False,show_plot:bool=False):
+    def generate_thermodynamic_integration_mcmc_space_exploration_plots(self,fundamental_diagram,show_posterior:bool=False,show_plot:bool=False,show_title:bool=True):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['thermodynamic_integration_theta'])
@@ -1437,10 +1545,8 @@ class MarkovChainMonteCarlo(object):
         parameter_indices = list(itertools.combinations(range(0,fundamental_diagram.num_learning_parameters), 2))
         parameter_names = list(itertools.combinations(self.parameter_names, 2))
 
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
         # Get burnin
-        burnin = int(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['burnin'])
+        burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
 
         # Avoid plotting more than 3 plots
         if num_plots > 3:
@@ -1450,11 +1556,20 @@ class MarkovChainMonteCarlo(object):
 
         # Loop through each plot
         figs = []
+
+        # Get number of steps and power
+        nsteps = np.max([1,int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_nsteps'])])
+        power = np.max([1,int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_power'])])
+
         for i in range(num_plots):
             # Get parameter indices
             index = parameter_indices[i]
 
             for tj in range(len(self.temperature_schedule)):
+                # Define parameter transformation
+                transformation_0 = self.inference_metadata['inference']['priors'][self.parameter_names[index[0]].replace("\\","").replace("$","")]['transformation']
+                transformation_1 = self.inference_metadata['inference']['priors'][self.parameter_names[index[1]].replace("\\","").replace("$","")]['transformation']
+
 
                 # Create figure
                 fig = plt.figure(figsize=(10,8))
@@ -1466,7 +1581,8 @@ class MarkovChainMonteCarlo(object):
                 plt.scatter(theta_subset[:,index[0]],theta_subset[:,index[1]],color='red',label='Accepted',marker='x',s=50,zorder=2)
 
                 # Get log unnormalised posterior plot
-                if include_posterior:
+                if show_posterior:
+                    raise ValueError('Needs fixing')
                     utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
                     # Set Q_hat to log posterior
                     Q_hat = self.log_unnormalised_posterior
@@ -1507,46 +1623,41 @@ class MarkovChainMonteCarlo(object):
                     ymin = np.min([np.min(self.parameter_mesh[index[1]]),np.min(theta_subset[:,index[1]])])
                     ymax = np.max([np.max(self.parameter_mesh[index[1]]),np.max(theta_subset[:,index[1]])])
 
-                    plt.ylim([np.min(self.parameter_mesh[index[0]]),np.max(self.parameter_mesh[index[0]])])
-                    plt.ylim([np.min(self.parameter_mesh[index[1]]),np.max(self.parameter_mesh[index[1]])])
+                    # Change limits
+                    plt.xlim([xmin,xmax])
+                    plt.ylim([ymin,ymax])
+                    # plt.ylim([np.min(self.parameter_mesh[index[0]]),np.max(self.parameter_mesh[index[0]])])
+                    # plt.ylim([np.min(self.parameter_mesh[index[1]]),np.max(self.parameter_mesh[index[1]])])
                     # Plot colorbar
                     plt.colorbar(im)
                 else:
                     # Get limits from plotting metadata
                     plot_limits = self.inference_metadata['plot']['thermodynamic_integration_mcmc']
 
-                    xmin = np.min([float(plot_limits['xmin']),np.min(theta_subset[:,index[0]])])
-                    xmax = np.max([float(plot_limits['xmax']),np.max(theta_subset[:,index[0]])])
-                    ymin = np.min([float(plot_limits['ymin']),np.min(theta_subset[:,index[1]])])
-                    ymax = np.max([float(plot_limits['ymax']),np.max(theta_subset[:,index[1]])])
-
-                # Change limits
-                plt.xlim([xmin,xmax])
-                plt.ylim([ymin,ymax])
 
                 # Plot true parameters if they exist
                 if hasattr(self,'true_parameters'):
-                    plt.scatter(self.true_parameters[index[0]],self.true_parameters[index[1]],label='True',marker='x',s=100,color='black',zorder=4)
+                    plt.scatter(self.transform_parameters(self.true_parameters,False)[index[0]],self.transform_parameters(self.true_parameters,False)[index[1]],label='Simulation parameter',marker='x',s=100,color='black',zorder=4)
 
                 # Add labels
-                plt.xlabel(f'{parameter_names[i][index[0]]}')
-                plt.ylabel(f'{parameter_names[i][index[1]]}')
+                plt.xlabel(f'${transformation_0}${parameter_names[i][index[0]]}')
+                plt.ylabel(f'${transformation_1}${parameter_names[i][index[1]]}')
                 # Add title
-                if show_titles: plt.title(f'{parameter_names[i][index[0]]},{parameter_names[i][index[1]]} space exploration with t = {np.round(self.temperature_schedule[tj],5)} burnin = {burnin}')
+                if show_title: plt.title(f'${transformation_0}${parameter_names[i][index[0]]},${transformation_1}${parameter_names[i][index[1]]} exploration, t = ({tj}/{nsteps})^{power} burnin = {burnin}')
                 # Add legend
-                plt.legend()
+                plt.legend(fontsize=10)
 
                 # Show plot
                 if show_plot: plt.show()
                 # Append plot to list
-                figs.append({"parameters":[parameter_names[i][index[0]],parameter_names[i][index[1]],f'temperature_{tj}'],"figure":fig})
+                figs.append({"parameters":[transformation_0.replace("\\","")+parameter_names[i][index[0]],transformation_1.replace("\\","")+parameter_names[i][index[1]],f'temperature_{tj}'],"figure":fig})
                 # Close current plot
                 plt.close(fig)
 
         return figs
 
 
-    def generate_log_unnormalised_posteriors_plots(self,fundamental_diagram,show_plot:bool=False):
+    def generate_log_unnormalised_posteriors_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
         # Get starting time
         start = time.time()
@@ -1557,8 +1668,6 @@ class MarkovChainMonteCarlo(object):
         # Get number of plots
         num_plots = int(comb(len(self.log_unnormalised_posterior.shape),2))
 
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
 
         # Get plot combinations
         parameter_indices = list(itertools.combinations(range(0,self.num_learning_parameters), 2))
@@ -1614,14 +1723,14 @@ class MarkovChainMonteCarlo(object):
 
             plt.scatter(self.parameter_mesh[index[0]].flatten()[np.argmax(Q_hat)],self.parameter_mesh[index[1]].flatten()[np.argmax(Q_hat)],label='surface max',marker='x',s=200,color='blue',zorder=10)
             if hasattr(self,'true_parameters'):
-                plt.scatter(self.true_parameters[index[0]],self.true_parameters[index[1]],label='True',marker='x',s=100,color='black',zorder=11)
+                plt.scatter(self.true_parameters[index[0]],self.true_parameters[index[1]],label='Simulation parameter',marker='x',s=100,color='black',zorder=11)
             plt.xlim([np.min(self.parameter_mesh[index[0]]),np.max(self.parameter_mesh[index[0]])])
             plt.ylim([np.min(self.parameter_mesh[index[1]]),np.max(self.parameter_mesh[index[1]])])
-            if show_titles: plt.title(f'Log unnormalised posterior for {",".join(parameter_names[i])}')
+            if show_title: plt.title(f'Log unnormalised posterior for {",".join(parameter_names[i])}')
             plt.xlabel(f'{parameter_names[i][index[0]]}')
             plt.ylabel(f'{parameter_names[i][index[1]]}')
             plt.colorbar(im)
-            plt.legend()
+            plt.legend(fontsize=10)
 
             # Show plot
             if show_plot: plt.show()
@@ -1633,9 +1742,8 @@ class MarkovChainMonteCarlo(object):
 
         return figs
 
-    def generate_posterior_predictive_plot(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False):
+    def generate_posterior_predictive_plot(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
 
-        print('Needs fixing')
         # Make sure you have necessary attributes
         utils.validate_attribute_existence(self,['posterior_predictive_mean','posterior_predictive_std','posterior_predictive_x'])
 
@@ -1644,8 +1752,8 @@ class MarkovChainMonteCarlo(object):
 
         figs = []
 
-        # Get flag for showing titles
-        show_titles = strtobool(self.inference_metadata['plot']['show_titles'])
+        # Store flag for whether data should be kept in log scale or transformed
+        multiplicative = strtobool(self.simulation_metadata['error']['multiplicative'])
 
         # Create figure
         fig = plt.figure(figsize=(10,8))
@@ -1657,14 +1765,20 @@ class MarkovChainMonteCarlo(object):
 
         plt.scatter(self.x,self.log_y,label='Observed data',color='blue',zorder=2,s=10)
         plt.plot(self.posterior_predictive_x,q_mean,color='red',label=r'$\mu$',zorder=1)
-        if hasattr(fundamental_diagram,'true_parameters'):
-            q_true = fundamental_diagram.simulate_with_x(self.true_parameters,self.posterior_predictive_x)
-            plt.plot(fundamental_diagram.rho,q_true,color='black',label='true',zorder=2)
+        if hasattr(self,'true_parameters'):
+            if multiplicative:
+                q_true = fundamental_diagram.log_simulate_with_x(self.true_parameters,self.posterior_predictive_x)
+            else:
+                q_true = np.exp(fundamental_diagram.log_simulate_with_x(self.true_parameters,self.posterior_predictive_x))
+            plt.plot(fundamental_diagram.rho,q_true,color='black',label='Simulation parameter',zorder=2)
         plt.fill_between(self.posterior_predictive_x,q_upper,q_lower,alpha=0.5,color='red',label=f"$\mu$ +/- {num_stds}$\sigma$",zorder=3)
-        if show_titles: plt.title(f"Posterior predictive for {self.inference_metadata['fundamental_diagram']} FD")
+        if show_title: plt.title(f"Posterior predictive for {self.inference_metadata['fundamental_diagram']} FD")
         plt.xlabel(f'{self.x_name}')
         plt.ylabel(f'{self.log_y_name}')
-        plt.legend()
+        plt.legend(fontsize=10)
+
+        # print('q_mean',q_mean)
+        # print('q_true',q_true)
 
         # Show plot
         if show_plot: plt.show()
@@ -1699,16 +1813,18 @@ class MarkovChainMonteCarlo(object):
             if kwargs.get('prints'):print('Imported MCMC samples')
 
 
-    def import_mcmc_samples(self,fundamental_diagram,**kwargs):
+    def import_vanilla_mcmc_samples(self,fundamental_diagram,**kwargs):
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
         # Get burnins for Vanilla MCMC and Thermodynamic integration MCMC
-        vanilla_burnin = np.max([int(self.inference_metadata['plot']['vanilla_mcmc']['burnin']),0])
-        ti_burnin = np.max([int(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['burnin']),0])
+        vanilla_burnin = np.max([int(self.inference_metadata['inference']['vanilla_mcmc']['burnin']),0])
+        ti_burnin = np.max([int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin']),0])
 
         # Load theta from txt file
         file = (inference_filename+f'theta.txt')
+        if 'prints' in kwargs:
+            if kwargs.get('prints'):print('Importing MCMC samples')
         if os.path.exists(file):
             self.theta = np.loadtxt(file)
 
@@ -1721,17 +1837,24 @@ class MarkovChainMonteCarlo(object):
             # Update metadata on results
             utils.update(self.__inference_metadata['results'],result_summary)
 
-
+        if 'prints' in kwargs:
+            if kwargs.get('prints'):print('Importing MCMC proposals')
         # Load theta proposed from txt file
         file = (inference_filename+f'theta_proposed.txt')
         if os.path.exists(file):
             self.theta_proposed = np.loadtxt(file)
 
+        if 'prints' in kwargs:
+            if kwargs.get('prints'):print('Imported MCMC samples')
 
+    def import_thermodynamic_integration_mcmc_samples(self,fundamental_diagram,**kwargs):
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
         # Load thermodynamic integration theta from txt file
         file = (inference_filename+f'thermodynamic_integration_theta.txt')
+
+        if 'prints' in kwargs:
+            if kwargs.get('prints'):print('Importing Thermodynamic Integration MCMC samples')
         if os.path.exists(file):
             self.thermodynamic_integration_theta = np.loadtxt(file,dtype='float64')
             # Reshape
@@ -2031,10 +2154,10 @@ class MarkovChainMonteCarlo(object):
 
 
 
-    def export_univariate_prior_plots(self,fundamental_diagram,show_plot:bool=False,prints:bool=False):
+    def export_univariate_prior_plots(self,fundamental_diagram,show_plot:bool=False,prints:bool=False,show_title:bool=True):
 
         # Get prior plots
-        fig = self.generate_univariate_prior_plots(fundamental_diagram,show_plot,prints)
+        fig = self.generate_univariate_prior_plots(fundamental_diagram,show_plot=show_plot,prints=prints,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2043,10 +2166,10 @@ class MarkovChainMonteCarlo(object):
         self.export_posterior_plots(fig,inference_filename,'prior')
 
 
-    def export_log_unnormalised_posterior_plots(self,fundamental_diagram,show_plot:bool=False):
+    def export_log_unnormalised_posterior_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
-        figs = self.generate_log_unnormalised_posteriors_plots(fundamental_diagram,show_plot)
+        figs = self.generate_log_unnormalised_posteriors_plots(fundamental_diagram,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2055,10 +2178,10 @@ class MarkovChainMonteCarlo(object):
         self.export_posterior_plots(figs,inference_filename,"log_unnormalised_posterior")
 
 
-    def export_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False):
+    def export_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
-        figs = self.generate_mcmc_mixing_plots(fundamental_diagram,show_plot)
+        figs = self.generate_mcmc_mixing_plots(fundamental_diagram,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2066,10 +2189,10 @@ class MarkovChainMonteCarlo(object):
         # Export them
         self.export_posterior_plots(figs,inference_filename,"mixing")
 
-    def export_thermodynamic_integration_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False):
+    def export_thermodynamic_integration_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
-        figs = self.generate_thermodynamic_integration_mcmc_mixing_plots(fundamental_diagram,show_plot)
+        figs = self.generate_thermodynamic_integration_mcmc_mixing_plots(fundamental_diagram,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2077,10 +2200,10 @@ class MarkovChainMonteCarlo(object):
         # Export them
         self.export_posterior_plots(figs,inference_filename,"mixing")
 
-    def export_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False):
+    def export_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
-        figs = self.generate_mcmc_parameter_posterior_plots(fundamental_diagram,num_stds,show_plot)
+        figs = self.generate_mcmc_parameter_posterior_plots(fundamental_diagram,num_stds,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2088,10 +2211,10 @@ class MarkovChainMonteCarlo(object):
         # Export them
         self.export_posterior_plots(figs,inference_filename,"parameter_posterior")
 
-    def export_thermodynamic_integration_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False):
+    def export_thermodynamic_integration_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
-        figs = self.generate_thermodynamic_integration_mcmc_parameter_posterior_plots(fundamental_diagram,num_stds,show_plot)
+        figs = self.generate_thermodynamic_integration_mcmc_parameter_posterior_plots(fundamental_diagram,num_stds,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2099,10 +2222,10 @@ class MarkovChainMonteCarlo(object):
         # Export them
         self.export_posterior_plots(figs,inference_filename,"parameter_posterior")
 
-    def export_mcmc_acf_plots(self,fundamental_diagram,show_plot:bool=False):
+    def export_mcmc_acf_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
-        figs = self.generate_mcmc_acf_plots(fundamental_diagram,show_plot)
+        figs = self.generate_mcmc_acf_plots(fundamental_diagram,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2111,13 +2234,13 @@ class MarkovChainMonteCarlo(object):
         self.export_posterior_plots(figs,inference_filename,"acf")
 
 
-    def export_mcmc_space_exploration_plots(self,fundamental_diagram,show_plot:bool=False):
+    def export_mcmc_space_exploration_plots(self,fundamental_diagram,show_posterior:bool=False,show_plot:bool=False,show_title:bool=True):
 
         # Set show posterior plot to true iff the metadata says so AND you have already computed the posterior
-        show_posterior = strtobool(self.inference_metadata['plot']['vanilla_mcmc']['include_posterior']) and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
+        show_posterior = show_posterior and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
 
         # Generate plots
-        figs = self.generate_mcmc_space_exploration_plots(fundamental_diagram,show_posterior,show_plot)
+        figs = self.generate_mcmc_space_exploration_plots(fundamental_diagram,show_posterior=show_posterior,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2125,13 +2248,13 @@ class MarkovChainMonteCarlo(object):
         # Export them
         self.export_posterior_plots(figs,inference_filename,"space_exploration")
 
-    def export_thermodynamic_integration_mcmc_space_exploration_plots(self,fundamental_diagram,show_plot:bool=False):
+    def export_thermodynamic_integration_mcmc_space_exploration_plots(self,fundamental_diagram,show_posterior:bool=False,show_plot:bool=False,show_title:bool=True):
 
         # Set show posterior plot to true iff the metadata says so AND you have already computed the posterior
-        show_posterior = strtobool(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['include_posterior']) and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
+        show_posterior = show_posterior and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
 
         # Generate plots
-        figs = self.generate_thermodynamic_integration_mcmc_space_exploration_plots(fundamental_diagram,show_posterior,show_plot)
+        figs = self.generate_thermodynamic_integration_mcmc_space_exploration_plots(fundamental_diagram,show_posterior,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
@@ -2140,10 +2263,10 @@ class MarkovChainMonteCarlo(object):
         self.export_posterior_plots(figs,inference_filename,"space_exploration")
 
 
-    def export_mcmc_posterior_predictive_plot(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False):
+    def export_mcmc_posterior_predictive_plot(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
 
         # Generate plots
-        figs = self.generate_posterior_predictive_plot(fundamental_diagram,num_stds,show_plot)
+        figs = self.generate_posterior_predictive_plot(fundamental_diagram,num_stds=num_stds,show_plot=show_plot,show_title=show_title)
 
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
