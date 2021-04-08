@@ -267,9 +267,10 @@ def prepare_input_experiment_filename(experiment_id):
     # Return simulation filename
     return input_file
 
-def prepare_output_experiment_filename(experiment_id):
+def prepare_output_experiment_filename(experiment_id,*args,**kwargs):
     # Define output folder path
-    output_folder = os.path.join(root,'data/output/experiment_data',experiment_id+'/')
+    if len(args) > 0: output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('inference_id'),kwargs.get('dataset')+'/',*[args[i]+'/' for i in range(len(args))])
+    else: output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('inference_id'),kwargs.get('dataset')+'/')
     # Create new folder if it doesn't exist
     ensure_dir(output_folder)
     # Return simulation filename

@@ -17,6 +17,7 @@ def gaussian(p,loc,scale,transformation):
     elif '1/' in transformation.lower(): return -(1/2)*np.log(2*np.pi*(scale**2)) - (1/2)*((1./p-loc)/scale)**2 + 2*np.log(p), loc, scale
     else: return -(1/2)*np.log(2*np.pi*(scale**2)) - (1/2)*((p-loc)/scale)**2, loc, scale
 
+
 def multivariate_gaussian(p,loc,scale):
     try:
         assert p.shape[0] == loc.shape[0] and loc.shape[0] == scale.shape[0] and scale.shape[0] == scale.shape[1]

@@ -15,8 +15,7 @@
 - Write tests for important functions
 
 ## Nice-to-have
-- Function that ensures no wrong inputs from toml files
-- Allow onstruction of non-diagonal covariance matrices
+- Allow construction of non-diagonal covariance matrices
 - Allow transition kernel not to be symmetric - incroporate it into acceptance probability
 
 # Tidying up
@@ -27,6 +26,7 @@
 - Update test simulation and inference parameter toml files
 
 # Testing functions
+- Gelman and Rubin criterion
 - All experiments using identity parameter transformation
 - Reject sample if theta is not wihtin lower and upper bounds
 - MLE parameter initialisation in vanilla/thermodynamic mcmc

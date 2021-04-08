@@ -32,18 +32,6 @@ class MarkovChainMonteCarlo(object):
     def __init__(self,inference_id):
         self.inference_id = inference_id
 
-    def update_log_likelihood_log_pdf(self,fundamental_diagram,sigma2):
-        pass
-
-    def update_log_prior_log_pdf(self,fundamental_diagram):
-        pass
-
-    def sample_from_univariate_priors(self,num_params,N):
-        pass
-
-    def update_predictive_likelihood(self,x,y):
-        pass
-
     @property
     def log_target(self):
         return self.__log_target
@@ -228,6 +216,10 @@ class MarkovChainMonteCarlo(object):
     def theta(self,theta):
         self.__theta = theta
 
+    @theta.deleter
+    def theta(self):
+        del self.__theta
+
     @property
     def theta_proposed(self):
         return self.__theta_proposed
@@ -236,16 +228,72 @@ class MarkovChainMonteCarlo(object):
     def theta_proposed(self,theta_proposed):
         self.__theta_proposed = theta_proposed
 
+    @theta_proposed.deleter
+    def theta_proposed(self):
+        del self.__theta_proposed
+
     @property
     def thermodynamic_integration_theta(self):
         return self.__thermodynamic_integration_theta
+
+    @thermodynamic_integration_theta.deleter
+    def thermodynamic_integration_theta(self):
+        del self.__thermodynamic_integration_theta
 
     @thermodynamic_integration_theta.setter
     def thermodynamic_integration_theta(self,thermodynamic_integration_theta):
         self.__thermodynamic_integration_theta = thermodynamic_integration_theta
 
+    def valid_input(self):
+
+        # Flag for proceeding with experiments
+        proceed = True
+
+        vanilla_N = max(int(self.inference_metadata['inference']['vanilla_mcmc']['N']),1)
+        vanilla_burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
+        vanilla_posterior_predictive_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['posterior_predictive_samples'])
+        vanilla_marginal_likelihood_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['marginal_likelihood_samples'])
+        ti_N = max(int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['N']),1)
+        ti_burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
+        ti_marginal_likelihood_samples = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['marginal_likelihood_samples'])
+
+        # Sanity checks
+
+        if strtobool(self.inference_metadata['learn_noise']) and not strtobool(self.simulation_metadata['simulation_flag']):
+            proceed = False
+            print(f"Sigma cannot be known if the data is not a simulation")
+
+        if self.inference_metadata['data_id'] != self.simulation_metadata['id']:
+            proceed = False
+            print(f"Data id records inconsistent: Inference metadata: {self.inference_metadata['data_id']}. Simulation metadata: {self.simulation_metadata['id']}")
+
+        if vanilla_burnin >= vanilla_N:
+            proceed = False
+            print(f"Vanilla MCMC burnin larger than N {vanilla_burnin} >= {vanilla_N}")
+
+        if vanilla_posterior_predictive_samples >= (vanilla_N+vanilla_burnin):
+            proceed = False
+            print(f"Posterior predictive samples exceed N + burnin {vanilla_posterior_predictive_samples} >= {vanilla_N+vanilla_burnin}")
+
+        if vanilla_marginal_likelihood_samples >= (vanilla_N+vanilla_burnin):
+            proceed = False
+            print(f"Posterior harmonic mean estimator samples exceed N + burnin {vanilla_marginal_likelihood_samples} >= {vanilla_N+vanilla_burnin}")
+
+        if ti_burnin >= ti_N:
+            proceed = False
+            print(f"Thermodynamic Integration MCMC burnin larger than N {ti_burnin} >= {ti_N}")
+
+        if ti_marginal_likelihood_samples >= (ti_N+ti_burnin):
+            proceed = False
+            print(f"Thermodynamic Integration marginal likelihood estimator samples exceed N + burnin {ti_marginal_likelihood_samples} >= {ti_N+ti_burnin}")
+
+
+        return proceed
 
     def populate(self,fundamental_diagram):
+
+        # Ensure you provide valid inputs
+        if not self.valid_input(): raise ValueError(f"Cannot proceed with inference {self.inference_metadata['id']}")
 
         # Decide how many parameters to learn
         if not (self.simulation_metadata['simulation_flag']):
@@ -479,8 +527,6 @@ class MarkovChainMonteCarlo(object):
         N = max(int(self.inference_metadata['inference']['vanilla_mcmc']['N']),1)
         burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
 
-        # If burnin exists error there is a problem
-        if burnin >= N: raise ValueError(f'Burnin {burnin} cannot be >= to MCMC iterations {N}')
 
         if prints:
             print('p0',self.transform_parameters(p0,True))
@@ -762,7 +808,7 @@ class MarkovChainMonteCarlo(object):
         return np.array([chain[0] for chain in mcmc_chains])
 
 
-    def compute_maximum_likelihood_estimate(self,fundamental_diagram,**kwargs):
+    def compute_maximum_likelihood_estimate(self,fundamental_diagram,prints:bool=False):
 
         warnings.simplefilter("ignore")
 
@@ -807,15 +853,14 @@ class MarkovChainMonteCarlo(object):
         # Update class variables
         utils.update(self.__inference_metadata['results'],{"mle":{"params":list(self.mle_params),"mle_log_likelihood":mle_log_likelihood,"true_log_likelihood":true_log_likelihood}})
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):
-                print(f'MLE parameters: {self.transform_parameters(self.mle_params,True)}')
-                print(f'MLE log likelihood: {mle_log_likelihood}')
-                print(f'True log prior: {true_log_prior}')
-                print(f'True log likelihood: {true_log_likelihood}')
-                print(f'True log target: {true_log_target}')
+        if prints:
+            print(f'MLE parameters: {self.transform_parameters(self.mle_params,True)}')
+            print(f'MLE log likelihood: {mle_log_likelihood}')
+            print(f'True log prior: {true_log_prior}')
+            print(f'True log likelihood: {true_log_likelihood}')
+            print(f'True log target: {true_log_target}')
 
-    def compute_log_posterior_harmonic_mean_estimator(self,**kwargs):
+    def compute_log_posterior_harmonic_mean_estimator(self,prints:bool=False):
 
         # Make sure you have stored necessary attributes
         utils.validate_attribute_existence(self,['theta'])
@@ -826,8 +871,7 @@ class MarkovChainMonteCarlo(object):
         # Get burnin and acf lags from plot metadata
         n_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['marginal_likelihood_samples'])
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f'Computing marginal likelihood estimate based on {n_samples} vanilla MCMC samples')
+        if prints: print(f'Computing marginal likelihood estimate based on {n_samples} vanilla MCMC samples')
 
         # Get number of MCMC iterations
         N = self.theta.shape[0]
@@ -846,17 +890,16 @@ class MarkovChainMonteCarlo(object):
         # Update metadata
         utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"log_marginal_likelihood":lml}})
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):
-                # Print log marginal likelihood
-                print(f'Log marginal likelihood = {lml}')
-                # Print time execution
-                toc = time.perf_counter()
-                print(f"Computed posterior harmonic mean estimator in {toc - tic:0.4f} seconds")
+        if prints:
+            # Print log marginal likelihood
+            print(f'Log marginal likelihood = {lml}')
+            # Print time execution
+            toc = time.perf_counter()
+            print(f"Computed posterior harmonic mean estimator in {toc - tic:0.4f} seconds")
 
         return lml
 
-    def compute_thermodynamic_integration_log_marginal_likelihood_estimator(self,**kwargs):
+    def compute_thermodynamic_integration_log_marginal_likelihood_estimator(self,prints:bool=False):
 
         # Make sure you have stored necessary attributes
         utils.validate_attribute_existence(self,['thermodynamic_integration_theta'])
@@ -870,9 +913,7 @@ class MarkovChainMonteCarlo(object):
         # Get number of MCMC iterations
         N = self.thermodynamic_integration_theta.shape[0]
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f'Computing marginal likelihood estimate based on {n_samples} thermodynamic integration MCMC samples')
-
+        if prints: print(f'Computing marginal likelihood estimate based on {n_samples} thermodynamic integration MCMC samples')
 
         # Store length of temperature schedule
         t_len = self.temperature_schedule.shape[0]
@@ -894,13 +935,12 @@ class MarkovChainMonteCarlo(object):
         # Initiliase lml
         lml = np.sum([(self.temperature_schedule[ti] - self.temperature_schedule[ti-1])*(self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti,:]) + self.evaluate_log_likelihood(self.thermodynamic_integration_theta[j,ti-1,:])) for ti in range(1,t_len) for j in range(N-n_samples,N)])
         lml /= 2*n_samples
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):
-                # Print log marginal likelihood
-                print(f'Log marginal likelihood = {lml}')
-                # Print time execution
-                toc = time.perf_counter()
-                print(f"Computed thermodynamic integration marginal likelihood estimator in {toc - tic:0.4f} seconds")
+        if prints:
+            # Print log marginal likelihood
+            print(f'Log marginal likelihood = {lml}')
+            # Print time execution
+            toc = time.perf_counter()
+            print(f"Computed thermodynamic integration marginal likelihood estimator in {toc - tic:0.4f} seconds")
 
         # Update metadata
         utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"log_marginal_likelihood":float(lml)}})
@@ -909,13 +949,10 @@ class MarkovChainMonteCarlo(object):
 
 
     def compute_gelman_rubin_statistic_for_vanilla_mcmc(self,theta_list,prints:bool=False):
-        # See more details here: https://pymc-devs.github.io/pymc/modelchecking.html
+        # See more details here: https://pymc-devs.github.io/pymc/modelchecking.html and https://github.com/pymc-devs/pymc/blob/master/pymc/diagnostics.py
 
         # Time execution
         tic = time.perf_counter()
-
-        # Get burnin and acf lags from plot metadata
-        burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
 
         # Make sure you have the necessary parameters
         utils.validate_parameter_existence(['r_critical'],self.inference_metadata['inference']['convergence_diagnostic'])
@@ -923,43 +960,57 @@ class MarkovChainMonteCarlo(object):
         # Get R statistic critical value
         r_critical = float(self.inference_metadata['inference']['convergence_diagnostic']['r_critical'])
 
+        # Get sample step from metadata
+        sample_step = int(self.inference_metadata['inference']['convergence_diagnostic']['burnin_step'])
+
         # Get number of chain iterations and number of chains
         M,N,P = theta_list.shape
 
-        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N-burnin}, P = {P}')
+        # Create list of possible burnin times
+        possible_burnins = list(range(sample_step,N,sample_step))
 
-        # Compute posterior mean for each parameter dimension
-        chain_parameter_mean = np.mean(theta_list[:,burnin:,:],axis=1)
-        overall_parameter_mean = np.mean(theta_list[:,burnin:,:],axis=(0,1))
+        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N}, P = {P}')
 
-        # Compute B
-        B = (N-burnin)/(M-1) * np.sum([(chain_parameter_mean[j,:] - overall_parameter_mean)**2 for j in range(M)],axis=0)
-        # Compute W
-        inner_sum = 1./((N-burnin)-1) * np.sum([(theta_list[:,i,:]-chain_parameter_mean)**2 for i in range(burnin,N)],axis=0)
-        W = (1./M) * np.sum([inner_sum[j,:] for j in range(M)],axis=0)
-        # Compute parameter marginal posterior variance
-        posterior_marginal_var = ((N-burnin-1)/(N-burnin))*W + B/(N-burnin)
-        # Compute R stastic
-        r_stat = np.sqrt(posterior_marginal_var/W)
+        r_stat = np.ones(P)*1e9
+        # Loop over possible burnins
+        for burnin in possible_burnins:
+
+            # Calculate between-chain variance
+            B_over_m = np.sum([(np.mean(theta_list[:,burnin:,:], 1)[j,:] - np.mean(theta_list[:,burnin:,:],(0,1)))**2 for j in range(M)],axis=0) / (M - 1)
+
+            # Calculate within-chain variances
+            W = np.sum([(theta_list[i,burnin:,:] - xbar) ** 2 for i,xbar in enumerate(np.mean(theta_list[:,burnin:,:],1))],(0,1)) / (M * (N-burnin - 1))
+
+            # (over) estimate of variance
+            s2 = W * (N-burnin-1) / (N-burnin) + B_over_m
+
+            # Pooled posterior variance estimate
+            V = s2 + B_over_m / M
+
+            # Calculate PSRF
+            r_stat = V / W
+
+            # Print if chains have converged
+            if all(r_stat < r_critical):
+                if prints:
+                    print(r'Vanilla MCMC chains have converged with $\hat{R}$=',r_stat,'!')
+                    print(f'Run experiment again with burnin = {burnin}')
+                # Update metadata
+                utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":True,"burnin":int(burnin)}})
+                break
 
         # Update metadata
         utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"r_stat":list(r_stat)}})
 
-        # Decide if convergence was achieved
-        if prints:
-            # Print if chains have converged
-            if all(r_stat < r_critical):
-                print(r'Vanilla MCMC chains have converged with $\hat{R}$=',r_stat,'!')
-                # Update metadata
-                utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":True}})
-            else:
-                print(r'Vanilla MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
-                # Update metadata
-                utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":False}})
-            # Print time execution
-            toc = time.perf_counter()
-            print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
-        return list(r_stat)
+        if any(r_stat >= r_critical):
+            print(r'Vanilla MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
+            # Update metadata
+            utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":False}})
+
+        # Print time execution
+        toc = time.perf_counter()
+        print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
+        return r_stat
 
 
     def compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(self,theta_list,prints:bool=False):
@@ -968,60 +1019,75 @@ class MarkovChainMonteCarlo(object):
         # Time execution
         tic = time.perf_counter()
 
-        # Get burnin and acf lags from plot metadata
-        burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
-
         # Make sure you have the necessary parameters
         utils.validate_parameter_existence(['r_critical'],self.inference_metadata['inference']['convergence_diagnostic'])
 
         # Get R statistic critical value
         r_critical = float(self.inference_metadata['inference']['convergence_diagnostic']['r_critical'])
 
+        # Get sample step from metadata
+        sample_step = int(self.inference_metadata['inference']['convergence_diagnostic']['burnin_step'])
+
         # Get number of chain iterations and number of chains
         M,N,T,P = theta_list.shape
 
-        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N-burnin}, P = {P}, T = {T}')
+        # Create list of possible burnin times
+        possible_burnins = list(range(sample_step,N,sample_step))
 
-        # Compute posterior mean for each parameter dimension
-        chain_parameter_mean = np.mean(theta_list[:,burnin:,:,:],axis=1)
-        overall_parameter_mean = np.mean(theta_list[:,burnin:,:,:],axis=(0,1))
+        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N}, P = {P}, T = {T}')
 
-        # Compute B
-        B = (N-burnin)/(M-1) * np.sum([(chain_parameter_mean[j,:,:] - overall_parameter_mean)**2 for j in range(M)],axis=0)
-        # Compute W
-        inner_sum = 1./((N-burnin)-1) * np.sum([(theta_list[:,i,:,:]-chain_parameter_mean)**2 for i in range(burnin,N)],axis=0)
-        W = (1./M) * np.sum([inner_sum[j,:] for j in range(M)],axis=0)
-        # Compute parameter marginal posterior variance
-        posterior_marginal_var = ((N-burnin-1)/(N-burnin))*W + B/(N-burnin)
-        # Compute R stastic
-        r_stat = np.sqrt(posterior_marginal_var/W)
+        r_stat = list(np.ones((T*P))*1e9)
+        # Loop over possible burnins
+        for burnin in possible_burnins:
+
+            # Calculate between-chain variance
+            B_over_m = np.sum([(np.mean(theta_list[:,burnin:,:,:], 1)[j,:] - np.mean(theta_list[:,burnin:,:,:],(0,1)))**2 for j in range(M)],axis=0) / (M - 1)
+
+            # Calculate within-chain variances
+            W = np.sum([(theta_list[i,burnin:,:,:] - xbar) ** 2 for i,xbar in enumerate(np.mean(theta_list[:,burnin:,:,:],1))],(0,1)) / (M * (N-burnin - 1))
+
+            # (over) estimate of variance
+            s2 = W * (N-burnin-1) / (N-burnin) + B_over_m
+
+            # Pooled posterior variance estimate
+            V = s2 + B_over_m / M
+
+            # Calculate PSRF
+            r_stat = V / W
+
+            # Flatten array
+            r_stat = np.array(r_stat).flatten()
+
+            # Decide if convergence was achieved
+            # Print if chains have converged
+            if all(r_stat < r_critical):
+                if prints:
+                    print(r'Thermodynamic Integration MCMC chains have converged with $\hat{R}$=',r_stat,'!')
+                    print(f'Run experiment again with burnin = {burnin}')
+                # Update metadata
+                utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":True,"burnin":int(burnin)}})
+                break
 
         # Update metadata
-        utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"r_stat":list(r_stat.flatten())}})
+        utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"r_stat":list(r_stat)}})
 
-        # Decide if convergence was achieved
-        if prints:
-            # Print if chains have converged
-            if all(all(row < r_critical) for row in r_stat):
-                print(r'Thermodynamic Integration MCMC chains have converged with $\hat{R}$=',r_stat,'!')
-                # Update metadata
-                utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":True}})
-            else:
-                print(r'Thermodynamic Integration  MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
-                # Update metadata
-                utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":False}})
-            # Print time execution
-            toc = time.perf_counter()
-            print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
+        # If chains have not converged
+        if any(r_stat >= r_critical):
+            print(r'Thermodynamic Integration MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
+            # Update metadata
+            utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":False}})
 
-        return list(r_stat)
 
+        # Print time execution
+        toc = time.perf_counter()
+        print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
+        return r_stat
 
 
 
     """---------------------------------------------------------------------------Evaluate and generate posterior data/plots-----------------------------------------------------------------------------"""
 
-    def evaluate_posterior_predictive_moments(self,*args,**kwargs):
+    def evaluate_posterior_predictive_moments(self,*args,prints:bool=False):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['theta'])
@@ -1032,8 +1098,7 @@ class MarkovChainMonteCarlo(object):
         # Get number of posterior predictive samples to use and acf lags from plot metadata
         posterior_predictive_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['posterior_predictive_samples'])
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f'Computing posterior predictive moments over {posterior_predictive_samples} samples...')
+        if prints: print(f'Computing posterior predictive moments over {posterior_predictive_samples} samples...')
 
         # Set posterior predictive range to covariate range
         x = self.x
@@ -1061,10 +1126,9 @@ class MarkovChainMonteCarlo(object):
         self.posterior_predictive_x = x
 
         # Compute execution time
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):
-                toc = time.perf_counter()
-                print(f"Computed posterior predictive in {toc - tic:0.4f} seconds")
+        if prints:
+            toc = time.perf_counter()
+            print(f"Computed posterior predictive in {toc - tic:0.4f} seconds")
 
     def evaluate_log_unnormalised_posterior(self,fundamental_diagram):
 
@@ -1295,7 +1359,7 @@ class MarkovChainMonteCarlo(object):
                 # Add labels
                 plt.xlabel('MCMC Iterations')
                 plt.ylabel(f"{transformation_name} MCMC Samples")
-                if show_title: plt.title(f'Mixing ${transformation}${self.parameter_names[p]}, t = ({ti}/{nsteps})^{power}, burnin = {burnin}')
+                if show_title: plt.title(f'Mixing ${transformation}${self.parameter_names[p]}, t = ({ti}/{nsteps-1})^{power}, burnin = {burnin}')
 
                 # Add legend
                 plt.legend(fontsize=10)
@@ -1435,7 +1499,7 @@ class MarkovChainMonteCarlo(object):
                 freq,_,_ = plt.hist(self.thermodynamic_integration_theta[burnin:,ti,p],bins=bins,zorder=2)
 
                 # Add labels
-                if show_title: plt.title(f'Parameter posterior ${transformation}${self.parameter_names[p]}, t = ({ti}/{nsteps})^{power}, burnin = {burnin}')
+                if show_title: plt.title(f'Parameter posterior ${transformation}${self.parameter_names[p]}, t = ({ti}/{nsteps-1})^{power}, burnin = {burnin}')
                 plt.vlines(np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0),0,np.max(freq),color='red',label=r'$\mu$', linewidth=2,zorder=3)
                 plt.vlines((np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)-num_stds*np.std(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)),0,np.max(freq),color='red',label=f'$\mu - {num_stds}\sigma$',linestyle='dashed', linewidth=2,zorder=3)
                 plt.vlines((np.mean(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)+num_stds*np.std(self.thermodynamic_integration_theta[burnin:,ti,p],axis=0)),0,np.max(freq),color='red',label=f'$\mu + {num_stds}\sigma$',linestyle='dashed', linewidth=2,zorder=3)
@@ -1499,7 +1563,7 @@ class MarkovChainMonteCarlo(object):
 
             # Get log unnormalised posterior plot
             if show_posterior:
-                
+
                 utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
                 # Set Q_hat to log posterior
                 Q_hat = self.log_unnormalised_posterior
@@ -1622,7 +1686,6 @@ class MarkovChainMonteCarlo(object):
 
                 # Get log unnormalised posterior plot
                 if show_posterior:
-                    raise ValueError('Needs fixing')
                     utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
                     # Set Q_hat to log posterior
                     Q_hat = self.log_unnormalised_posterior
@@ -1683,7 +1746,7 @@ class MarkovChainMonteCarlo(object):
                 plt.xlabel(f'${transformation_0}${parameter_names[i][index[0]]}')
                 plt.ylabel(f'${transformation_1}${parameter_names[i][index[1]]}')
                 # Add title
-                if show_title: plt.title(f'${transformation_0}${parameter_names[i][index[0]]},${transformation_1}${parameter_names[i][index[1]]} exploration, t = ({tj}/{nsteps})^{power} burnin = {burnin}')
+                if show_title: plt.title(f'${transformation_0}${parameter_names[i][index[0]]},${transformation_1}${parameter_names[i][index[1]]} exploration, t = ({tj}/{nsteps-1})^{power} burnin = {burnin}')
                 # Add legend
                 plt.legend(fontsize=10)
 
@@ -1699,7 +1762,6 @@ class MarkovChainMonteCarlo(object):
 
     def generate_log_unnormalised_posteriors_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
-        print('generate_log_unnormalised_posteriors_plots needs fixing')
         # Get starting time
         start = time.time()
 
@@ -1804,6 +1866,13 @@ class MarkovChainMonteCarlo(object):
         # Store flag for whether data should be kept in log scale or transformed
         multiplicative = strtobool(self.simulation_metadata['error']['multiplicative'])
 
+        transformed_parameter_names = []
+        for i,param_name in enumerate(self.parameter_names):
+            # Define parameter transformation
+            transformation = self.inference_metadata['inference']['priors'][self.parameter_names[i].replace("\\","").replace("$","")]['transformation']
+            # Append transformed name to list
+            transformed_parameter_names.append((transformation.replace('\\','')+str(param_name).replace("$","").replace("\\","")))
+
         # Create figure
         fig = plt.figure(figsize=(10,8))
 
@@ -1832,7 +1901,7 @@ class MarkovChainMonteCarlo(object):
         # Show plot
         if show_plot: plt.show()
         # Append plot to list
-        figs.append({"parameters":self.parameter_names,"figure":fig})
+        figs.append({"parameters":transformed_parameter_names,"figure":fig})
         # Close current plot
         plt.close(fig)
 
@@ -1845,35 +1914,41 @@ class MarkovChainMonteCarlo(object):
     """ ---------------------------------------------------------------------------Import data-----------------------------------------------------------------------------"""
 
 
-    def import_metadata(self,**kwargs):
+    def import_metadata(self,experiment:str='',prints:bool=False):
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Make sure file exists
-        if not os.path.exits((inference_filename+'metadata.json')):
-            raise FileNotFoundError(f"Metadata file {'metadata.json'} not found")
+        if not os.path.exits((filename+'metadata.json')):
+            raise FileNotFoundError(f"Metadata file {filename}metadata.json not found")
 
         #  Import metadata where acceptance is part of metadata
-        with open((inference_filename+'metadata.json')) as json_file:
+        with open((filename+'metadata.json')) as json_file:
             self.inference_metadata = json.load(json_file)
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):print('Imported MCMC samples')
+        if prints: print('Imported MCMC samples')
 
 
-    def import_vanilla_mcmc_samples(self,fundamental_diagram,**kwargs):
+    def import_vanilla_mcmc_samples(self,fundamental_diagram,experiment:str='', prints:bool=False):
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+
         # Get burnins for Vanilla MCMC and Thermodynamic integration MCMC
         vanilla_burnin = np.max([int(self.inference_metadata['inference']['vanilla_mcmc']['burnin']),0])
-        ti_burnin = np.max([int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin']),0])
 
         # Load theta from txt file
-        file = (inference_filename+f'theta.txt')
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):print('Importing MCMC samples')
+        file = (filename+f'theta.txt')
+        if prints: print('Importing MCMC samples')
         if os.path.exists(file):
             self.theta = np.loadtxt(file)
 
@@ -1886,24 +1961,29 @@ class MarkovChainMonteCarlo(object):
             # Update metadata on results
             utils.update(self.__inference_metadata['results'],result_summary)
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):print('Importing MCMC proposals')
+        if prints: print('Importing MCMC proposals')
         # Load theta proposed from txt file
-        file = (inference_filename+f'theta_proposed.txt')
+        file = (filename+f'theta_proposed.txt')
         if os.path.exists(file):
             self.theta_proposed = np.loadtxt(file)
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):print('Imported MCMC samples')
+        if prints: print('Imported MCMC samples')
 
-    def import_thermodynamic_integration_mcmc_samples(self,fundamental_diagram,**kwargs):
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+    def import_thermodynamic_integration_mcmc_samples(self,fundamental_diagram,experiment:str='',prints:bool=False):
+
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,'thermodynamic_integration',inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+
         # Load thermodynamic integration theta from txt file
-        file = (inference_filename+f'thermodynamic_integration_theta.txt')
+        file = (filename+f'thermodynamic_integration_theta.txt')
+        # Get burnins for Vanilla MCMC and Thermodynamic integration MCMC
+        ti_burnin = np.max([int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin']),0])
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):print('Importing Thermodynamic Integration MCMC samples')
+        if prints: print('Importing Thermodynamic Integration MCMC samples')
         if os.path.exists(file):
             self.thermodynamic_integration_theta = np.loadtxt(file,dtype='float64')
             # Reshape
@@ -1918,81 +1998,86 @@ class MarkovChainMonteCarlo(object):
             # Update metadata on results
             utils.update(self.__inference_metadata['results'],result_summary)
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):print('Imported MCMC samples')
+        if prints: print('Imported MCMC samples')
 
 
-    def import_log_unnormalised_posterior(self,parameter_pair:list,**kwargs):
+    def import_log_unnormalised_posterior(self,parameter_pair:list,experiment:str='',prints:bool=False):
 
         # Get rid of weird characters
         parameter_pair = [p.replace("$","").replace("\\","") for p in parameter_pair]
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Get parameter names
         param_names = "_".join([str(p).replace("$","").replace("\\","") for p in parameter_pair])
         # print('Importing unnormalised posterior')
         # Load from txt file
         try:
-            file = inference_filename+f'log_unnormalised_posterior_{param_names}.txt'
+            file = filename+f'log_unnormalised_posterior_{param_names}.txt'
             self.log_unnormalised_posterior = np.loadtxt(file,dtype = np.float64)
         except:
-            print('Available files are',list(glob.glob(inference_filename + "*.txt")))
+            print('Available files are',list(glob.glob(filename + "*.txt")))
             raise Exception(f'File {file} was not found.')
 
         # Load from txt file
         try:
-            file = inference_filename+f'log_unnormalised_posterior_mesh_{param_names}.txt'
+            file = filename+f'log_unnormalised_posterior_mesh_{param_names}.txt'
             self.parameter_mesh = np.loadtxt(file,dtype = np.float64)
             # Define new shape
             parameter_mesh_shape = (2,self.log_unnormalised_posterior.shape[0],self.log_unnormalised_posterior.shape[1])
             # Reshape parameter mesh
             self.parameter_mesh = self.parameter_mesh.reshape(parameter_mesh_shape)
         except:
-            print('Available files are',list(glob.glob(inference_filename + "_log_unnormalised_posterior_mesh*.txt")))
+            print('Available files are',list(glob.glob(filename + "_log_unnormalised_posterior_mesh*.txt")))
             raise Exception(f'File {file} was not found.')
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print('Imported log unnormalised posterior')
+        if prints: print('Imported log unnormalised posterior')
 
-    def import_posterior_predictive(self,**kwargs):
+    def import_posterior_predictive(self,experiment:str='',prints:bool=False):
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Load from txt file
         try:
-            file = inference_filename+f'posterior_predictive_mean.txt'
+            file = filename+f'posterior_predictive_mean.txt'
             self.posterior_predictive_mean = np.loadtxt(file)
         except:
-            print('Available files are',list(glob.glob(inference_filename + "*.txt")))
+            print('Available files are',list(glob.glob(filename + "*.txt")))
             raise Exception(f'File {file} was not found.')
 
         # Load from txt file
         try:
-            file = inference_filename+f'posterior_predictive_std.txt'
+            file = filename+f'posterior_predictive_std.txt'
             self.posterior_predictive_std = np.loadtxt(file)
         except:
-            print('Available files are',list(glob.glob(inference_filename + "*.txt")))
+            print('Available files are',list(glob.glob(filename + "*.txt")))
             raise Exception(f'File {file} was not found.')
 
         # Load from txt file
         try:
-            file = inference_filename+f'posterior_predictive_x.txt'
+            file = filename+f'posterior_predictive_x.txt'
             self.posterior_predictive_x = np.loadtxt(file)
         except:
-            print('Available files are',list(glob.glob(inference_filename + "*.txt")))
+            print('Available files are',list(glob.glob(filename + "*.txt")))
             raise Exception(f'File {file} was not found.')
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print('Imported log unnormalised posterior')
+        if prints: print('Imported log unnormalised posterior')
 
 
     """ ---------------------------------------------------------------------------Export data/plots-----------------------------------------------------------------------------"""
 
 
-    def export_log_unnormalised_posterior(self,fundamental_diagram,prints:bool=False):
+    def export_log_unnormalised_posterior(self,fundamental_diagram,experiment:str='',prints:bool=False):
 
         # Make sure you have necessary attributes
         utils.validate_attribute_existence(self,['log_unnormalised_posterior','parameter_mesh','inference_metadata'])
@@ -2000,8 +2085,12 @@ class MarkovChainMonteCarlo(object):
         # Get starting time
         start = time.time()
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
 
         # Export log_unnormalised_posterior
@@ -2025,16 +2114,16 @@ class MarkovChainMonteCarlo(object):
             # Get parameter names
             param_names = "_".join(transformed_parameter_names)
             # Save to txt file
-            np.savetxt((inference_filename+f'log_unnormalised_posterior_{param_names}.txt'),self.log_unnormalised_posterior)
+            np.savetxt((filename+f'log_unnormalised_posterior_{param_names}.txt'),self.log_unnormalised_posterior)
 
-            if prints: print(f"File exported to {(inference_filename+f'log_unnormalised_posterior_{param_names}.txt')}")
+            if prints: print(f"File exported to {(filename+f'log_unnormalised_posterior_{param_names}.txt')}")
 
             # Save to txt file
-            with open((inference_filename+f'log_unnormalised_posterior_mesh_{param_names}.txt'), 'w') as outfile:
+            with open((filename+f'log_unnormalised_posterior_mesh_{param_names}.txt'), 'w') as outfile:
                 for data_slice in self.parameter_mesh:
                     np.savetxt(outfile, data_slice, fmt='%-7.10f')
 
-            if prints: print(f"File exported to {(inference_filename+f'log_unnormalised_posterior_mesh_{param_names}.txt')}")
+            if prints: print(f"File exported to {(filename+f'log_unnormalised_posterior_mesh_{param_names}.txt')}")
 
 
         elif len(self.log_unnormalised_posterior.shape) > 2:
@@ -2043,139 +2132,91 @@ class MarkovChainMonteCarlo(object):
             # Get number of arrays
             num_arrays = int(comb(len(self.parameter_mesh),2))
 
-            # # Avoid plotting more than 3 plots
-            # if num_arrays > 3:
-            #     raise ValueError(f'Too many ({num_plots}) log posterior arrays to export!')
-            # elif num_arrays <= 0:
-            #     raise ValueError(f'You cannot export {num_plots} log posterior arrays!')
-            #
-            # parameter_ranges = []
-            # parameter_range_lengths = []
-            #
-            # # Store number of parameters
-            # num_params = fundamental_diagram.num_learning_parameters
-            # # Store true posterior params
-            # true_posterior_params = self.inference_metadata['inference']['true_posterior']
-            #
-            # # Make sure you have enough priors
-            # if len(true_posterior_params.keys()) < num_params:
-            #     raise ParameterError(f"The model has {num_params} parameter but only {len(true_posterior_params.keys())} priors were provided.")
-            #
-            # # Loop through number of parameters
-            # for k in list(true_posterior_params)[0:num_params]:
-            #     # Define parameter range
-            #     param_range = np.linspace(float(true_posterior_params[k]['min']),float(true_posterior_params[k]['max']),int(true_posterior_params[k]['steps']))
-            #     # Store number of steps
-            #     param_steps = int(true_posterior_params[k]['steps'])
-            #     # Append to array
-            #     parameter_ranges.append(param_range)
-            #     parameter_range_lengths.append(param_steps)
-            #
-            # print(f'Evaluating a {"x".join([str(i) for i in parameter_range_lengths])} grid... Grab a cup of coffee. This will take a while...')
-            #
-            # # Define mesh grid
-            # params_mesh = np.meshgrid(*parameter_ranges[::-1])
-            #
-            #
-            # # Get plot combinations
-            # parameter_indices = list(itertools.combinations(range(0,fundamental_diagram.num_learning_parameters), 2))
-            # parameter_names = list(itertools.combinations(self.parameter_names, 2))
-            #
-            # # Get inference filename
-            # inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['data_id'],self.method,self.inference_metadata['id'])
-            #
-            # # Loop through each array
-            # arrs = []
-            # for i in range(num_arrays):
-            #     index = parameter_indices[i]
-            #
-            #     # Set Q_hat to log posterior
-            #     Q_hat = self.log_unnormalised_posterior
-            #     # Sum up dimension not plotted if there log posterior is > 2dimensional
-            #     Q_hat = np.sum(Q_hat,axis=list(set(range(0,fundamental_diagram.num_learning_parameters)) - set(index))[0])
-            #     # Get parameter names
-            #     param_names = "_".join([str(p).replace("$","").replace("\\","") for p in [parameter_names[i][index[0]],parameter_names[i][index[1]]]])
-            #
-            #     # Save to txt file
-            #     np.savetxt((inference_filename+f'_log_unnormalised_posterior_{param_names}.txt'),self.log_unnormalised_posterior)
-            #     print(f"File exported to {(inference_filename+f'_log_unnormalised_posterior_{param_names}.txt')}")
-
         elif len(self.log_unnormalised_posterior.shape) < 2:
             raise ValueError(f'Log unnormalised posterior has shape {len(self.log_unnormalised_posterior.shape)} < 2')
 
 
-    def export_mcmc_samples(self,**kwargs):
+    def export_mcmc_samples(self,experiment:str='',prints:bool=False):
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         if hasattr(self,'theta'):
             # Export theta
             # Save to txt file
-            np.savetxt((inference_filename+'theta.txt'),self.theta)
-            if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(inference_filename+'theta.txt')}")
+            np.savetxt((filename+'theta.txt'),self.theta)
+            if prints: print(f"File exported to {(filename+'theta.txt')}")
 
         if hasattr(self,'theta_proposed'):
             # Export theta_proposed
             # Save to txt file
-            np.savetxt((inference_filename+'theta_proposed.txt'),self.theta_proposed)
-            if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(inference_filename+'theta_proposed.txt')}")
+            np.savetxt((filename+'theta_proposed.txt'),self.theta_proposed)
+            if prints: print(f"File exported to {(filename+'theta_proposed.txt')}")
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
-
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,'thermodynamic_integration',inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         if hasattr(self,'thermodynamic_integration_theta'):
             # Export thermodynamic integration theta
             # Save to txt file
-            with open((inference_filename+f'thermodynamic_integration_theta.txt'), 'w') as outfile:
+            with open((filename+f'thermodynamic_integration_theta.txt'), 'w') as outfile:
                 for data_slice in self.thermodynamic_integration_theta:
                     np.savetxt(outfile, data_slice, fmt='%-7.10f')
-            if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(inference_filename+'thermodynamic_integration_theta.txt')}")
+            if prints: print(f"File exported to {(filename+'thermodynamic_integration_theta.txt')}")
 
 
-    def export_posterior_predictive(self,**kwargs):
+    def export_posterior_predictive(self,experiment:str='',prints:bool=False):
 
         # Make sure you have necessary attributes
         utils.validate_attribute_existence(self,['posterior_predictive_mean','posterior_predictive_std','posterior_predictive_x'])
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export posterior_predictive_mean
         # Save to txt file
-        np.savetxt((inference_filename+'posterior_predictive_mean.txt'),self.posterior_predictive_mean)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'posterior_predictive_mean.txt')}")
+        np.savetxt((filename+'posterior_predictive_mean.txt'),self.posterior_predictive_mean)
+        if prints: print(f"File exported to {(filename+'posterior_predictive_mean.txt')}")
 
         # Export posterior_predictive_std
         # Save to txt file
-        np.savetxt((inference_filename+'posterior_predictive_std.txt'),self.posterior_predictive_std)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'posterior_predictive_std.txt')}")
+        np.savetxt((filename+'posterior_predictive_std.txt'),self.posterior_predictive_std)
+        if prints: print(f"File exported to {(filename+'posterior_predictive_std.txt')}")
 
         # Export posterior_predictive_x
         # Save to txt file
-        np.savetxt((inference_filename+'posterior_predictive_x.txt'),self.posterior_predictive_x)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'posterior_predictive_x.txt')}")
+        np.savetxt((filename+'posterior_predictive_x.txt'),self.posterior_predictive_x)
+        if prints: print(f"File exported to {(filename+'posterior_predictive_x.txt')}")
 
-    def export_metadata(self,**kwargs):
+    def export_metadata(self,experiment:str='',prints:bool=False):
 
         # Make sure you have necessary attributes
         utils.validate_attribute_existence(self,['inference_metadata'])
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # If metadata exists - import it
         inference_metadata = None
-        if os.path.exists((inference_filename+'metadata.json')):
+        if os.path.exists((filename+'metadata.json')):
             #  Import metadata where acceptance is part of metadata
-            with open((inference_filename+'metadata.json')) as json_file:
+            with open((filename+'metadata.json')) as json_file:
                 inference_metadata = json.load(json_file)
 
         # Update results if there are any
@@ -2194,13 +2235,12 @@ class MarkovChainMonteCarlo(object):
 
 
         #  Export metadata where acceptance is part of metadata
-        with open((inference_filename+'metadata.json'), 'w') as outfile:
+        with open((filename+'metadata.json'), 'w') as outfile:
             json.dump(self.inference_metadata, outfile)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(inference_filename+'metadata.txt')}")
+        if prints: print(f"File exported to {(filename+'metadata.txt')}")
 
 
-    def export_posterior_plots(self,figs,inference_filename,plot_type,**kwargs):
+    def export_posterior_plots(self,figs,filename,plot_type,prints:bool=False):
 
         # Make sure figs is not empty
         if not hasattr(figs,'__len__') or len(figs) < 1 or not all([bool(v) for v in figs]):
@@ -2211,96 +2251,124 @@ class MarkovChainMonteCarlo(object):
             # Get parameters in string format separated by _
             param_names = "_".join([str(p).replace("$","").replace("\\","") for p in figs[i]['parameters']])
             # Export plot to file
-            figs[i]['figure'].savefig((inference_filename+f'{plot_type}_{param_names}.png'),dpi=300)
+            figs[i]['figure'].savefig((filename+f'{plot_type}_{param_names}.png'),dpi=300)
             # Close plot
             plt.close(figs[i]['figure'])
 
-            if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(inference_filename+f'{plot_type}_{param_names}.png')}")
+            if prints: print(f"File exported to {(filename+f'{plot_type}_{param_names}.png')}")
 
 
 
-    def export_univariate_prior_plots(self,fundamental_diagram,show_plot:bool=False,prints:bool=False,show_title:bool=True):
+    def export_univariate_prior_plots(self,fundamental_diagram,experiment:str='',show_plot:bool=False,prints:bool=False,show_title:bool=True):
 
         # Get prior plots
         fig = self.generate_univariate_prior_plots(fundamental_diagram,show_plot=show_plot,prints=prints,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(fig,inference_filename,'prior')
+        self.export_posterior_plots(fig,filename,'prior')
 
 
-    def export_log_unnormalised_posterior_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
+    def export_log_unnormalised_posterior_plots(self,fundamental_diagram,experiment:str='',show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
         figs = self.generate_log_unnormalised_posteriors_plots(fundamental_diagram,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"log_unnormalised_posterior")
+        self.export_posterior_plots(figs,filename,"log_unnormalised_posterior")
 
 
-    def export_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
+    def export_mcmc_mixing_plots(self,fundamental_diagram,experiment:str='',show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
         figs = self.generate_mcmc_mixing_plots(fundamental_diagram,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"mixing")
+        self.export_posterior_plots(figs,filename,"mixing")
 
-    def export_thermodynamic_integration_mcmc_mixing_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
+    def export_thermodynamic_integration_mcmc_mixing_plots(self,fundamental_diagram,experiment:str='',show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
         figs = self.generate_thermodynamic_integration_mcmc_mixing_plots(fundamental_diagram,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,'thermodynamic_integration',inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"mixing")
+        self.export_posterior_plots(figs,filename,"mixing")
 
-    def export_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
+    def export_mcmc_parameter_posterior_plots(self,fundamental_diagram,experiment:str='',num_stds:int=2,show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
         figs = self.generate_mcmc_parameter_posterior_plots(fundamental_diagram,num_stds,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"parameter_posterior")
+        self.export_posterior_plots(figs,filename,"parameter_posterior")
 
-    def export_thermodynamic_integration_mcmc_parameter_posterior_plots(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
+    def export_thermodynamic_integration_mcmc_parameter_posterior_plots(self,fundamental_diagram,experiment:str='',num_stds:int=2,show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
         figs = self.generate_thermodynamic_integration_mcmc_parameter_posterior_plots(fundamental_diagram,num_stds,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,'thermodynamic_integration',inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"parameter_posterior")
+        self.export_posterior_plots(figs,filename,"parameter_posterior")
 
-    def export_mcmc_acf_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
+    def export_mcmc_acf_plots(self,fundamental_diagram,experiment:str='',show_plot:bool=False,show_title:bool=True):
 
         # Get subplots
         figs = self.generate_mcmc_acf_plots(fundamental_diagram,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"acf")
+        self.export_posterior_plots(figs,filename,"acf")
 
 
-    def export_mcmc_space_exploration_plots(self,fundamental_diagram,show_posterior:bool=False,show_plot:bool=False,show_title:bool=True):
+    def export_mcmc_space_exploration_plots(self,fundamental_diagram,experiment:str='',show_posterior:bool=False,show_plot:bool=False,show_title:bool=True):
 
         # Set show posterior plot to true iff the metadata says so AND you have already computed the posterior
         show_posterior = show_posterior and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
@@ -2308,13 +2376,17 @@ class MarkovChainMonteCarlo(object):
         # Generate plots
         figs = self.generate_mcmc_space_exploration_plots(fundamental_diagram,show_posterior=show_posterior,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"space_exploration")
+        self.export_posterior_plots(figs,filename,"space_exploration")
 
-    def export_thermodynamic_integration_mcmc_space_exploration_plots(self,fundamental_diagram,show_posterior:bool=False,show_plot:bool=False,show_title:bool=True):
+    def export_thermodynamic_integration_mcmc_space_exploration_plots(self,fundamental_diagram,experiment:str='',show_posterior:bool=False,show_plot:bool=False,show_title:bool=True):
 
         # Set show posterior plot to true iff the metadata says so AND you have already computed the posterior
         show_posterior = show_posterior and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
@@ -2322,20 +2394,28 @@ class MarkovChainMonteCarlo(object):
         # Generate plots
         figs = self.generate_thermodynamic_integration_mcmc_space_exploration_plots(fundamental_diagram,show_posterior,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],'thermodynamic_integration',dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,'thermodynamic_integration',inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"space_exploration")
+        self.export_posterior_plots(figs,filename,"space_exploration")
 
 
-    def export_mcmc_posterior_predictive_plot(self,fundamental_diagram,num_stds:int=2,show_plot:bool=False,show_title:bool=True):
+    def export_mcmc_posterior_predictive_plot(self,fundamental_diagram,experiment:str='',num_stds:int=2,show_plot:bool=False,show_title:bool=True):
 
         # Generate plots
         figs = self.generate_posterior_predictive_plot(fundamental_diagram,num_stds=num_stds,show_plot=show_plot,show_title=show_title)
 
-        # Get inference filename
-        inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        if experiment == '':
+            # Get inference filename
+            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
+        else:
+            # Get experiment filename
+            filename = utils.prepare_output_experiment_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
         # Export them
-        self.export_posterior_plots(figs,inference_filename,"posterior_predictive")
+        self.export_posterior_plots(figs,filename,"posterior_predictive")

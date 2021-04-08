@@ -45,14 +45,14 @@ inf_model.compute_maximum_likelihood_estimate(fd,prints=True)
 # inf_model.export_univariate_prior_plots(fd)
 
 # Compute log unnormalised posterior
-log_true_posterior,parameters_mesh = inf_model.evaluate_log_unnormalised_posterior(fd)
+# log_true_posterior,parameters_mesh = inf_model.evaluate_log_unnormalised_posterior(fd)
 # Import log unnormalised posterior
 # inf_model.import_log_unnormalised_posterior(['alpha','beta'])
 
 # Export log unnormalised posterior
-inf_model.export_log_unnormalised_posterior(fd,prints=True)
+# inf_model.export_log_unnormalised_posterior(fd,prints=True)
 # Export log unnormalsed log posterior plot
-inf_model.export_log_unnormalised_posterior_plots(fd,True)
+# inf_model.export_log_unnormalised_posterior_plots(fd,True)
 
 # Run MCMC
 # theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,seed=2021,prints=True)
