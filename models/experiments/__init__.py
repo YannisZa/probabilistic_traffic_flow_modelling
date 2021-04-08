@@ -41,7 +41,8 @@ class Experiment(object):
         inference_model.populate(fd)
 
         # Compute MLE estimate
-        inference_model.compute_maximum_likelihood_estimate(fd,prints=strtobool(self.experiment_metadata['mle']['print']))
+        if strtobool(self.experiment_metadata['mle']['compute']):
+            inference_model.compute_maximum_likelihood_estimate(fd,prints=strtobool(self.experiment_metadata['mle']['print']))
 
         # Plot univariate prior distributions
         if strtobool(self.experiment_metadata['priors']['export']):
@@ -63,16 +64,30 @@ class Experiment(object):
             log_true_posterior,parameters_mesh = inference_model.evaluate_log_unnormalised_posterior(fd)
 
         # Export/store log unnormalised posterior
-        if strtobool(self.experiment_metadata['log_unnormalised_posterior']['export_data']):
+        if strtobool(self.experiment_metadata['log_unnormalised_posterior']['export']):
             print('Export log unnormalised posterior')
-            inference_model.export_log_unnormalised_posterior(fd,prints=strtobool(self.experiment_metadata['compute']['log_unnormalised_posterior']['print']))
-        if strtobool(self.experiment_metadata['log_unnormalised_posterior']['export_plot']):
-            print('Export log unnormalised posterior plots')
+            inference_model.export_log_unnormalised_posterior(fd,
+                                                            prints=strtobool(self.experiment_metadata['compute']['log_unnormalised_posterior']['print']))
             inference_model.export_log_unnormalised_posterior_plots(fd,
                                                                 show_plot=strtobool(self.experiment_metadata['log_unnormalised_posterior']['show_plot']),
                                                                 show_title=strtobool(self.experiment_metadata['log_unnormalised_posterior']['show_title']),
                                                                 prints=strtobool(self.experiment_metadata['log_unnormalised_posterior']['print']))
 
+
+        # Compute convergence criterion for Vanilla MCMC
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['compute']):
+            vanilla_thetas = inference_model.run_parallel_mcmc(type='vanilla_mcmc',
+                                                                fundamental_diagram=fd,
+                                                                prints=strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['print']))
+            inference_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(vanilla_thetas,
+                                                                            prints=strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['print']))
+        # Compute convergence criterion for Thermodynamic Integration MCMC
+        if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['compute']):
+            ti_thetas = inference_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',
+                                                    fundamental_diagram=fd,
+                                                    prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['print']))
+            inference_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,
+                                                                                        prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['print']))
 
         # Run MCMC
         if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
@@ -82,6 +97,7 @@ class Experiment(object):
         elif not strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
             print('Run MCMC')
             theta_accepted,theta_proposed,acceptance = inference_model.vanilla_mcmc(fd,
+                                                                            seed = strtobool(inference_model.inference_metadata['vanilla_mcmc']['parameter_posterior']['seed']),
                                                                             prints = strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['print']))
 
         # Run thermodynamic integration MCMC
@@ -92,6 +108,7 @@ class Experiment(object):
         elif not strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
             print('Run thermodynamic integration MCMC')
             ti_theta_accepted,ti_acceptance = inference_model.thermodynamic_integration_mcmc(fd,
+                                                                                    seed = strtobool(inference_model.inference_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['seed']),
                                                                                     prints = strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['print']))
 
         # Export MCMC chains

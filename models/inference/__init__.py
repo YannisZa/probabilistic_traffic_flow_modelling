@@ -17,10 +17,12 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
 from tqdm import tqdm
+from functools import partial
 from scipy.special import comb
 from scipy.optimize import fmin
 from distutils.util import strtobool
 from . import temperature_schedules as tp
+from pathos.multiprocessing import ProcessingPool as Pool
 
 # matplotlib settings
 matplotlib.rc('font', **{'size' : 16})
@@ -407,7 +409,7 @@ class MarkovChainMonteCarlo(object):
         else: return log_acc, log_pnew, log_pold
 
 
-    def vanilla_mcmc(self,fundamental_diagram,prints:bool=False):
+    def vanilla_mcmc(self,fundamental_diagram,i,seed:int=None,prints:bool=False):
         """Vanilla MCMC method for sampling from pdf defined by log_function
 
         Parameters
@@ -437,10 +439,6 @@ class MarkovChainMonteCarlo(object):
             theta - accepted samples from target distribution
             theta_proposed - accepted samples from target distribution
             acc/n_iters - the proportion of accepted samples"""
-
-        # Get seed from metadata
-        if self.inference_metadata['inference']['vanilla_mcmc']['seed'] in ['','None']: seed = None
-        else: seed = int(self.inference_metadata['inference']['vanilla_mcmc']['seed'])
 
         # Fix random seed
         np.random.seed(seed)
@@ -480,6 +478,9 @@ class MarkovChainMonteCarlo(object):
         # Store number of iterations
         N = max(int(self.inference_metadata['inference']['vanilla_mcmc']['N']),1)
         burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
+
+        # If burnin exists error there is a problem
+        if burnin >= N: raise ValueError(f'Burnin {burnin} cannot be >= to MCMC iterations {N}')
 
         if prints:
             print('p0',self.transform_parameters(p0,True))
@@ -558,9 +559,9 @@ class MarkovChainMonteCarlo(object):
             print('Posterior means', self.transform_parameters(np.mean(self.theta[burnin:,:],axis=0),True))
             print('Posterior stds', np.std(self.theta[burnin:,:],axis=0))
 
-        return self.theta, self.theta_proposed, int(100*(acc / N))
+        return np.array(theta).reshape((N,self.num_learning_parameters)), int(100*(acc / N))
 
-    def thermodynamic_integration_mcmc(self,fundamental_diagram,prints:bool=False,seed:int=None):
+    def thermodynamic_integration_mcmc(self,fundamental_diagram,i,seed:int=None,prints:bool=False):
         """Thermodynamic integration MCMC method for sampling from pdf defined by log_function
 
         Parameters
@@ -588,10 +589,6 @@ class MarkovChainMonteCarlo(object):
             theta - accepted samples from target distribution
             theta_proposed - accepted samples from target distribution
             acc/n_iters - the proportion of accepted samples"""
-
-        # Get seed from metadata
-        if self.inference_metadata['inference']['thermodynamic_integration_mcmc']['seed'] in ['','None']: seed = None
-        else: seed = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['seed'])
 
         # Fix random seed
         np.random.seed(seed)
@@ -636,6 +633,10 @@ class MarkovChainMonteCarlo(object):
         p_prev = p0
         # Store number of iterations
         N = np.max([int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['N']),1])
+        burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
+
+        # If burnin exists error there is a problem
+        if burnin >= N: raise ValueError(f'Burnin {burnin} cannot be >= to MCMC iterations {N}')
 
         # Initialise output variables
         theta = np.zeros((N,t_len,p_prev.shape[1]))
@@ -724,7 +725,42 @@ class MarkovChainMonteCarlo(object):
             print(f"Temperature acceptance rate {[(str(int(100*a))+'%') for a in acc/prop]}")
             print(f"Choice probabilities {[(str(int(100*pr/N))+'%') for pr in prop]}")
 
-        return self.thermodynamic_integration_theta, acc, prop
+        return np.array(theta).reshape((N,t_len,self.num_learning_parameters)), int(100*(np.sum(acc) / np.sum(prop)))
+
+    def run_parallel_mcmc(self,type,fundamental_diagram,prints:bool=False):
+
+        # Time execution
+        tic = time.perf_counter()
+
+        if 'vanilla_mcmc' in type:
+            # Define partial function
+            mcmc_partial = partial(self.vanilla_mcmc,fundamental_diagram,seed=None,prints=False)
+            # Get number of chains from metadata
+            n_chains = int(self.inference_metadata['inference']['convergence_diagnostic']['parallel_chains'])
+        elif 'thermodynamic_integration_mcmc' in type:
+            # Define partial function
+            mcmc_partial = partial(self.thermodynamic_integration_mcmc,fundamental_diagram,seed=None,prints=False)
+            # Get number of chains from metadata
+            n_chains = int(self.inference_metadata['inference']['convergence_diagnostic']['parallel_chains'])
+        else:
+            raise ValueError(f'MCMC type f{type} not found and therefore cannot run MCMC in parallel.')
+
+        if prints: print(f'Running {n_chains} {type.capitalize().replace("_"," ")} chains in parallel')
+
+        # Initialise multiprocessing pool using pathos library
+        p = Pool(n_chains)
+        # Map indices to MCMC function
+        mcmc_chains = list(p.map(mcmc_partial,range(n_chains)))
+
+        # Print time execution
+        if prints:
+            for i in range(n_chains):
+                print(f'Chain {i} acceptance: {mcmc_chains[i][1]}%')
+            toc = time.perf_counter()
+            print(f"Run parallel vanilla MCMC chains in {toc - tic:0.4f} seconds")
+
+        return np.array([chain[0] for chain in mcmc_chains])
+
 
     def compute_maximum_likelihood_estimate(self,fundamental_diagram,**kwargs):
 
@@ -872,92 +908,113 @@ class MarkovChainMonteCarlo(object):
         return lml
 
 
-    def compute_gelman_rubin_statistic(self,theta,mcmc_type:int='thermodynamic_integration_mcmc',**kwargs):
+    def compute_gelman_rubin_statistic_for_vanilla_mcmc(self,theta_list,prints:bool=False):
         # See more details here: https://pymc-devs.github.io/pymc/modelchecking.html
 
         # Time execution
         tic = time.perf_counter()
 
         # Get burnin and acf lags from plot metadata
-        burnin = int(self.inference_metadata['plot'][mcmc_type]['burnin'])
+        burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
 
         # Make sure you have the necessary parameters
-        utils.validate_parameter_existence(['r_critical'],self.inference_metadata['inference'][mcmc_type])
+        utils.validate_parameter_existence(['r_critical'],self.inference_metadata['inference']['convergence_diagnostic'])
 
         # Get R statistic critical value
-        r_critical = float(self.inference_metadata['inference'][mcmc_type]['r_critical'])
+        r_critical = float(self.inference_metadata['inference']['convergence_diagnostic']['r_critical'])
 
         # Get number of chain iterations and number of chains
-        n,m = theta.shape
+        M,N,P = theta_list.shape
 
-        # If burnin exists error there is a problem
-        if burnin >= n: raise ValueError(f'Burnin {burnin} cannot be >= to MCMC iterations {n}')
+        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N-burnin}, P = {P}')
 
         # Compute posterior mean for each parameter dimension
-        posterior_parameter_means = np.array([np.mean(theta[burnin:,j]) for j in range(m)])
+        chain_parameter_mean = np.mean(theta_list[:,burnin:,:],axis=1)
+        overall_parameter_mean = np.mean(theta_list[:,burnin:,:],axis=(0,1))
+
         # Compute B
-        B = (n-burnin)/(m-1) * np.sum([(posterior_parameter_means[j] - np.mean(theta[burnin:,:],axis=(0,1)))**2 for j in range(m)])
+        B = (N-burnin)/(M-1) * np.sum([(chain_parameter_mean[j,:] - overall_parameter_mean)**2 for j in range(M)],axis=0)
         # Compute W
-        W = (1./m) * np.sum([(1./((n-burnin)-1)* np.sum([(theta[i,j]-posterior_parameter_means[j])**2 for i in range(burnin,n)])) for j in range(m)])
+        inner_sum = 1./((N-burnin)-1) * np.sum([(theta_list[:,i,:]-chain_parameter_mean)**2 for i in range(burnin,N)],axis=0)
+        W = (1./M) * np.sum([inner_sum[j,:] for j in range(M)],axis=0)
         # Compute parameter marginal posterior variance
-        posterior_marginal_var = (((n-burnin)-1)/(n-burnin))*W + B/(n-burnin)
+        posterior_marginal_var = ((N-burnin-1)/(N-burnin))*W + B/(N-burnin)
         # Compute R stastic
         r_stat = np.sqrt(posterior_marginal_var/W)
 
-        # Decide if convergence was achieved
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):
-                # Print if chains have converged
-                if r_stat < r_critical: print(r'MCMC chains have converged with $\hat{R}$=',r_stat,'!')
-                else: print(r'MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
-                # Print time execution
-                toc = time.perf_counter()
-                print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
-        return r_stat
-
-
-    def compute_gelman_rubin_statistic_for_vanilla_mcmc(self,**kwargs):
-        # See more details here: https://pymc-devs.github.io/pymc/modelchecking.html
-
-        # Make sure you have the necessary attributes
-        utils.validate_attribute_existence(self,['theta'])
-
-        # Compute Gelman and Rubin statistic for vanilla MCMC chain
-        r_stat = self.compute_gelman_rubin_statistic(self.theta)
-
         # Update metadata
-        utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"r_stat":r_stat}})
-        return r_stat
+        utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"r_stat":list(r_stat)}})
 
-    def compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(self,**kwargs):
+        # Decide if convergence was achieved
+        if prints:
+            # Print if chains have converged
+            if all(r_stat < r_critical):
+                print(r'Vanilla MCMC chains have converged with $\hat{R}$=',r_stat,'!')
+                # Update metadata
+                utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":True}})
+            else:
+                print(r'Vanilla MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
+                # Update metadata
+                utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":False}})
+            # Print time execution
+            toc = time.perf_counter()
+            print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
+        return list(r_stat)
+
+
+    def compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(self,theta_list,prints:bool=False):
         # See more details here: https://pymc-devs.github.io/pymc/modelchecking.html
-
-        # Make sure you have the necessary attributes
-        utils.validate_attribute_existence(self,['thermodynamic_integration_theta'])
 
         # Time execution
         tic = time.perf_counter()
 
+        # Get burnin and acf lags from plot metadata
+        burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
 
-        # Initialise array of r stats
-        r_stats = []
-        for ti in range(len(self.temperature_schedule)):
-            # Compute Gelman and Rubin statistic for vanilla MCMC chain
-            r_stat = self.compute_gelman_rubin_statistic(self.thermodynamic_integration_theta[:,ti,:])
-            # Append to array
-            r_stats.append(r_stat)
+        # Make sure you have the necessary parameters
+        utils.validate_parameter_existence(['r_critical'],self.inference_metadata['inference']['convergence_diagnostic'])
+
+        # Get R statistic critical value
+        r_critical = float(self.inference_metadata['inference']['convergence_diagnostic']['r_critical'])
+
+        # Get number of chain iterations and number of chains
+        M,N,T,P = theta_list.shape
+
+        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N-burnin}, P = {P}, T = {T}')
+
+        # Compute posterior mean for each parameter dimension
+        chain_parameter_mean = np.mean(theta_list[:,burnin:,:,:],axis=1)
+        overall_parameter_mean = np.mean(theta_list[:,burnin:,:,:],axis=(0,1))
+
+        # Compute B
+        B = (N-burnin)/(M-1) * np.sum([(chain_parameter_mean[j,:,:] - overall_parameter_mean)**2 for j in range(M)],axis=0)
+        # Compute W
+        inner_sum = 1./((N-burnin)-1) * np.sum([(theta_list[:,i,:,:]-chain_parameter_mean)**2 for i in range(burnin,N)],axis=0)
+        W = (1./M) * np.sum([inner_sum[j,:] for j in range(M)],axis=0)
+        # Compute parameter marginal posterior variance
+        posterior_marginal_var = ((N-burnin-1)/(N-burnin))*W + B/(N-burnin)
+        # Compute R stastic
+        r_stat = np.sqrt(posterior_marginal_var/W)
 
         # Update metadata
-        utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"r_stat":r_stats}})
+        utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"r_stat":list(r_stat.flatten())}})
 
-        if 'prints' in kwargs:
-            if kwargs.get('prints'):
-                print('R statistics:',r_stats)
-                # Print time execution
-                toc = time.perf_counter()
-                print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
+        # Decide if convergence was achieved
+        if prints:
+            # Print if chains have converged
+            if all(all(row < r_critical) for row in r_stat):
+                print(r'Thermodynamic Integration MCMC chains have converged with $\hat{R}$=',r_stat,'!')
+                # Update metadata
+                utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":True}})
+            else:
+                print(r'Thermodynamic Integration  MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
+                # Update metadata
+                utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":False}})
+            # Print time execution
+            toc = time.perf_counter()
+            print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
 
-        return r_stats
+        return list(r_stat)
 
 
 
@@ -991,23 +1048,12 @@ class MarkovChainMonteCarlo(object):
         # Fix random seed
         np.random.seed(seed)
 
-
         # Sample from predictive likelihood
         pp = np.array([self.evaluate_predictive_likelihood(self.theta[j,:],x) for j in range(self.theta.shape[0]-posterior_predictive_samples,self.theta.shape[0])])
         # Compute posterior predictive mean
         pp_mean = np.mean(pp,axis=0)
         # Compute posterior predictive standard deviation
         pp_var = np.mean(pp**2,axis=0) - pp_mean**2
-
-        #np.mean(pp**2,axis=0) - pp_mean**2
-        #(pp.T @ pp) * (1/M) - pp_mean.T @ pp_mean
-        # np.mean(pp**2,axis=0) - pp_mean**2
-
-        # print(pp.shape)
-        # print(pp_mean.shape)
-        # print('e_x2',e_x2.shape)
-        # print('ex_2',ex_2.shape)
-        # print(pp_var.shape)
 
         # Update class variables
         self.posterior_predictive_mean = pp_mean

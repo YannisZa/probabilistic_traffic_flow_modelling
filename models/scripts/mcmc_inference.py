@@ -55,9 +55,15 @@ inf_model.compute_maximum_likelihood_estimate(fd,prints=True)
 # inf_model.export_log_unnormalised_posterior_plots(fd,True)
 
 # Run MCMC
-# theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,True)
+# theta_accepted,theta_proposed,acceptance = inf_model.vanilla_mcmc(fd,seed=2021,prints=True)
 # Import MCMC samples
 # inf_model.import_vanilla_mcmc_samples(fd)
+
+# Run MCMC in parallel and get convergence diagnostic
+# vanilla_thetas = inf_model.run_parallel_mcmc(type='vanilla_mcmc',fundamental_diagram=fd,prints=True)
+# inf_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(vanilla_thetas,prints=True)
+# ti_thetas = inf_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',fundamental_diagram=fd,prints=True)
+# inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
 
 # Run thermodynamic integration MCMC
 # ti_theta_accepted,ti_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(fd,True,None)

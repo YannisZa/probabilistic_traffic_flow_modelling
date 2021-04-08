@@ -1,7 +1,6 @@
 # Bugs
 
 ## Urgent
-- Debug gelman and rubin criterion
 - Log posterior grid search
 
 ## Non-urgent
@@ -19,6 +18,7 @@
 - Write tests for important functions
 
 ## Nice-to-have
+- Function that ensures no wrong inputs from toml files
 - Allow onstruction of non-diagonal covariance matrices
 - Allow transition kernel not to be symmetric - incroporate it into acceptance probability
 
