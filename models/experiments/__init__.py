@@ -97,7 +97,7 @@ class Experiment(object):
         elif not strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
             print('Run MCMC')
             theta_accepted,theta_proposed,acceptance = inference_model.vanilla_mcmc(fd,
-                                                                            seed = strtobool(inference_model.inference_metadata['vanilla_mcmc']['parameter_posterior']['seed']),
+                                                                            seed = strtobool(inference_model.inference_metadata['inference']['vanilla_mcmc']['seed']),
                                                                             prints = strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['print']))
 
         # Run thermodynamic integration MCMC
@@ -108,7 +108,7 @@ class Experiment(object):
         elif not strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
             print('Run thermodynamic integration MCMC')
             ti_theta_accepted,ti_acceptance = inference_model.thermodynamic_integration_mcmc(fd,
-                                                                                    seed = strtobool(inference_model.inference_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['seed']),
+                                                                                    seed = strtobool(inference_model.inference_metadata['inference']['thermodynamic_integration_mcmc']['seed']),
                                                                                     prints = strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['print']))
 
         # Export MCMC chains

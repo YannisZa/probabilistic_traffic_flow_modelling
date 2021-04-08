@@ -27,5 +27,6 @@
 - Update test simulation and inference parameter toml files
 
 # Testing functions
+- All experiments using identity parameter transformation
 - Reject sample if theta is not wihtin lower and upper bounds
 - MLE parameter initialisation in vanilla/thermodynamic mcmc

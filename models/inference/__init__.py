@@ -1499,8 +1499,7 @@ class MarkovChainMonteCarlo(object):
 
             # Get log unnormalised posterior plot
             if show_posterior:
-                raise ValueError('generate_mcmc_space_exploration_plots needs fixing for transformed parameters')
-
+                
                 utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
                 # Set Q_hat to log posterior
                 Q_hat = self.log_unnormalised_posterior
