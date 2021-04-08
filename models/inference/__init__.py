@@ -1077,19 +1077,14 @@ class MarkovChainMonteCarlo(object):
         parameter_ranges = []
         parameter_range_lengths = []
 
-        # Store number of parameters
-        num_params = self.num_learning_parameters
+
         # Store true posterior params
         true_posterior_params = self.inference_metadata['inference']['true_posterior']
 
-        # Make sure you have enough priors
-        if len(true_posterior_params.keys()) < num_params:
-            raise ParameterError(f"The model has {num_params} parameter but only {len(true_posterior_params.keys())} priors were provided.")
-
         # Loop through number of parameters
-        for k in list(true_posterior_params)[0:num_params]:
+        for i,k in enumerate(list(true_posterior_params)):
             # Define parameter range
-            param_range = np.linspace(float(true_posterior_params[k]['min']),float(true_posterior_params[k]['max']),int(true_posterior_params[k]['steps']))
+            param_range = self.transformations[i][0](np.linspace(float(true_posterior_params[k]['min']),float(true_posterior_params[k]['max']),int(true_posterior_params[k]['steps'])))
             # Store number of steps
             param_steps = int(true_posterior_params[k]['steps'])
             # Append to array
@@ -1705,6 +1700,7 @@ class MarkovChainMonteCarlo(object):
 
     def generate_log_unnormalised_posteriors_plots(self,fundamental_diagram,show_plot:bool=False,show_title:bool=True):
 
+        print('generate_log_unnormalised_posteriors_plots needs fixing')
         # Get starting time
         start = time.time()
 
@@ -1714,10 +1710,18 @@ class MarkovChainMonteCarlo(object):
         # Get number of plots
         num_plots = int(comb(len(self.log_unnormalised_posterior.shape),2))
 
-
         # Get plot combinations
         parameter_indices = list(itertools.combinations(range(0,self.num_learning_parameters), 2))
-        parameter_names = list(itertools.combinations(self.parameter_names, 2))
+
+        # Transform paramter names
+        transformed_parameters = []
+        for i in range(self.num_learning_parameters):
+            # Define parameter transformation
+            transformation = self.inference_metadata['inference']['priors'][self.parameter_names[i].replace("\\","").replace("$","")]['transformation']
+            # Append transformed parameter name to list
+            transformed_parameters.append((f'${transformation}$'+self.parameter_names[i]))
+        # Get parameter name combinations for each plot
+        transformed_parameter_names = list(itertools.combinations(transformed_parameters, 2))
 
         # Avoid plotting more than 3 plots
         if num_plots > 3:
@@ -1769,19 +1773,19 @@ class MarkovChainMonteCarlo(object):
 
             plt.scatter(self.parameter_mesh[index[0]].flatten()[np.argmax(Q_hat)],self.parameter_mesh[index[1]].flatten()[np.argmax(Q_hat)],label='surface max',marker='x',s=200,color='blue',zorder=10)
             if hasattr(self,'true_parameters'):
-                plt.scatter(self.true_parameters[index[0]],self.true_parameters[index[1]],label='Simulation parameter',marker='x',s=100,color='black',zorder=11)
+                plt.scatter(self.transform_parameters(self.true_parameters,False)[index[0]],self.transform_parameters(self.true_parameters,False)[index[1]],label='Simulation parameter',marker='x',s=100,color='black',zorder=11)
             plt.xlim([np.min(self.parameter_mesh[index[0]]),np.max(self.parameter_mesh[index[0]])])
             plt.ylim([np.min(self.parameter_mesh[index[1]]),np.max(self.parameter_mesh[index[1]])])
-            if show_title: plt.title(f'Log unnormalised posterior for {",".join(parameter_names[i])}')
-            plt.xlabel(f'{parameter_names[i][index[0]]}')
-            plt.ylabel(f'{parameter_names[i][index[1]]}')
+            if show_title: plt.title(f'Log unnormalised posterior for {",".join(transformed_parameter_names[i])}')
+            plt.xlabel(f'{transformed_parameter_names[i][index[0]]}')
+            plt.ylabel(f'{transformed_parameter_names[i][index[1]]}')
             plt.colorbar(im)
             plt.legend(fontsize=10)
 
             # Show plot
             if show_plot: plt.show()
             # Append plot to list
-            figs.append({"parameters":[parameter_names[i][index[0]],parameter_names[i][index[1]]],"figure":fig})
+            figs.append({"parameters":[transformed_parameter_names[i][index[0]],transformed_parameter_names[i][index[1]]],"figure":fig})
             # Close current plot
             plt.close(fig)
 
@@ -1989,7 +1993,7 @@ class MarkovChainMonteCarlo(object):
     """ ---------------------------------------------------------------------------Export data/plots-----------------------------------------------------------------------------"""
 
 
-    def export_log_unnormalised_posterior(self,fundamental_diagram,**kwargs):
+    def export_log_unnormalised_posterior(self,fundamental_diagram,prints:bool=False):
 
         # Make sure you have necessary attributes
         utils.validate_attribute_existence(self,['log_unnormalised_posterior','parameter_mesh','inference_metadata'])
@@ -2000,21 +2004,38 @@ class MarkovChainMonteCarlo(object):
         # Get inference filename
         inference_filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
 
+
         # Export log_unnormalised_posterior
         if len(self.log_unnormalised_posterior.shape) == 2:
+
+            transformed_parameter_names = []
+            for i,k in enumerate(list(self.inference_metadata['inference']['true_posterior'])):
+                # Define parameter name
+                param_name = k
+                # Define parameter transformation
+                transformation = self.inference_metadata['inference']['priors'][self.parameter_names[i].replace("\\","").replace("$","")]['transformation']
+                # True posterior parameter keys must be the same as prior keys
+                try:
+                    assert str(param_name).replace("$","").replace("\\","") == self.parameter_names[i].replace("\\","").replace("$","")
+                except:
+                    print(str(param_name).replace("$","").replace("\\",""))
+                    print(self.parameter_names[i].replace("\\","").replace("$",""))
+                # Append transformed name to list
+                transformed_parameter_names.append((transformation.replace('\\','')+str(param_name).replace("$","").replace("\\","")))
+
             # Get parameter names
-            param_names = "_".join([str(k).replace("$","").replace("\\","") for k in list(self.inference_metadata['inference']['true_posterior'])[0:self.num_learning_parameters] ])
+            param_names = "_".join(transformed_parameter_names)
             # Save to txt file
             np.savetxt((inference_filename+f'log_unnormalised_posterior_{param_names}.txt'),self.log_unnormalised_posterior)
-            if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(inference_filename+f'log_unnormalised_posterior_{param_names}.txt')}")
+
+            if prints: print(f"File exported to {(inference_filename+f'log_unnormalised_posterior_{param_names}.txt')}")
 
             # Save to txt file
             with open((inference_filename+f'log_unnormalised_posterior_mesh_{param_names}.txt'), 'w') as outfile:
                 for data_slice in self.parameter_mesh:
                     np.savetxt(outfile, data_slice, fmt='%-7.10f')
-            if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(inference_filename+f'log_unnormalised_posterior_mesh_{param_names}.txt')}")
+
+            if prints: print(f"File exported to {(inference_filename+f'log_unnormalised_posterior_mesh_{param_names}.txt')}")
 
 
         elif len(self.log_unnormalised_posterior.shape) > 2:

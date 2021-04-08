@@ -1,15 +1,12 @@
 # Bugs
 
 ## Urgent
-- Log posterior grid search
 
 ## Non-urgent
 
 # Extensions
 
 ## Urgent
-- Move Show titles to experiments
-- Change inference __init__.py to run parallel chains
 - Implement sigma learning
 
 ## Non-urgent
