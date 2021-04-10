@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# XLSX
+*.xlsx
+
 # Notebooks
 notebooks/loop_detector_data_exploration.ipynb
 notebooks/loop_detector_data_exploration_useless_code.ipynb
