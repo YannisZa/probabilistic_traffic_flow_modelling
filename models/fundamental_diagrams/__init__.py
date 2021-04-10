@@ -109,10 +109,15 @@ class FundamentalDiagram(object):
     def simulation_metadata(self, simulation_metadata):
         self.__simulation_metadata = simulation_metadata
 
+    def __str__(self):
+        parameter_strs = []
+        for i in range(len(self.parameter_names)):
+            parameter_strs.append((str(self.parameter_names[i])+' = '+str(self.true_parameters[i])))
+        return ", ".join(parameter_strs)
 
-    def populate(self):
+    def populate(self,experiment_id:str=''):
         # Import q and rho
-        self.import_raw_data()
+        self.import_raw_data(experiment_id=experiment_id)
 
         # Compute OLS estimate
         self.ols_estimation()
@@ -139,19 +144,18 @@ class FundamentalDiagram(object):
         self.simulation_flag = strtobool(self.simulation_metadata['simulation_flag'])
 
         # Get true parameters if they exist (i.e. data is a simulation)
-        if self.simulation_flag and bool(self.simulation_metadata['true_parameters']) and (len(list(self.simulation_metadata['true_parameters'].keys())) == self.num_learning_parameters + 1):
+        if self.simulation_flag and bool(self.simulation_metadata['true_parameters']) and (len(list(self.simulation_metadata['true_parameters'].keys())) == self.num_learning_parameters):
             self.true_parameters = np.array([float(p) for p in self.simulation_metadata['true_parameters'].values()])
 
-            print('True parameters')
-            for i,pname in enumerate(self.parameter_names):
-                print(f'{pname} = {self.true_parameters[i]}')
+            # Print parameter values
+            print(self)
         else:
             # Update simulation flag in case it was set to True by mistaked in metadata
             self.simulation_flag = False
             # Set true parameters to None
             self.true_parameters = None
 
-    def simulate_with_noise(self,p,**kwargs):
+    def simulate_with_noise(self,p,prints:bool=False):
         # Populate rho in metadata
         self.populate_rho()
 
@@ -165,8 +169,7 @@ class FundamentalDiagram(object):
 
         # Define sigma2 to be the last parameter
         sigma2 = p[-1]
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f'Simulating with {sigma2} variance')
+        if prints: print(f'Simulating with {sigma2} variance')
 
         # Get dimension of rho data
         dim = self.rho.shape[0]
@@ -182,7 +185,7 @@ class FundamentalDiagram(object):
             # Multiplicative error
             self.log_q = self.log_q_true + error
         else:
-            print('Might be wrong')
+            print('simulate_with_noise Might be wrong')
             # Additive error
             self.log_q = np.log(np.exp(self.log_q_true) + error)
 
@@ -224,74 +227,79 @@ class FundamentalDiagram(object):
         self.ols_q = constrained_ls_q_hat
         self.ols_params = constrained_ls_params
 
-    def import_raw_data(self):
+    def import_raw_data(self,experiment_id:str=''):
 
-        # Get data filename
-        data_filename = utils.prepare_output_simulation_filename(self.data_id)
+        if experiment_id == '':
+            # Get data filename
+            filename = utils.prepare_output_simulation_filename(self.data_id)
+        else:
+            filename = utils.prepare_output_experiment_simulation_filename(experiment_id,dataset=self.data_id)
 
         # Import rho
-        if os.path.exists((data_filename+'rho.txt')):
-            rho = np.loadtxt((data_filename+'rho.txt'))
+        if os.path.exists((filename+'rho.txt')):
+            rho = np.loadtxt((filename+'rho.txt'))
         else:
-            raise FileNotFoundError(f"File {(data_filename+'rho.txt')} not found.")
+            raise FileNotFoundError(f"File {(filename+'rho.txt')} not found.")
         # Update attribute rho
         self.rho = rho
 
         # Import q
-        if os.path.exists((data_filename+'log_q.txt')):
-            log_q = np.loadtxt((data_filename+'log_q.txt'))
+        if os.path.exists((filename+'log_q.txt')):
+            log_q = np.loadtxt((filename+'log_q.txt'))
         else:
-            raise FileNotFoundError(f"File {(data_filename+'log_q.txt')} not found.")
+            raise FileNotFoundError(f"File {(filename+'log_q.txt')} not found.")
         # Update attribute rho
         self.log_q = log_q
 
 
-    def export_data(self,**kwargs):
+    def export_data(self,experiment_id:str='',prints:bool=False):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['rho','log_q_true'])
 
-        # Get data filename
-        data_filename = utils.prepare_output_simulation_filename(self.data_id)
+        if experiment_id == '':
+            # Get data filename
+            filename = utils.prepare_output_simulation_filename(self.data_id)
+        else:
+            filename = utils.prepare_output_experiment_simulation_filename(experiment_id,dataset=self.data_id)
 
         # Export rho
 
         # Ensure directory exists otherwise create it
-        utils.ensure_dir(data_filename)
+        utils.ensure_dir(filename)
         # Save to txt file
-        np.savetxt((data_filename+'rho.txt'),self.rho)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(data_filename+'rho.txt')}")
+        np.savetxt((filename+'rho.txt'),self.rho)
+        if prints: print(f"File exported to {(filename+'rho.txt')}")
 
         # Export q_true
 
         # Ensure directory exists otherwise create it
-        utils.ensure_dir(data_filename)
+        utils.ensure_dir(filename)
         # Save to txt file
-        np.savetxt((data_filename+'log_q_true.txt'),self.log_q_true)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(data_filename+'log_q_true.txt')}")
+        np.savetxt((filename+'log_q_true.txt'),self.log_q_true)
+
+        if prints: print(f"File exported to {(filename+'log_q_true.txt')}")
 
         # Export q if it exists
         if hasattr(self,'log_q'):
             # Ensure directory exists otherwise create it
-            utils.ensure_dir(data_filename)
+            utils.ensure_dir(filename)
             # Save to txt file
-            np.savetxt((data_filename+'log_q.txt'),self.log_q)
-            if 'prints' in kwargs:
-                if kwargs.get('prints'): print(f"File exported to {(data_filename+'log_q.txt')}")
+            np.savetxt((filename+'log_q.txt'),self.log_q)
+
+            if prints: print(f"File exported to {(filename+'log_q.txt')}")
 
 
-    def plot_simulation(self,log:bool=True):
+    def plot_simulation(self,plot_log:bool=True):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['rho','log_q_true'])
 
         fig = plt.figure(figsize=(10,10))
         if hasattr(self,'log_q'):
-            if log: plt.scatter(self.rho,self.log_q,color='blue',label='Log simulated')
+            if plot_log: plt.scatter(self.rho,self.log_q,color='blue',label='Log simulated')
             else: plt.scatter(self.rho,np.exp(self.log_q),color='blue',label='Simulated')
-        if log:
+        if plot_log:
             plt.plot(self.rho,self.log_q_true,color='black',label='Log true')
             plt.ylabel(r'$\log q$')
         else:
@@ -303,17 +311,19 @@ class FundamentalDiagram(object):
         return fig
 
 
-    def export_simulation_plot(self,log:bool=True,show_plot:bool=False,**kwargs):
+    def export_simulation_plot(self,experiment_id:str='',plot_log:bool=True,show_plot:bool=False,prints:bool=False):
 
-        # Get data filename
-        data_filename = utils.prepare_output_simulation_filename(self.data_id)
+        if experiment_id == '':
+            # Get data filename
+            filename = utils.prepare_output_simulation_filename(self.data_id)
+        else:
+            filename = utils.prepare_output_experiment_simulation_filename(experiment_id,dataset=self.data_id)
 
         # Generate plot
-        fig = self.plot_simulation(log)
+        fig = self.plot_simulation(plot_log)
 
         # Export plot to file
-        fig.savefig((data_filename+'log_simulation.png'))
+        fig.savefig((filename+'log_simulation.png'))
         # Close plot
         plt.close(fig)
-        if 'prints' in kwargs:
-            if kwargs.get('prints'): print(f"File exported to {(data_filename+'log_simulation.png')}")
+        if prints: print(f"File exported to {(filename+'log_simulation.png')}")

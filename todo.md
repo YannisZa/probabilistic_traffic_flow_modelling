@@ -7,9 +7,10 @@
 # Extensions
 
 ## Urgent
-- Implement sigma learning
+- Implement more Fundamental Diagrams
 
 ## Non-urgent
+- Export log unnormalised posterior for num_plots > 1
 - Allow transition kernel to sample from truncated gaussian
 - Write validate attribute and parameter statements where necessary
 - Write tests for important functions

@@ -38,6 +38,11 @@ def myreciprocal(x):
 def myidentity(x):
     return 1/x
 
+def remove_characters(x,chars):
+    x = str(x)
+    for c in chars:
+        if c in x: x = x.replace(c,"")
+    return x
 """ ---------------------------------------------------------------------------Instantiators-----------------------------------------------------------------------------"""
 
 def instantiate_fundamental_diagram(data_id):
@@ -267,10 +272,19 @@ def prepare_input_experiment_filename(experiment_id):
     # Return simulation filename
     return input_file
 
-def prepare_output_experiment_filename(experiment_id,*args,**kwargs):
+def prepare_output_experiment_inference_filename(experiment_id,*args,**kwargs):
     # Define output folder path
-    if len(args) > 0: output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('inference_id'),kwargs.get('dataset')+'/',*[args[i]+'/' for i in range(len(args))])
-    else: output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('inference_id'),kwargs.get('dataset')+'/')
+    if len(args) > 0: output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('dataset'),kwargs.get('inference_id')+'/',*[args[i]+'/' for i in range(len(args))])
+    else: output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('dataset'),kwargs.get('inference_id')+'/')
+    # Create new folder if it doesn't exist
+    ensure_dir(output_folder)
+    # Return simulation filename
+    return output_folder
+
+def prepare_output_experiment_simulation_filename(experiment_id,**kwargs):
+    # Define output folder path
+    output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('dataset')+'/')
+
     # Create new folder if it doesn't exist
     ensure_dir(output_folder)
     # Return simulation filename
