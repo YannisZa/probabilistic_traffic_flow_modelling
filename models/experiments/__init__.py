@@ -36,6 +36,18 @@ class Experiment(object):
 
         return proceed
 
+    def run_sequentially(self):
+
+        if strtobool(self.experiment_metadata['routines']['generate_data']):
+            for data_id in set(list(self.experiment_metadata['data_ids'])):
+                self.generate_data(data_id)
+
+            # Wait for 10 seconds for files to be exported properly
+            time.sleep(10)
+
+        if strtobool(self.experiment_metadata['routines']['run_inference']):
+            for inference_id in list(self.experiment_metadata['inference_ids']):
+                self.run_inference(inference_id)
 
     def generate_data(self,data_id):
 
@@ -55,7 +67,7 @@ class Experiment(object):
                     prints=strtobool(self.experiment_metadata['data_simulation']['print']))
 
 
-    def run_inference(self,data_inference_pair):
+    def run_inference(self,inference_id):
 
         # Get starting time
         start = time.time()
@@ -63,12 +75,9 @@ class Experiment(object):
         # Ensure you provide valid inputs
         if not self.valid_input(): raise ValueError(f"Cannot proceed with experiment {self.experiment_metadata['id']}")
 
-        # Flatten list to populate variables
-        data_id,inference_id = data_inference_pair
-
         # Instantiate objects
         inference_model = utils.instantiate_inference_method(inference_id)
-        fd = utils.instantiate_fundamental_diagram(inference_model.inference_metadata['data_id'])
+        fd = utils.instantiate_fundamental_diagram(data_id=inference_model.inference_metadata['data_id'],model=inference_model.inference_metadata['fundamental_diagram'])
 
         # Populate them with data
         fd.populate(experiment_id=str(self.experiment_metadata['id']))
@@ -76,7 +85,7 @@ class Experiment(object):
 
         # Compute MLE estimate
         if strtobool(self.experiment_metadata['mle']['compute']):
-            inference_model.compute_maximum_likelihood_estimate(prints=strtobool(self.experiment_metadata['mle']['print']))
+            inference_model.compute_maximum_a_posteriori_estimate(prints=strtobool(self.experiment_metadata['mle']['print']))
 
         # Plot univariate prior distributions
         if strtobool(self.experiment_metadata['priors']['export']):
@@ -158,26 +167,32 @@ class Experiment(object):
                 inference_model.export_mcmc_parameter_posterior_plots(experiment=str(self.experiment_metadata['id']),
                                                                     num_stds=2,
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
-                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
+                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 inference_model.export_vanilla_mcmc_space_exploration_plots(experiment=str(self.experiment_metadata['id']),
                                                                     show_posterior=show_true_posterior,
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
-                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
+                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 inference_model.export_mcmc_mixing_plots(experiment=str(self.experiment_metadata['id']),
                                                         show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
-                                                        show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                                                        show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
+                                                        show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 inference_model.export_mcmc_acf_plots(experiment=str(self.experiment_metadata['id']),
                                                         show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
                                                         show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
             elif strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']):
                     _ = inference_model.generate_mcmc_parameter_posterior_plots(num_stds=2,
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
-                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
+                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                     _ = inference_model.generate_vanilla_mcmc_space_exploration_plots(show_posterior=show_true_posterior,
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
-                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                                                                    show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
+                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                     _ = inference_model.generate_mcmc_mixing_plots(show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
-                                                                show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
+                                                                show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
+                                                                show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                     _ = inference_model.generate_mcmc_acf_plots(show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
                                                                 show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
         # Export thermodynamic integration MCMC plots
@@ -187,24 +202,30 @@ class Experiment(object):
                 print('Export thermodynamic integration MCMC plots')
                 inference_model.export_thermodynamic_integration_mcmc_mixing_plots(experiment=str(self.experiment_metadata['id']),
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
-                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
+                                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 inference_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(experiment=str(self.experiment_metadata['id']),
                                                                                     num_stds=2,
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
-                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
+                                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 inference_model.export_thermodynamic_integration_mcmc_space_exploration_plots(experiment=str(self.experiment_metadata['id']),
                                                                                     show_posterior=show_true_posterior,
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
-                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
+                                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
             elif strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']):
                 _ = inference_model.generate_thermodynamic_integration_mcmc_mixing_plots(show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
-                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
+                                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 _ = inference_model.generate_thermodynamic_integration_mcmc_parameter_posterior_plots(num_stds=2,
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
-                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
+                                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 _ = inference_model.generate_thermodynamic_integration_mcmc_space_exploration_plots(show_posterior=show_true_posterior,
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
-                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']))
+                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
+                                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
 
         # Import/Compute posterior predictive
         if strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['compute']):
@@ -252,14 +273,3 @@ class Experiment(object):
         minutes, seconds = divmod(rem, 60)
         experiment_id = str(self.experiment_metadata['id'])
         print(f"Experiment "+experiment_id+" finished in {:0>2}:{:0>2}:{:05.2f} hours...".format(int(hours),int(minutes),seconds))
-
-    def run_sequentially(self):
-
-        if strtobool(self.experiment_metadata['routines']['generate_data']):
-            for data_id in set(list(self.experiment_metadata['data_ids'])):
-                self.generate_data(data_id)
-
-        if strtobool(self.experiment_metadata['routines']['run_inference']):
-            for data_id in list(self.experiment_metadata['data_ids']):
-                for inference_id in list(self.experiment_metadata['inference_ids']):
-                    self.run_inference([data_id,inference_id])

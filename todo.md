@@ -1,13 +1,30 @@
+# Tuning
+
+- [] Greenshields FD model
+	- [] Exponential FD data with sigma learning
+		- [] Vanilla MCMC
+		- [] Thermodynamic MCMC
+
+- [] Exponential FD model
+	- [] Greenshields FD data with sigma learning
+		- [] Vanilla MCMC
+		- [] Thermodynamic MCMC
+
+
+
 # Bugs
 
 ## Urgent
+- Data id should not affect Fundamental Diagram Instance
 
 ## Non-urgent
 
 # Extensions
 
 ## Urgent
-- Implement more Fundamental Diagrams
+- Implement the following Fundamental Diagrams:
+ - []: 
+
 
 ## Non-urgent
 - Export log unnormalised posterior for num_plots > 1
@@ -26,8 +43,12 @@
 ## Non-urgent
 - Update test simulation and inference parameter toml files
 
-# Testing functions
-- Gelman and Rubin criterion
+# Testing
+
+## Urgent
+- Exponential FD inference using updated code and toml files
+
+## Nont urgent
 - All experiments using identity parameter transformation
 - Reject sample if theta is not wihtin lower and upper bounds
 - MLE parameter initialisation in vanilla/thermodynamic mcmc

@@ -140,9 +140,6 @@ class FundamentalDiagram(object):
         self.rho = np.concatenate(rho_intervals)
 
     def store_simulation_data(self):
-        # Get flag of whether data are a simulation or not
-        self.simulation_flag = strtobool(self.simulation_metadata['simulation_flag'])
-
         # Get true parameters if they exist (i.e. data is a simulation)
         if self.simulation_flag and bool(self.simulation_metadata['true_parameters']) and (len(list(self.simulation_metadata['true_parameters'].keys())) == self.num_learning_parameters):
             self.true_parameters = np.array([float(p) for p in self.simulation_metadata['true_parameters'].values()])

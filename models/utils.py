@@ -26,17 +26,17 @@ def ensure_dir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
 
-def mylog(x):
-    return np.log(x)
-
-def myexp(x):
-    return np.exp(x)
+# def mylog(x):
+#     return np.log(x)
+#
+# def myexp(x):
+#     return np.exp(x)
 
 def myreciprocal(x):
     return 1/x
 
 def myidentity(x):
-    return 1/x
+    return x
 
 def remove_characters(x,chars):
     x = str(x)
@@ -45,19 +45,25 @@ def remove_characters(x,chars):
     return x
 """ ---------------------------------------------------------------------------Instantiators-----------------------------------------------------------------------------"""
 
-def instantiate_fundamental_diagram(data_id):
+def instantiate_fundamental_diagram(data_id,model:str=''):
     # Load simulation parameters
     simulation_params = import_simulation_metadata(data_id)
     # print(json.dumps(simulation_params,indent=2))
 
     # Get class object
-    FD = map_name_to_fundamental_diagram(simulation_params['fundamental_diagram'])
+    if model == '':
+        FD = map_name_to_fundamental_diagram(simulation_params['fundamental_diagram'])
+    else:
+        FD = map_name_to_fundamental_diagram(model)
 
     # Instantiate object
     fd = FD(data_id)
 
     # Update simulation metadata
     fd.simulation_metadata = simulation_params
+
+    # Get flag of whether data are a simulation or not
+    fd.simulation_flag = strtobool(fd.simulation_metadata['simulation_flag']) and (model == fd.simulation_metadata['fundamental_diagram'])
 
     # Import metadata
     fd.store_simulation_data()
@@ -153,6 +159,8 @@ def map_name_to_fundamental_diagram(name):
 
     if name == 'exponential':
         return ExponentialFD
+    elif name == 'greenshields':
+        return GreenshieldsFD
     else:
         raise Exception(f'No fundamental diagram model found for {name.lower()}')
 
@@ -163,12 +171,23 @@ def map_name_to_inference_method(name):
     else:
         raise Exception(f'No probability distribution found for {name.lower()}')
 
-def map_name_to_parameter_transformation(priors,num_learning_parameters):
+def map_name_to_parameter_transformation(priors,num_learning_parameters,lower_bounds:list=[],upper_bounds:list=[]):
     transformations = []
-    for prior in list(priors.keys())[0:num_learning_parameters]:
-        if priors[prior]['transformation'].lower() == '\log':
-            transformations.append([mylog, myexp])
-        elif priors[prior]['transformation'].lower() == '1/':
+    for i,prior in enumerate(list(priors.keys())[0:num_learning_parameters]):
+        if 'log' in priors[prior]['transformation'].lower():
+            if np.isinf(lower_bounds[i]) and np.isinf(upper_bounds[i]):
+                raise ValueError('Cannot apply log transformation to unconstrained variables in map_name_to_parameter_transformation.')
+            elif np.isinf(upper_bounds[i]):
+                # print('Lower bound')
+                transformations.append([(lambda i: lambda x: np.log(x-lower_bounds[i]) )(i) , (lambda i: lambda x: (np.exp(x)+lower_bounds[i]) )(i) ])
+
+            elif np.isinf(lower_bounds[i]):
+                # print('Upper bound')
+                transformations.append([(lambda i: lambda x: np.log(x/(upper_bounds[i]-x)) )(i) , (lambda i: lambda x: ((upper_bounds[i]*np.exp(x))/(1+np.exp(x))) )(i) ])
+            else:
+                # print('Upper and lower bounds')
+                transformations.append([(lambda i: lambda x: np.log((x-lower_bounds[i])/(upper_bounds[i]-x)) )(i) , (lambda i: lambda x: ((upper_bounds[i]*np.exp(x)+lower_bounds[i])/(1+np.exp(x))) )(i) ])
+        elif '1/' in priors[prior]['transformation'].lower():
             transformations.append([myreciprocal, myreciprocal])
         else:
             transformations.append([myidentity, myidentity])

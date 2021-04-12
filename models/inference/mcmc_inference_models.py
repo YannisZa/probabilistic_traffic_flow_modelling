@@ -13,7 +13,7 @@ from inference import MarkovChainMonteCarlo
 # matplotlib settings
 matplotlib.rc('font', **{'size' : 18})
 
-ignore_parameters = ["distribution","transformation","min_log_prob"]
+ignore_parameters = ["distribution","transformation","min_log_prob","min","max"]
 
 class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
     pass
@@ -33,10 +33,15 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
 
         # Define list of hyperparameters
         hyperparams_list = []
+
+        # Find lower and upper bounds
+        lower_bounds = [float(x) for x in list(self.inference_metadata['inference']['transition_kernel']['lower_bounds'])]
+        upper_bounds = [float(x) for x in list(self.inference_metadata['inference']['transition_kernel']['upper_bounds'])]
+        
         # Loop through number of parameters
-        for k in list(self.inference_metadata['inference']['priors'])[0:self.num_learning_parameters]:
-            # Get prior hyperparameter kwargs
-            hyperparams = {}
+        for i,k in enumerate(list(self.inference_metadata['inference']['priors'])[0:self.num_learning_parameters]):
+            # Get prior hyperparameter kwargs and populate them with lower and upper parameter bounds
+            hyperparams = {"plower":lower_bounds[i],"pupper":upper_bounds[i]}
             for key, v in self.inference_metadata['inference']['priors'][k].items():
                 if key not in ignore_parameters:
                     hyperparams[key] = float(v)
@@ -45,6 +50,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
 
             # Append to list
             hyperparams_list.append(hyperparams)
+
 
         # Loop through number of parameters
         for i,k in enumerate(list(self.inference_metadata['inference']['priors'])[0:self.num_learning_parameters]):
@@ -173,7 +179,7 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
 
         # Get kernel parameters
         kernel_params = self.inference_metadata['inference'][mcmc_type]['transition_kernel']
-        kernel_type = str(kernel_params['type'])
+        kernel_type = str(self.inference_metadata['inference']['transition_kernel']['type'])
         proposal_stds = list(kernel_params['proposal_stds'])[0:self.num_learning_parameters]
         K = np.diag([proposal_stds[i]**2 for i in range(len(proposal_stds))])
         beta_step = float(kernel_params['beta_step'])
