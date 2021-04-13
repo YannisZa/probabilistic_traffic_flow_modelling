@@ -22,11 +22,8 @@ data/*
 !data/input
 data/input/*
 !data/input/simulation_parameters/
-data/input/simulation_parameters/*
-!/data/input/inference_parameters/test_simulation/
 !data/input/inference_parameters/
-data/input/inference_parameters/*
-!/data/input/inference_parameters/test_inference.toml
+!data/input/experiment_parameters/
 
 
 # API keys

@@ -1,0 +1,102 @@
+id = "grwmh_greenshields_model_greenshields_sim_learn_noise"
+inference_model = "grwmh"
+data_id = "greenshields_fd_log_simulation"
+data_fundamental_diagram = "greenshields"
+fundamental_diagram = "greenshields"
+learn_noise = "True"
+
+[inference]
+    [inference.mle]
+      p0 = [3.0,55.0,0.1]
+      method = ""
+
+    [inference.transition_kernel]
+      type = "mnormal"
+      lower_bounds = ['0','40.0001','0']
+      upper_bounds = ['inf','inf','inf']
+      action = '' # 'reflect', 'reject', ''
+
+    [inference.convergence_diagnostic]
+        r_critical = 1.1
+        parallel_chains = 3
+        burnin_step = 5000
+
+    [inference.vanilla_mcmc]
+      seed = "2021"
+      N = 100000
+      burnin = 10000
+      posterior_predictive_samples = 20000
+      marginal_likelihood_samples = 10000
+      param_initialisation = "metadata"
+      p0 = [3.0,55.0,0.1]
+
+            [inference.vanilla_mcmc.transition_kernel]
+                proposal_stds = [0.01, 0.03, 0.04]
+                beta_step = 1
+
+    [inference.thermodynamic_integration_mcmc]
+      seed = "2021"
+      temp_schedule = 'prior'
+      temp_nsteps = 30
+      temp_power = 5
+      N = 300000
+      burnin = 60000
+      marginal_likelihood_samples = 100000
+      param_initialisation = "metadata"
+      p0 = [3.0,55.0,0.1]
+
+            [inference.thermodynamic_integration_mcmc.transition_kernel]
+                proposal_stds = [0.1, 0.2, 0.06]
+                beta_step = 1
+
+    [inference.likelihood]
+        type = 'mnormal'
+
+    [inference.priors]
+        [inference.priors.u_0]
+            transformation = "$\\log$"
+            distribution = 'normal'
+            min_log_prob = "-10"
+            min = "0.1"
+            max = "4.0"
+            loc = "2"
+            scale = "0.5"
+        [inference.priors.rho_j]
+            transformation = "$\\log$"
+            distribution = 'normal'
+            min_log_prob = "-5"
+            min = "40"
+            max = "100"
+            loc = "45"
+            scale = "1"
+        [inference.priors.sigma2]
+            transformation = "\\log"
+            distribution = 'normal'
+            min_log_prob = "-20"
+            min = "0.001"
+            max = "1.0"
+            loc = "0.01"
+            scale = "0.001"
+
+      # [inference.true_posterior]
+      #     [inference.true_posterior.u_0]
+      #         min = "0.4"
+      #         max = "0.8"
+      #         steps = 100
+      #     [inference.true_posterior.rho_j]
+      #         min = "0.08"
+      #         max = "0.12"
+      #         steps = 100
+
+  [plot]
+      [plot.true_posterior]
+        vmin = "0"
+        vmax = ""
+        num_colors = "100"
+      [plot.vanilla_mcmc]
+        include_posterior = "False"
+        acf_lags = 100
+        hist_bins = 50
+      [plot.thermodynamic_integration_mcmc]
+        include_posterior = "False"
+        hist_bins = 50

@@ -1,0 +1,76 @@
+id = "exponential_fd_model_exponential_fd_data"
+inference_ids = ["grwmh_exponential_model_exponential_sim_learn_noise"]
+data_ids = ["exponential_fd_log_simulation"]
+
+  [routines]
+    generate_data = "False"
+    run_inference = "True"
+
+  [data_simulation]
+    plot_log_data = "False"
+    show_plot = "False"
+    show_sim_param = "False"
+    print = "True"
+
+  [priors]
+    export = "True"
+    show_plot = "False"
+    show_title = "True"
+
+  [mle]
+    compute = "True"
+    print = "True"
+
+  [log_unnormalised_posterior]
+    compute = "False"
+    import = "False"
+    export = "False"
+    show_plot = "False"
+    show_title = "True"
+    print = "False"
+
+  [vanilla_mcmc]
+
+      [vanilla_mcmc.convergence_diagnostic]
+        compute = "True"
+        print = "True"
+
+      [vanilla_mcmc.parameter_posterior]
+        compute = "True"
+        import = "False"
+        export = "True"
+        show_true_posterior = "True"
+        show_plot = "False"
+        show_title = "True"
+        print = "True"
+
+      [vanilla_mcmc.posterior_predictive]
+        compute = "True"
+        import = "False"
+        export = "True"
+        show_plot = "False"
+        show_title = "True"
+        print = "True"
+
+      [vanilla_mcmc.marginal_likelihood]
+        compute = "True"
+        print = "True"
+
+  [thermodynamic_integration_mcmc]
+
+    [thermodynamic_integration_mcmc.convergence_diagnostic]
+      compute = "True"
+      print = "True"
+
+    [thermodynamic_integration_mcmc.parameter_posterior]
+        compute = "True"
+        import = "False"
+        export = "True"
+        show_true_posterior = "False"
+        show_plot = "False"
+        show_title = "True"
+        print = "True"
+
+    [thermodynamic_integration_mcmc.marginal_likelihood]
+        compute = "True"
+        print = "True"

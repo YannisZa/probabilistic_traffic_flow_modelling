@@ -1,0 +1,23 @@
+id = "greenshields_fd_log_simulation"
+fundamental_diagram = "greenshields"
+simulation_flag = "True"
+seed = "2021"
+
+[ols]
+  p0 = [3,55]
+  method = ''
+
+[error]
+  iid = "True"
+  multiplicative = "True"
+
+[rho]
+  [rho.interval1]
+    rho_min = "0.1"
+    rho_max = "40"
+    rho_steps = 200
+
+[true_parameters]
+  u_0 = "2"
+  rho_j = "45."
+  sigma2 = "0.01"

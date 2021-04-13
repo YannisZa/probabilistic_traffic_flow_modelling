@@ -1,10 +1,5 @@
 # Tuning
 
-- [] Greenshields FD model
-	- [] Exponential FD data with sigma learning
-		- [] Vanilla MCMC
-		- [] Thermodynamic MCMC
-
 - [] Exponential FD model
 	- [] Greenshields FD data with sigma learning
 		- [] Vanilla MCMC
