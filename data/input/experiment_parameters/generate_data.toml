@@ -4,7 +4,11 @@ data_ids = ["exponential_fd_log_simulation",
             "greenshields_fd_log_simulation",
             "daganzos_fd_log_simulation",
             "delcastillos_fd_log_simulation",
-            "greenbergs_fd_log_simulation"]
+            "greenbergs_fd_log_simulation",
+            "underwoods_fd_log_simulation",
+            "northwesterns_fd_log_simulation",
+            "newells_fd_log_simulation",
+            "wangs_fd_log_simulation"]
 
   [routines]
     generate_data = "True"

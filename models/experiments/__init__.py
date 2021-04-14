@@ -69,6 +69,8 @@ class Experiment(object):
 
     def run_inference(self,inference_id):
 
+        print(f'------------------------------------Inference id: {inference_id} ------------------------------------')
+
         # Get starting time
         start = time.time()
 
@@ -110,13 +112,26 @@ class Experiment(object):
             inference_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,
                                                                                         prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['print']))
 
-        # Run MCMC
+        # Marginal likelihood estimators
+        # Compute Vanilla MCMC marginal likelihood estimator
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
+            if strtobool(self.experiment_metadata['vanilla_mcmc']['marginal_likelihood']['compute']):
+                print('Compute posterior harmonic mean marginal likelihood estimator')
+                inference_model.compute_log_posterior_harmonic_mean_estimator(vanilla_thetas,prints=strtobool(self.experiment_metadata['vanilla_mcmc']['marginal_likelihood']['print']))
+
+        # Compute thermodynamic integration MCMC marginal likelihood estimator
+        if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
+            if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['marginal_likelihood']['compute']):
+                print('Compute thermodynamic integration marginal likelihood estimator')
+                inference_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(ti_thetas,prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['marginal_likelihood']['print']))
+
+        # Run Vanilla MCMC
         if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
             # Import Vanilla MCMC chain
             print('Import Vanilla MCMC samples')
             inference_model.import_vanilla_mcmc_samples()
         elif not strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
-            print('Run MCMC')
+            print('Run Vanilla MCMC')
             theta_accepted,acceptance = inference_model.vanilla_mcmc(i = 0,
                                                                     seed = int(inference_model.inference_metadata['inference']['vanilla_mcmc']['seed']),
                                                                     prints = strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['print']))
@@ -127,7 +142,7 @@ class Experiment(object):
             print('Import Thermodynamic Integration MCMC samples')
             inference_model.import_thermodynamic_integration_mcmc_samples()
         elif not strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
-            print('Run thermodynamic integration MCMC')
+            print('Run Thermodynamic Integration MCMC')
             ti_theta_accepted,ti_acceptance = inference_model.thermodynamic_integration_mcmc(i=0,
                                                                                     seed = int(inference_model.inference_metadata['inference']['thermodynamic_integration_mcmc']['seed']),
                                                                                     prints = strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['print']))
@@ -149,7 +164,6 @@ class Experiment(object):
                                                                     show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 inference_model.export_vanilla_mcmc_space_exploration_plots(experiment=str(self.experiment_metadata['id']),
-                                                                    show_posterior=show_true_posterior,
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
                                                                     show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
@@ -165,8 +179,7 @@ class Experiment(object):
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
                                                                     show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
-                    _ = inference_model.generate_vanilla_mcmc_space_exploration_plots(show_posterior=show_true_posterior,
-                                                                    show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
+                    _ = inference_model.generate_vanilla_mcmc_space_exploration_plots(show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
                                                                     show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']),
                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                     _ = inference_model.generate_mcmc_mixing_plots(show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_plot']),
@@ -188,7 +201,6 @@ class Experiment(object):
                                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
                                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 inference_model.export_thermodynamic_integration_mcmc_space_exploration_plots(experiment=str(self.experiment_metadata['id']),
-                                                                                    show_posterior=show_true_posterior,
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
                                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
                                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
@@ -200,8 +212,7 @@ class Experiment(object):
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
                                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
                                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
-                _ = inference_model.generate_thermodynamic_integration_mcmc_space_exploration_plots(show_posterior=show_true_posterior,
-                                                                                    show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
+                _ = inference_model.generate_thermodynamic_integration_mcmc_space_exploration_plots(show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
                                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
                                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
 
@@ -228,20 +239,6 @@ class Experiment(object):
                                                                     num_stds=2,
                                                                     show_plot=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['show_plot']),
                                                                     show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['show_title']))
-
-        # Marginal likelihood estimators
-
-        # Compute Vanilla MCMC marginal likelihood estimator
-        if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
-            if strtobool(self.experiment_metadata['vanilla_mcmc']['marginal_likelihood']['compute']):
-                print('Compute posterior harmonic mean marginal likelihood estimator')
-                inference_model.compute_log_posterior_harmonic_mean_estimator(prints=strtobool(self.experiment_metadata['vanilla_mcmc']['marginal_likelihood']['print']))
-
-        # Compute thermodynamic integration MCMC marginal likelihood estimator
-        if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
-            if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['marginal_likelihood']['compute']):
-                print('Compute thermodynamic integration marginal likelihood estimator')
-                inference_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['marginal_likelihood']['print']))
 
         # Export metadata
         inference_model.export_metadata(experiment=str(self.experiment_metadata['id']))

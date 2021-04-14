@@ -1,8 +1,7 @@
 # Bugs
 
 ## Urgent
-- Check if Northwestern's needs an implicit constraint rho_j > max_x
-
+- Check Greenshield's FD convergence
 
 ## Non-urgent
 

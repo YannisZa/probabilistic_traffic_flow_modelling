@@ -1111,7 +1111,7 @@ class MarkovChainMonteCarlo(object):
         # Define function for computing log marginal likelihood
         def posterior_harmonic_mean_lml(i):
             # Compute log marginal likelihood
-            ml = n_samples * ( np.sum([np.exp(self.evaluate_log_likelihood(theta_list[i,j,:]))**(-1) for j in range(N-n_samples,N)]) )**(-1)
+            ml = n_samples * ( np.sum([np.exp(self.evaluate_log_likelihood(theta_list[i,j,:]))**(-1) for j in range(0,n_samples)]) )**(-1)
             lml = np.log(ml)
             return lml
 
