@@ -279,6 +279,7 @@ class MarkovChainMonteCarlo(object):
         vanilla_proposal_stds = list(self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['proposal_stds'])
         ti_proposal_stds = list(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['proposal_stds'])
         p0 = list(self.inference_metadata['inference']['initialisation']['p0'])
+        burnin_step = int(self.inference_metadata['inference']['convergence_diagnostic']['burnin_step'])
 
         # Sanity checks
         if len(lower_bounds) != len(upper_bounds):
@@ -301,6 +302,10 @@ class MarkovChainMonteCarlo(object):
             proceed = False
             print(f"Vanilla MCMC burnin larger than N {vanilla_burnin} >= {vanilla_N}")
 
+        if burnin_step >= vanilla_N:
+            proceed = False
+            print(f"Gelman & Rubin criterion burnin step larger than vanilla MCMC N {burnin_step} >= {vanilla_N}")
+
         if vanilla_posterior_predictive_samples >= (vanilla_N+vanilla_burnin):
             proceed = False
             print(f"Posterior predictive samples exceed N + burnin {vanilla_posterior_predictive_samples} >= {vanilla_N+vanilla_burnin}")
@@ -313,14 +318,22 @@ class MarkovChainMonteCarlo(object):
             proceed = False
             print(f"Thermodynamic Integration MCMC burnin larger than N {ti_burnin} >= {ti_N}")
 
+        if burnin_step >= ti_N:
+            proceed = False
+            print(f"Gelman & Rubin criterion burnin step larger than Thermodynamic Integration MCMC N {burnin_step} >= {ti_N}")
+
         if any([len(vanilla_proposal_stds) != len(ti_proposal_stds),
-            len(ti_proposal_stds) != len(p0)]):
+            len(ti_proposal_stds) != len(p0),
+            len(p0) != len(lower_bounds),
+            len(lower_bounds) != len(upper_bounds)]):
 
             proceed = False
             print('Number of parameters is inconsistent')
             print('vanilla_mcmc_proposal_stds',len(vanilla_proposal_stds))
             print('thermodynamic_integration_mcmc_proposal_stds',len(ti_proposal_stds))
             print('p0',len(p0))
+            print('lower_bounds',len(lower_bounds))
+            print('upper_bounds',len(upper_bounds))
 
         if ti_marginal_likelihood_samples >= (ti_N+ti_burnin):
             proceed = False
@@ -568,15 +581,15 @@ class MarkovChainMonteCarlo(object):
 
         # If proposed move does not satisfy parameter constraints
         if delta_new == 0:
-            return 0, log_pnew, log_pprev
+            return 0, -np.inf, np.inf
 
         # Compute log targets
         log_pnew = self.evaluate_log_target(pnew) + self.evaluate_log_kernel(pnew,pprev)
         log_pprev = self.evaluate_log_target(pprev) + self.evaluate_log_kernel(pprev,pnew)
 
         if np.isnan(log_pnew) or np.isnan(log_pprev):
-            print('log_pnew',log_pnew,'pnew',np.exp(pnew),'prior',self.evaluate_log_joint_prior(pnew),'likelihood',self.evaluate_log_likelihood(pnew))
-            print('log_pprev',log_pprev,'pprev',np.exp(pprev),'prior',self.evaluate_log_joint_prior(pprev),'likelihood',self.evaluate_log_likelihood(pprev))
+            print('log_pnew',log_pnew,'pnew',self.transform_parameters(pnew,True),'prior',self.evaluate_log_joint_prior(pnew),'likelihood',self.evaluate_log_likelihood(pnew))
+            print('log_pprev',log_pprev,'pprev',self.transform_parameters(pprev,True),'prior',self.evaluate_log_joint_prior(pprev),'likelihood',self.evaluate_log_likelihood(pprev))
             raise ValueError('NaN value found')
 
         # If numerator is + infty and denominator - infty
@@ -599,7 +612,7 @@ class MarkovChainMonteCarlo(object):
     def thermodynamic_integration_acceptance_ratio(self,pnew,pprev,t):
         # Compute parameter constraints
         delta_new = self.evaluate_parameter_delta_function(pnew[t,:])
-        # delta_prev = self.evaluate_parameter_delta_function(pprev)
+
 
         # If proposed move does not satisfy parameter constraints
         if delta_new == 0:
@@ -610,8 +623,11 @@ class MarkovChainMonteCarlo(object):
         log_pprev = self.evaluate_log_target_thermodynamic_integration(pprev,t) + self.evaluate_log_kernel(pprev,pnew)
 
         if np.isnan(log_pnew) or np.isnan(log_pprev):
-            print('log_pnew',log_pnew,'pnew',np.exp(pnew),'prior',self.evaluate_log_joint_prior(pnew),'likelihood',self.evaluate_log_likelihood(pnew))
-            print('log_pprev',log_pprev,'pprev',np.exp(pprev),'prior',self.evaluate_log_joint_prior(pprev),'likelihood',self.evaluate_log_likelihood(pprev))
+            delta_prev = self.evaluate_parameter_delta_function(pprev)
+            print('pnew:',self.transform_parameters(pnew[t,:],True),'constraints satisfied:',delta_new)
+            print('log_pnew',log_pnew,'prior',self.evaluate_log_joint_prior(pnew[t,:]),'likelihood',self.evaluate_log_likelihood(pnew[t,:]))
+            print('pprev:',self.transform_parameters(pprev[t,:],True),'constraints satisfied:',delta_prev)
+            print('log_pprev',log_pprev,'prior',self.evaluate_log_joint_prior(pprev[t,:]),'likelihood',self.evaluate_log_likelihood(pprev[t,:]))
             raise ValueError('NaN value found')
 
         # If numerator is + infty and denominator - infty
@@ -848,7 +864,7 @@ class MarkovChainMonteCarlo(object):
             # Sample from prior distributions
             p0 = self.sample_from_univariate_priors(t_len).reshape((t_len,self.num_learning_parameters))
             # Transform p0
-            p0 = self.transform_parameters(p0,False)
+            p0 = np.array([self.transform_parameters(p0[0:self.num_learning_parameters,t],False) for t in range(len(self.temperature_schedule))])
             # Update metadata
             utils.update(self.__inference_metadata['inference']['thermodynamic_integration_mcmc'],{'p0':list(p0)})
 
@@ -1617,7 +1633,7 @@ class MarkovChainMonteCarlo(object):
 
         # Get burnin and acf lags from plot metadata
         burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
-        lags = np.min([int(self.inference_metadata['plot']['vanilla_mcmc']['acf_lags']),(self.theta[burnin:,:].shape[0]-1)])
+        lags = np.min([int(self.inference_metadata['plot']['acf_lags']),(self.theta[burnin:,:].shape[0]-1)])
 
         figs = []
         # Loop through parameter indices
@@ -1656,7 +1672,7 @@ class MarkovChainMonteCarlo(object):
 
         # Get burnin and histogram bins from plot metadata
         burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
-        bins = np.max([int(self.inference_metadata['plot']['vanilla_mcmc']['hist_bins']),10])
+        bins = np.max([int(self.inference_metadata['plot']['hist_bins']),10])
 
         figs = []
 
@@ -1708,7 +1724,7 @@ class MarkovChainMonteCarlo(object):
 
         # Get burnin and histogram bins from plot metadata
         burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
-        bins = np.max([int(self.inference_metadata['plot']['thermodynamic_integration_mcmc']['hist_bins']),10])
+        bins = np.max([int(self.inference_metadata['plot']['hist_bins']),10])
 
         figs = []
 
@@ -1787,9 +1803,6 @@ class MarkovChainMonteCarlo(object):
             plt.scatter(self.theta[burnin:,index[0]],self.theta[burnin:,index[1]],color='red',label='Accepted',marker='x',s=50,zorder=5)
             plt.scatter(self.theta_proposed[burnin:,index[0]],self.theta_proposed[burnin:,index[1]],color='purple',label='Proposed',marker='x',s=50,zorder=4)
 
-            # Get limits from plotting metadata
-            plot_limits = self.inference_metadata['plot']['vanilla_mcmc']
-
             # Define parameter transformation
             transformation_0 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[0]],latex_characters)]['transformation']
             transformation_1 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[1]],latex_characters)]['transformation']
@@ -1797,7 +1810,6 @@ class MarkovChainMonteCarlo(object):
             # Plot true parameters if they exist
             if hasattr(self,'true_parameters') and show_sim_param:
                 plt.scatter(self.transform_parameters(self.true_parameters,False)[index[0]],self.transform_parameters(self.true_parameters,False)[index[1]],label='Simulation parameter',marker='x',s=100,color='black',zorder=7)
-
 
             # Add labels
             plt.xlabel(f'{transformation_0}{parameter_names[i][0]}')
@@ -1863,9 +1875,6 @@ class MarkovChainMonteCarlo(object):
                 # Add samples plot
                 plt.scatter(self.thermodynamic_integration_theta[burnin:,tj,index[0]],self.thermodynamic_integration_theta[burnin:,tj,index[1]],color='red',label='Accepted',marker='x',s=50,zorder=5)
                 plt.scatter(self.thermodynamic_integration_theta_proposed[burnin:,tj,index[0]],self.thermodynamic_integration_theta_proposed[burnin:,tj,index[1]],color='purple',label='Proposed',marker='x',s=50,zorder=4)
-
-                # Get limits from plotting metadata
-                plot_limits = self.inference_metadata['plot']['thermodynamic_integration_mcmc']
 
                 # Plot true parameters if they exist
                 if hasattr(self,'true_parameters') and show_sim_param:
@@ -2312,7 +2321,7 @@ class MarkovChainMonteCarlo(object):
     def export_vanilla_mcmc_space_exploration_plots(self,experiment:str='',show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
 
         # Generate plots
-        figs = self.generate_vanilla_mcmc_space_exploration_plots(show_posterior=show_posterior,show_plot=show_plot,show_title=show_title,show_sim_param=show_sim_param)
+        figs = self.generate_vanilla_mcmc_space_exploration_plots(show_plot=show_plot,show_title=show_title,show_sim_param=show_sim_param)
 
         if experiment == '':
             # Get inference filename
@@ -2327,7 +2336,7 @@ class MarkovChainMonteCarlo(object):
     def export_thermodynamic_integration_mcmc_space_exploration_plots(self,experiment:str='',show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
 
         # Generate plots
-        figs = self.generate_thermodynamic_integration_mcmc_space_exploration_plots(show_posterior,show_plot=show_plot,show_title=show_title,show_sim_param=show_sim_param)
+        figs = self.generate_thermodynamic_integration_mcmc_space_exploration_plots(show_plot=show_plot,show_title=show_title,show_sim_param=show_sim_param)
 
         if experiment == '':
             # Get inference filename

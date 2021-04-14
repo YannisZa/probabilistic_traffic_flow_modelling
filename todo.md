@@ -1,6 +1,7 @@
 # Bugs
 
 ## Urgent
+- Check if Greenshields model is correctly specified
 
 ## Non-urgent
 
@@ -8,12 +9,19 @@
 
 ## Urgent
 - Implement the following Fundamental Diagrams:
- - []: 
+ - [x]: Del Castillo's FD 
+ - []: Nonlinear velocity FD
+ - []: Smulder's velocity FD
+ - []: DeRomph's FD
+ - []: Underwood's FD
+ - []: Northwestern FD
+ - []: Newell's FD
+ - []: Wang's FD
+
+- Ammend FD-specific experiment toml files to reflect all existing datasets and inference metadata
 
 
 ## Non-urgent
-- Export log unnormalised posterior for num_plots > 1
-- Allow transition kernel to sample from truncated gaussian
 - Write validate attribute and parameter statements where necessary
 - Write tests for important functions
 
@@ -26,14 +34,12 @@
 ## Urgent
 
 ## Non-urgent
-- Update test simulation and inference parameter toml files
 
 # Testing
 
 ## Urgent
 - Exponential FD inference using updated code and toml files
 
-## Nont urgent
+## Non urgent
 - All experiments using identity parameter transformation
-- Reject sample if theta is not wihtin lower and upper bounds
 - MLE parameter initialisation in vanilla/thermodynamic mcmc

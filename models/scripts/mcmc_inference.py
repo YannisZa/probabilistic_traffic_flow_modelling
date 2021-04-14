@@ -56,21 +56,24 @@ inf_model.export_univariate_prior_plots()
 # sys.exit(1)
 
 # Run Thermodynamic Integration MCMC in parallel and get convergence diagnostic
-ti_thetas = inf_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',prints=True)
-inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
+# ti_thetas = inf_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',prints=True)
+# inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
 
 # Compute thermodynamic integration marginal likelihood estimators
 # inf_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(ti_thetas,prints=True)
 
-sys.exit(1)
+# sys.exit(1)
 
 # Run MCMC
-# theta_accepted,acceptance = inf_model.vanilla_mcmc(i=0,seed=2021,prints=True)
+theta_accepted,acceptance = inf_model.vanilla_mcmc(i=0,seed=2021,prints=True)
 # Import MCMC samples
 # inf_model.import_vanilla_mcmc_samples()
 
+# Export MCMC samples
+# inf_model.export_mcmc_samples()
+
 # Run thermodynamic integration MCMC
-ti_theta_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(i=0,prints=True,seed=None)
+# ti_theta_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(i=0,prints=True,seed=None)
 # Import MCMC samples
 # inf_model.import_thermodynamic_integration_mcmc_samples()
 
@@ -78,14 +81,14 @@ ti_theta_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(i=0,pri
 inf_model.export_mcmc_samples()
 
 # Export MCMC data
-# inf_model.export_mcmc_parameter_posterior_plots(num_stds=2,show_plot=True,show_sim_param=True)
-# inf_model.export_vanilla_mcmc_space_exploration_plots(show_plot=True,show_sim_param=True)
-# inf_model.export_mcmc_mixing_plots(show_plot=True,show_sim_param=True)
-# inf_model.export_mcmc_acf_plots(show_plot=True)
+inf_model.export_mcmc_parameter_posterior_plots(num_stds=2,show_plot=True,show_sim_param=True)
+inf_model.export_vanilla_mcmc_space_exploration_plots(show_plot=True,show_sim_param=True)
+inf_model.export_mcmc_mixing_plots(show_plot=True,show_sim_param=True)
+inf_model.export_mcmc_acf_plots(show_plot=True)
 # Export thermodynamic integration MCMC
-inf_model.export_thermodynamic_integration_mcmc_mixing_plots(show_plot=False,show_sim_param=True)
+# inf_model.export_thermodynamic_integration_mcmc_mixing_plots(show_plot=False,show_sim_param=True)
+# inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(show_plot=False,show_sim_param=True)
 # inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(num_stds=2,show_plot=False,show_sim_param=True)
-inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(show_plot=False,show_sim_param=True)
 
 # Compute posterior predictive
 # inf_model.evaluate_posterior_predictive_moments(prints=True)
@@ -94,7 +97,6 @@ inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(show_plo
 # Export posterior predictive
 # inf_model.export_posterior_predictive()
 # inf_model.export_mcmc_posterior_predictive_plot(fd,num_stds=2,show_plot=True)
-
 
 # Export metadata
 inf_model.export_metadata()

@@ -72,8 +72,12 @@ def instantiate_fundamental_diagram(data_id,model:str=''):
     return fd
 
 def instantiate_inference_method(inference_id):
+
+    # Get model name from inference_id
+    model_name = inference_id.split('_',1)[1].split('_model',1)[0]
+
     # Load inference parameters
-    inference_params = import_inference_metadata(inference_id)
+    inference_params = import_inference_metadata(model=model_name,inference_id=inference_id)
     # Load simulation parameters
     simulation_params = import_simulation_metadata(inference_params['data_id'])
 
@@ -162,6 +166,8 @@ def map_name_to_fundamental_diagram(name):
         return GreenshieldsFD
     elif name == 'daganzos':
         return DaganzosFD
+    elif name == 'delcastillos':
+        return DelCastillos
     else:
         raise Exception(f'No fundamental diagram model found for {name.lower()}')
 
@@ -289,9 +295,9 @@ def prepare_input_simulation_filename(simulation_id):
     # Return simulation filename
     return input_file
 
-def prepare_input_inference_filename(inference_id):
+def prepare_input_inference_filename(model,inference_id):
     # Define input filepath
-    input_file = os.path.join(root,'data/input/inference_parameters',inference_id+('.toml'))
+    input_file = os.path.join(root,'data/input/inference_parameters',model,inference_id+('.toml'))
     # Ensure file exists
     if not os.path.exists(input_file):
         raise ValueError(f'Inference file {input_file} not found.')
@@ -360,10 +366,10 @@ def import_simulation_metadata(data_id):
 
     return _simulation_metadata
 
-def import_inference_metadata(inference_id):
+def import_inference_metadata(model,inference_id):
 
     # Get data filename
-    metadata_filename = utils.prepare_input_inference_filename(inference_id)
+    metadata_filename = utils.prepare_input_inference_filename(model=model,inference_id=inference_id)
 
     # Import simulation metadata
     if os.path.exists(metadata_filename):
