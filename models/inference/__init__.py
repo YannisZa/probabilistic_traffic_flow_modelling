@@ -1240,6 +1240,12 @@ class MarkovChainMonteCarlo(object):
         # Get sample step from metadata
         sample_step = int(self.inference_metadata['inference']['convergence_diagnostic']['burnin_step'])
 
+        # Get number of samples used to compute marginal likelihod and/or posterior predictive and take max
+        posterior_predictive_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['posterior_predictive_samples'])
+        marginal_likelihood_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['marginal_likelihood_samples'])
+        # Compute maximum used samples - Compute Gelman and Rubin statistics between burnin and N-max_used_samples
+        max_used_samples = max(posterior_predictive_samples,marginal_likelihood_samples)
+
         # Get only first convergence_chains from theta_list
         theta_list = theta_list[0:convergence_chains,:,:]
 
@@ -1247,9 +1253,9 @@ class MarkovChainMonteCarlo(object):
         M,N,P = theta_list.shape
 
         # Create list of possible burnin times
-        possible_burnins = list(range(sample_step,N,sample_step))
+        possible_burnins = list(range(sample_step,N-max_used_samples,sample_step))
 
-        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N}, P = {P}')
+        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N-max_used_samples}, P = {P}')
 
         r_stat = np.ones(P)*1e9
         # Loop over possible burnins
@@ -1258,13 +1264,13 @@ class MarkovChainMonteCarlo(object):
             if prints: print(f'Checking convergence with burnin = {burnin}')
 
             # Calculate between-chain variance
-            B_over_m = np.sum([(np.mean(theta_list[:,burnin:,:], 1)[j,:] - np.mean(theta_list[:,burnin:,:],(0,1)))**2 for j in range(M)],axis=0) / (M - 1)
+            B_over_m = np.sum([(np.mean(theta_list[:,burnin:(N-max_used_samples),:], 1)[j,:] - np.mean(theta_list[:,burnin:(N-max_used_samples),:],(0,1)))**2 for j in range(M)],axis=0) / (M - 1)
 
             # Calculate within-chain variances
-            W = np.sum([(theta_list[i,burnin:,:] - xbar) ** 2 for i,xbar in enumerate(np.mean(theta_list[:,burnin:,:],1))],(0,1)) / (M * (N-burnin - 1))
+            W = np.sum([(theta_list[i,burnin:(N-max_used_samples),:] - xbar) ** 2 for i,xbar in enumerate(np.mean(theta_list[:,burnin:(N-max_used_samples),:],1))],(0,1)) / (M * (N-max_used_samples-burnin - 1))
 
             # (over) estimate of variance
-            s2 = W * (N-burnin-1) / (N-burnin) + B_over_m
+            s2 = W * (N-max_used_samples-burnin-1) / (N-max_used_samples-burnin) + B_over_m
 
             # Pooled posterior variance estimate
             V = s2 + B_over_m / M
@@ -1313,6 +1319,11 @@ class MarkovChainMonteCarlo(object):
         # Get sample step from metadata
         sample_step = int(self.inference_metadata['inference']['convergence_diagnostic']['burnin_step'])
 
+        # Get number of samples used to compute marginal likelihod and/or posterior predictive and take max
+        marginal_likelihood_samples = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['marginal_likelihood_samples'])
+        # Compute maximum used samples - Compute Gelman and Rubin statistics between burnin and N-max_used_samples
+        max_used_samples = marginal_likelihood_samples
+
         # Get only first convergence_chains from theta_list
         theta_list = theta_list[0:convergence_chains,:,:,:]
 
@@ -1320,9 +1331,9 @@ class MarkovChainMonteCarlo(object):
         M,N,T,P = theta_list.shape
 
         # Create list of possible burnin times
-        possible_burnins = list(range(sample_step,N,sample_step))
+        possible_burnins = list(range(sample_step,N-max_used_samples,sample_step))
 
-        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N}, P = {P}, T = {T}')
+        if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N-max_used_samples}, P = {P}, T = {T}')
 
         r_stat = list(np.ones((T*P))*1e9)
         # Loop over possible burnins
@@ -1330,15 +1341,14 @@ class MarkovChainMonteCarlo(object):
 
             if prints: print(f'Checking convergence with burnin = {burnin}')
 
-
             # Calculate between-chain variance
-            B_over_m = np.sum([(np.mean(theta_list[:,burnin:,:,:], 1)[j,:] - np.mean(theta_list[:,burnin:,:,:],(0,1)))**2 for j in range(M)],axis=0) / (M - 1)
+            B_over_m = np.sum([(np.mean(theta_list[:,burnin:(N-max_used_samples),:,:], 1)[j,:] - np.mean(theta_list[:,burnin:(N-max_used_samples),:,:],(0,1)))**2 for j in range(M)],axis=0) / (M - 1)
 
             # Calculate within-chain variances
-            W = np.sum([(theta_list[i,burnin:,:,:] - xbar) ** 2 for i,xbar in enumerate(np.mean(theta_list[:,burnin:,:,:],1))],(0,1)) / (M * (N-burnin - 1))
+            W = np.sum([(theta_list[i,burnin:(N-max_used_samples),:,:] - xbar) ** 2 for i,xbar in enumerate(np.mean(theta_list[:,burnin:(N-max_used_samples),:,:],1))],(0,1)) / (M * (N-max_used_samples-burnin-1))
 
             # (over) estimate of variance
-            s2 = W * (N-burnin-1) / (N-burnin) + B_over_m
+            s2 = W * (N-max_used_samples-burnin-1) / (N-max_used_samples-burnin) + B_over_m
 
             # Pooled posterior variance estimate
             V = s2 + B_over_m / M

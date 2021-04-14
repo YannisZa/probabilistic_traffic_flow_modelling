@@ -30,5 +30,5 @@ fd.simulate_with_noise(fd.true_parameters)
 # print('q',fd.log_q)
 
 # Export plot and data
-fd.export_simulation_plot(plot_log=False,show_plot=True)
+fd.export_simulation_plot(plot_log=True,show_plot=True)
 fd.export_data()

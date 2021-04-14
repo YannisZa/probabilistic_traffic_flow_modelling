@@ -1,20 +1,32 @@
 id = "diagonal_marginal_likelihood_experiments"
 inference_ids = ["grwmh_exponential_model_exponential_sim_learn_noise",
                   "grwmh_greenshields_model_greenshields_sim_learn_noise",
-                  "grwmh_daganzos_model_daganzos_sim_learn_noise"]
+                  "grwmh_daganzos_model_daganzos_sim_learn_noise",
+                  "grwmh_delcastillos_model_delcastillos_sim_learn_noise",
+                  "grwmh_greenbergs_model_greenbergs_sim_learn_noise",
+                  "grwmh_underwoods_model_underwoods_sim_learn_noise",
+                  "grwmh_northwesterns_model_northwesterns_sim_learn_noise",
+                  "grwmh_newells_model_newells_sim_learn_noise",
+                  "grwmh_wangs_model_wangs_sim_learn_noise"]
 data_ids = ["exponential_fd_log_simulation",
             "greenshields_fd_log_simulation",
-            "daganzos_fd_log_simulation"]
+            "daganzos_fd_log_simulation",
+            "delcastillos_fd_log_simulation",
+            "greenbergs_fd_log_simulation",
+            "underwoods_fd_log_simulation",
+            "northwesterns_fd_log_simulation",
+            "newells_fd_log_simulation",
+            "wangs_fd_log_simulation"]
 
   [routines]
-    generate_data = "True"
+    generate_data = "False"
     run_inference = "True"
 
   [data_simulation]
     plot_log_data = "False"
     show_plot = "False"
     show_sim_param = "False"
-    print = "True"
+    print = "False"
 
   [priors]
     export = "True"
@@ -23,7 +35,7 @@ data_ids = ["exponential_fd_log_simulation",
 
   [mle]
     compute = "True"
-    print = "True"
+    print = "False"
 
   [vanilla_mcmc]
 
@@ -37,12 +49,12 @@ data_ids = ["exponential_fd_log_simulation",
         export = "True"
         show_plot = "False"
         show_title = "True"
-        print = "True"
+        print = "False"
 
       [vanilla_mcmc.posterior_predictive]
-        compute = "True"
+        compute = "False"
         import = "False"
-        export = "True"
+        export = "False"
         show_plot = "False"
         show_title = "True"
         print = "True"
@@ -60,7 +72,7 @@ data_ids = ["exponential_fd_log_simulation",
     [thermodynamic_integration_mcmc.parameter_posterior]
         compute = "True"
         import = "False"
-        export = "True"
+        export = "False"
         show_plot = "False"
         show_title = "True"
         print = "True"

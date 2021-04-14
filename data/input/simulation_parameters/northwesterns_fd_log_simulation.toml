@@ -1,0 +1,23 @@
+id = "northwesterns_fd_log_simulation"
+fundamental_diagram = "northwesterns"
+simulation_flag = "True"
+seed = "2021"
+
+[ols]
+  p0 = [2.0,11.0,0.1]
+  method = ''
+
+[error]
+  iid = "True"
+  multiplicative = "True"
+
+[rho]
+  [rho.interval1]
+    rho_min = "0.1"
+    rho_max = "40"
+    rho_steps = 200
+
+[true_parameters]
+  v_f = "2.1"
+  rho_j = "11.7"
+  sigma2 = "0.01"

@@ -1,0 +1,23 @@
+id = "underwoods_fd_log_simulation"
+fundamental_diagram = "underwoods"
+simulation_flag = "True"
+seed = "2021"
+
+[ols]
+  p0 = [5.0,9.0,0.1]
+  method = ''
+
+[error]
+  iid = "True"
+  multiplicative = "True"
+
+[rho]
+  [rho.interval1]
+    rho_min = "0.1"
+    rho_max = "40"
+    rho_steps = 200
+
+[true_parameters]
+  v_f = "5.1"
+  rho_j = "8.0"
+  sigma2 = "0.01"

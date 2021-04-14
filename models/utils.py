@@ -168,6 +168,16 @@ def map_name_to_fundamental_diagram(name):
         return DaganzosFD
     elif name == 'delcastillos':
         return DelCastillos
+    elif name == 'greenbergs':
+        return Greenbergs
+    elif name == 'underwoods':
+        return Underwoods
+    elif name == 'northwesterns':
+        return Northwesterns
+    elif name == 'newells':
+        return Newells
+    elif name == 'wangs':
+        return Wangs
     else:
         raise Exception(f'No fundamental diagram model found for {name.lower()}')
 
@@ -282,7 +292,7 @@ def map_name_to_variable_or_variable_index(self,variable_name,latex_characters):
         # print("np.where(param_names==variable_name)[0][0]",np.where(param_names==variable_name)[0][0])
         return int(np.where(param_names==variable_name)[0][0])
     else:
-        raise ValueError(f"Constraint {variable_name} not found. Available choices are parameter names or",", ".join(['max_x','min_x','min_y','max_y']))
+        raise ValueError(f"Variable {variable_name} not found. Available choices are parameter names or",", ".join(['max_x','min_x','min_y','max_y']))
 
 """ ---------------------------------------------------------------------------Prepare filenames for imports/exports-----------------------------------------------------------------------------"""
 

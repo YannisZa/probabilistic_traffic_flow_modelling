@@ -30,8 +30,8 @@ learn_noise = "True"
     [inference.vanilla_mcmc]
       seed = "2021"
       N = 100000
-      burnin = 5000
-      posterior_predictive_samples = 20000
+      burnin = 10000
+      posterior_predictive_samples = 10000
       marginal_likelihood_samples = 10000
 
             [inference.vanilla_mcmc.transition_kernel]

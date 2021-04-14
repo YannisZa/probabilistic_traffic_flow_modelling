@@ -1,13 +1,13 @@
-id = "grwmh_daganzos_model_daganzos_sim_learn_noise"
+id = "grwmh_greenbergs_model_greenbergs_sim_learn_noise"
 inference_model = "grwmh"
-data_id = "daganzos_fd_log_simulation"
-data_fundamental_diagram = "daganzos"
-fundamental_diagram = "daganzos"
+data_id = "greenbergs_fd_log_simulation"
+data_fundamental_diagram = "greenbergs"
+fundamental_diagram = "greenbergs"
 learn_noise = "True"
 
 [inference]
     [inference.initialisation]
-      p0 = [10.0,20.0,41.0,0.1]
+      p0 = [2.0,45.0,0.1]
       param_initialisation = "metadata"
 
     [inference.likelihood]
@@ -18,13 +18,9 @@ learn_noise = "True"
       action = '' # 'reflect', 'reject', ''
 
     [inference.parameter_constraints]
-      lower_bounds = ['0','0','0','0']
-      upper_bounds = ['inf','inf','inf','inf']
+      lower_bounds = ['0','0','0']
+      upper_bounds = ['inf','inf','inf']
       [inference.parameter_constraints.implicit]
-          [inference.parameter_constraints.implicit.constraint1]
-            lhs = 'rho_j'
-            operator = '>'
-            rhs = 'rho_c'
           [inference.parameter_constraints.implicit.constraint2]
             lhs = 'rho_j'
             operator = '>'
@@ -44,7 +40,7 @@ learn_noise = "True"
       marginal_likelihood_samples = 10000
 
             [inference.vanilla_mcmc.transition_kernel]
-                proposal_stds = [0.005, 0.007, 0.004, 0.04]
+                proposal_stds = [0.01, 0.003, 0.04]
                 beta_step = 1
 
     [inference.thermodynamic_integration_mcmc]
@@ -57,26 +53,18 @@ learn_noise = "True"
       marginal_likelihood_samples = 100000
 
             [inference.thermodynamic_integration_mcmc.transition_kernel]
-                proposal_stds = [0.02, 0.025, 0.015, 0.07] #[0.015, 0.02, 0.01, 0.06]
+                proposal_stds = [0.025, 0.01, 0.07]
                 beta_step = 1
 
     [inference.priors]
-        [inference.priors.q_c]
+        [inference.priors.v_f]
             transformation = "$\\log$"
             distribution = 'normal'
             min_log_prob = "-10"
             min = "0.1"
-            max = "20"
-            loc = "12"
-            scale = "1"
-        [inference.priors.rho_c]
-            transformation = "$\\log$"
-            distribution = 'normal'
-            min_log_prob = "-5"
-            min = "0.1"
-            max = "40"
-            loc = "20"
-            scale = "1"
+            max = "5.0"
+            loc = "2.2"
+            scale = "0.1"
         [inference.priors.rho_j]
             transformation = "$\\log$"
             distribution = 'normal'
