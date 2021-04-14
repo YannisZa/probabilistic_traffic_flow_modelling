@@ -10,11 +10,16 @@ learn_noise = "True"
       p0 = [0.4,0.2,0.1]
       param_initialisation = "metadata"
 
+    [inference.likelihood]
+        type = 'mnormal'
+
     [inference.transition_kernel]
       type = "mnormal"
+      action = '' # 'reflect', 'reject', ''
+
+    [inference.parameter_constraints]
       lower_bounds = ['0','0','0']
       upper_bounds = ['inf','inf','inf']
-      action = '' # 'reflect', 'reject', ''
 
     [inference.convergence_diagnostic]
         r_critical = 1.1
@@ -45,9 +50,6 @@ learn_noise = "True"
             [inference.thermodynamic_integration_mcmc.transition_kernel]
                 proposal_stds = [0.015, 0.02, 0.06]
                 beta_step = 1
-
-    [inference.likelihood]
-        type = 'mnormal'
 
     [inference.priors]
         [inference.priors.alpha]
@@ -92,7 +94,3 @@ learn_noise = "True"
   [plot]
     acf_lags = 100
     hist_bins = 50
-      [plot.true_posterior]
-        vmin = ""
-        vmax = ""
-        num_colors = "100"

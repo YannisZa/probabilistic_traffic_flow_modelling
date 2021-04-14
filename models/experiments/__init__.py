@@ -97,24 +97,6 @@ class Experiment(object):
             inference_model.generate_univariate_prior_plots(show_plot=strtobool(self.experiment_metadata['priors']['show_plot']),
                                                         show_title=strtobool(self.experiment_metadata['priors']['show_title']))
 
-        # Import/compute log unnormalised posterior
-        if strtobool(self.experiment_metadata['log_unnormalised_posterior']['import']) and strtobool(self.experiment_metadata['log_unnormalised_posterior']['compute']):
-            print('Import log unnormalised posterior')
-            inference_model.import_log_unnormalised_posterior(inference_model.parameter_names)
-        elif not strtobool(self.experiment_metadata['log_unnormalised_posterior']['import']) and strtobool(self.experiment_metadata['log_unnormalised_posterior']['compute']):
-            print('Compute log unnormalised posterior')
-            log_true_posterior,parameters_mesh = inference_model.evaluate_log_unnormalised_posterior()
-
-        # Export/store log unnormalised posterior
-        if strtobool(self.experiment_metadata['log_unnormalised_posterior']['export']) and strtobool(self.experiment_metadata['log_unnormalised_posterior']['compute']):
-            print('Export log unnormalised posterior')
-            inference_model.export_log_unnormalised_posterior(experiment=str(self.experiment_metadata['id']),
-                                                            prints=strtobool(self.experiment_metadata['log_unnormalised_posterior']['print']))
-            inference_model.export_log_unnormalised_posterior_plots(experiment=str(self.experiment_metadata['id']),
-                                                                show_plot=strtobool(self.experiment_metadata['log_unnormalised_posterior']['show_plot']),
-                                                                show_title=strtobool(self.experiment_metadata['log_unnormalised_posterior']['show_title']))
-
-
         # Compute convergence criterion for Vanilla MCMC
         if strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['compute']):
             vanilla_thetas = inference_model.run_parallel_mcmc(type='vanilla_mcmc',
@@ -159,7 +141,6 @@ class Experiment(object):
 
         # Export vanilla MCMC plots
         if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
-            show_true_posterior = strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_true_posterior']) and strtobool(self.experiment_metadata['log_unnormalised_posterior']['compute'])
             if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['export']):
                 print('Export Vanilla MCMC plots')
                 inference_model.export_mcmc_parameter_posterior_plots(experiment=str(self.experiment_metadata['id']),
@@ -195,7 +176,6 @@ class Experiment(object):
                                                                 show_title=strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['show_title']))
         # Export thermodynamic integration MCMC plots
         if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
-            show_true_posterior = strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_true_posterior']) and strtobool(self.experiment_metadata['log_unnormalised_posterior']['compute'])
             if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['export']):
                 print('Export thermodynamic integration MCMC plots')
                 inference_model.export_thermodynamic_integration_mcmc_mixing_plots(experiment=str(self.experiment_metadata['id']),

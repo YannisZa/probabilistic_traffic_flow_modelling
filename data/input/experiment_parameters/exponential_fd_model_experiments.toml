@@ -21,14 +21,6 @@ data_ids = ["exponential_fd_log_simulation","greenshields_fd_log_simulation"]
     compute = "True"
     print = "True"
 
-  [log_unnormalised_posterior]
-    compute = "False"
-    import = "False"
-    export = "False"
-    show_plot = "False"
-    show_title = "True"
-    print = "False"
-
   [vanilla_mcmc]
 
       [vanilla_mcmc.convergence_diagnostic]
@@ -39,7 +31,6 @@ data_ids = ["exponential_fd_log_simulation","greenshields_fd_log_simulation"]
         compute = "True"
         import = "False"
         export = "True"
-        show_true_posterior = "True"
         show_plot = "False"
         show_title = "True"
         print = "True"
@@ -66,7 +57,6 @@ data_ids = ["exponential_fd_log_simulation","greenshields_fd_log_simulation"]
         compute = "True"
         import = "False"
         export = "True"
-        show_true_posterior = "False"
         show_plot = "False"
         show_title = "True"
         print = "True"

@@ -7,8 +7,6 @@
 # Extensions
 
 ## Urgent
-- Implement len(p0) = len(proposal_stds) in valid_input in inference __init__.py
-
 - Implement the following Fundamental Diagrams:
  - []: 
 

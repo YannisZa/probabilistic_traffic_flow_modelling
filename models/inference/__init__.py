@@ -101,14 +101,6 @@ class MarkovChainMonteCarlo(object):
         self.__temperature_schedule = temperature_schedule
 
     @property
-    def log_unnormalised_posterior(self):
-        return self.__log_unnormalised_posterior
-
-    @log_unnormalised_posterior.setter
-    def log_unnormalised_posterior(self,log_unnormalised_posterior):
-        self.__log_unnormalised_posterior = log_unnormalised_posterior
-
-    @property
     def parameter_mesh(self):
         return self.__parameter_mesh
 
@@ -1414,57 +1406,6 @@ class MarkovChainMonteCarlo(object):
             toc = time.perf_counter()
             print(f"Computed posterior predictive in {toc - tic:0.4f} seconds")
 
-    def evaluate_log_unnormalised_posterior(self):
-
-        # Make sure you have stored the necessary attributes
-        utils.validate_attribute_existence(self,['evaluate_log_posterior'])
-
-        # Get starting time
-        start = time.time()
-
-        parameter_ranges = []
-        parameter_range_lengths = []
-
-
-        # Store true posterior params
-        true_posterior_params = self.inference_metadata['inference']['true_posterior']
-
-        # Loop through number of parameters
-        for i,k in enumerate(list(self.inference_metadata['inference']['true_posterior'])[0:self.num_learning_parameters]):
-            # Define parameter range
-            param_range = self.transformations[i][0](np.linspace(float(true_posterior_params[k]['min']),float(true_posterior_params[k]['max']),int(true_posterior_params[k]['steps'])))
-            # Store number of steps
-            param_steps = int(true_posterior_params[k]['steps'])
-            # Append to array
-            parameter_ranges.append(param_range)
-            parameter_range_lengths.append(param_steps)
-
-        print(f'Evaluating a {"x".join([str(i) for i in parameter_range_lengths])} grid... Grab a cup of coffee. This will take a while...')
-
-        # Define mesh grid
-        params_mesh = np.meshgrid(*parameter_ranges[::-1])
-
-        # Vectorize evaluate_log_target
-        # evaluate_log_target_vectorized = np.vectorize(self.evaluate_log_target)#, otypes=[list])
-
-        # Evaluate log unnormalised posterior
-        log_unnormalised_posterior = np.apply_along_axis(self.evaluate_log_posterior, 0, params_mesh[::-1])
-
-        # Reshape posterior
-        log_unnormalised_posterior = log_unnormalised_posterior.reshape(tuple(parameter_range_lengths))
-
-        # Update class attribute
-        self.log_unnormalised_posterior = log_unnormalised_posterior
-        self.parameter_mesh = np.array(params_mesh[::-1])
-
-        # Print amount of time elapsed
-        end = time.time()
-        hours, rem = divmod(end-start, 3600)
-        minutes, seconds = divmod(rem, 60)
-        print("Log unnormalised posterior computed in {:0>2}:{:0>2}:{:05.2f} hours...".format(int(hours),int(minutes),seconds))
-
-        return log_unnormalised_posterior,params_mesh[::-1]
-
     def generate_univariate_prior_plots(self,show_plot:bool=False,prints:bool=False,show_title:bool=True):
 
         # Make sure you have stored the necessary attributes
@@ -1811,7 +1752,7 @@ class MarkovChainMonteCarlo(object):
 
         return figs
 
-    def generate_vanilla_mcmc_space_exploration_plots(self,show_posterior:bool=False,show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
+    def generate_vanilla_mcmc_space_exploration_plots(self,show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['theta','theta_proposed'])
@@ -1846,52 +1787,8 @@ class MarkovChainMonteCarlo(object):
             plt.scatter(self.theta[burnin:,index[0]],self.theta[burnin:,index[1]],color='red',label='Accepted',marker='x',s=50,zorder=5)
             plt.scatter(self.theta_proposed[burnin:,index[0]],self.theta_proposed[burnin:,index[1]],color='purple',label='Proposed',marker='x',s=50,zorder=4)
 
-            # Get log unnormalised posterior plot
-            if show_posterior:
-
-                utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
-                # Set Q_hat to log posterior
-                Q_hat = self.log_unnormalised_posterior
-                # Sum up dimension not plotted if there log posterior is > 2dimensional
-
-                if Q_hat.shape[0] > 2:
-                    Q_hat = np.sum(Q_hat,axis=list(set(range(0,self.num_learning_parameters)) - set(index))[0])
-
-                # Try to load plot parameters
-                levels = None
-                # Check if all plot parameters are not empty
-                if all(bool(x) for x in self.inference_metadata['plot']['true_posterior'].values()):
-                    # Get number of colors in contour
-                    num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),2])
-                    # Update levels
-                    levels = np.linspace(float(self.inference_metadata['plot']['true_posterior']['vmin']),float(self.inference_metadata['plot']['true_posterior']['vmax']),num_colors)
-                else:
-                    vmin = np.min(Q_hat)
-                    if bool(self.inference_metadata['plot']['true_posterior']['vmin']):
-                        vmin = np.max([float(self.inference_metadata['plot']['true_posterior']['vmin']),np.min(Q_hat)])
-                    vmax = np.max(Q_hat)
-                    if bool(self.inference_metadata['plot']['true_posterior']['vmax']):
-                        vmax = np.min([float(self.inference_metadata['plot']['true_posterior']['vmax']),np.max(Q_hat)])
-                    num_colors = int(np.sqrt(np.prod(Q_hat.shape)))
-                    if bool(self.inference_metadata['plot']['true_posterior']['num_colors']):
-                        # Get number of colors in contour
-                        num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),2])
-                    # Get levels
-                    if vmin >= vmax: print('Wrong order of vmin, vmax in unnormalised posterior plot'); levels = np.linspace(vmax,vmin,num_colors)
-                    else: levels = np.linspace(vmin,vmax,num_colors)
-
-                # Plot countour surface
-                im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat, levels=levels,zorder=1)
-                # Plot MAP estimate
-                plt.scatter(self.parameter_mesh[index[0]].flatten()[np.argmax(Q_hat)],self.parameter_mesh[index[1]].flatten()[np.argmax(Q_hat)],label='surface max',marker='x',s=200,color='blue',zorder=6)
-                # Change limits
-                plt.xlim([np.min(self.parameter_mesh[index[0]]),np.max(self.parameter_mesh[index[0]])])
-                plt.ylim([np.min(self.parameter_mesh[index[1]]),np.max(self.parameter_mesh[index[1]])])
-                # Plot colorbar
-                plt.colorbar(im)
-            else:
-                # Get limits from plotting metadata
-                plot_limits = self.inference_metadata['plot']['vanilla_mcmc']
+            # Get limits from plotting metadata
+            plot_limits = self.inference_metadata['plot']['vanilla_mcmc']
 
             # Define parameter transformation
             transformation_0 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[0]],latex_characters)]['transformation']
@@ -1921,7 +1818,7 @@ class MarkovChainMonteCarlo(object):
 
         return figs
 
-    def generate_thermodynamic_integration_mcmc_space_exploration_plots(self,show_posterior:bool=False,show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
+    def generate_thermodynamic_integration_mcmc_space_exploration_plots(self,show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
 
         # Make sure you have stored the necessary attributes
         utils.validate_attribute_existence(self,['thermodynamic_integration_theta','thermodynamic_integration_theta_proposed'])
@@ -1967,59 +1864,8 @@ class MarkovChainMonteCarlo(object):
                 plt.scatter(self.thermodynamic_integration_theta[burnin:,tj,index[0]],self.thermodynamic_integration_theta[burnin:,tj,index[1]],color='red',label='Accepted',marker='x',s=50,zorder=5)
                 plt.scatter(self.thermodynamic_integration_theta_proposed[burnin:,tj,index[0]],self.thermodynamic_integration_theta_proposed[burnin:,tj,index[1]],color='purple',label='Proposed',marker='x',s=50,zorder=4)
 
-                # Get log unnormalised posterior plot
-                if show_posterior:
-                    utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
-                    # Set Q_hat to log posterior
-                    Q_hat = self.log_unnormalised_posterior
-                    # Sum up dimension not plotted if there log posterior is > 2dimensional
-                    if len(Q_hat.shape) > 2:
-                        Q_hat = np.sum(Q_hat,axis=list(set(range(0,self.num_learning_parameters)) - set(index))[0])
-
-                    # Try to load plot parameters
-                    levels = None
-                    # Check if all plot parameters are not empty
-                    if all(bool(x) for x in self.inference_metadata['plot']['true_posterior'].values()):
-                        # Get number of colors in contour
-                        num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),2])
-                        # Update levels
-                        levels = np.linspace(float(self.inference_metadata['plot']['true_posterior']['vmin']),float(self.inference_metadata['plot']['true_posterior']['vmax']),num_colors)
-                    else:
-                        vmin = np.min(Q_hat)
-                        if bool(self.inference_metadata['plot']['true_posterior']['vmin']):
-                            vmin = np.max([float(self.inference_metadata['plot']['true_posterior']['vmin']),np.min(Q_hat)])
-                        vmax = np.max(Q_hat)
-                        if bool(self.inference_metadata['plot']['true_posterior']['vmax']):
-                            vmax = np.min([float(self.inference_metadata['plot']['true_posterior']['vmax']),np.max(Q_hat)])
-                        num_colors = int(np.sqrt(np.prod(Q_hat.shape)))
-                        if bool(self.inference_metadata['plot']['true_posterior']['num_colors']):
-                            # Get number of colors in contour
-                            num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),2])
-                        # Get levels
-                        if vmin >= vmax: print('Wrong order of vmin, vmax in unnormalised posterior plot'); levels = np.linspace(vmax,vmin,num_colors)
-                        else: levels = np.linspace(vmin,vmax,num_colors)
-
-                    # Plot countour surface
-                    im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat, levels=levels,zorder=1)
-                    # Plot MAP estimate
-                    plt.scatter(self.parameter_mesh[index[0]].flatten()[np.argmax(Q_hat)],self.parameter_mesh[index[1]].flatten()[np.argmax(Q_hat)],label='surface max',marker='x',s=200,color='blue',zorder=3)
-                    # Change limits
-                    xmin = np.min([np.min(self.parameter_mesh[index[0]]),np.min(self.thermodynamic_integration_theta[burnin:,tj,index[0]])])
-                    xmax = np.max([np.max(self.parameter_mesh[index[0]]),np.max(self.thermodynamic_integration_theta[burnin:,tj,index[0]])])
-                    ymin = np.min([np.min(self.parameter_mesh[index[1]]),np.min(self.thermodynamic_integration_theta[burnin:,tj,index[1]])])
-                    ymax = np.max([np.max(self.parameter_mesh[index[1]]),np.max(self.thermodynamic_integration_theta[burnin:,tj,index[0]])])
-
-                    # Change limits
-                    plt.xlim([xmin,xmax])
-                    plt.ylim([ymin,ymax])
-                    # plt.ylim([np.min(self.parameter_mesh[index[0]]),np.max(self.parameter_mesh[index[0]])])
-                    # plt.ylim([np.min(self.parameter_mesh[index[1]]),np.max(self.parameter_mesh[index[1]])])
-                    # Plot colorbar
-                    plt.colorbar(im)
-                else:
-                    # Get limits from plotting metadata
-                    plot_limits = self.inference_metadata['plot']['thermodynamic_integration_mcmc']
-
+                # Get limits from plotting metadata
+                plot_limits = self.inference_metadata['plot']['thermodynamic_integration_mcmc']
 
                 # Plot true parameters if they exist
                 if hasattr(self,'true_parameters') and show_sim_param:
@@ -2039,104 +1885,6 @@ class MarkovChainMonteCarlo(object):
                 figs.append({"parameters":[utils.remove_characters(transformation_0,latex_characters)+parameter_names[i][0],utils.remove_characters(transformation_1,latex_characters)+parameter_names[i][1],f'temperature_{tj}'],"figure":fig})
                 # Close current plot
                 plt.close(fig)
-
-        return figs
-
-
-    def generate_log_unnormalised_posteriors_plots(self,show_plot:bool=False,show_title:bool=True):
-
-        # Get starting time
-        start = time.time()
-
-        # Make sure you have stored the necessary attributes
-        utils.validate_attribute_existence(self,['log_unnormalised_posterior'])
-
-        # Get number of plots
-        num_plots = int(comb(len(self.log_unnormalised_posterior.shape),2))
-
-        # Get plot combinations
-        parameter_indices = list(itertools.combinations(range(0,self.num_learning_parameters), 2))
-
-        # Transform paramter names
-        transformed_parameters = []
-        for i in range(self.num_learning_parameters):
-            # Define parameter transformation
-            transformation = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[i],latex_characters)]['transformation']
-            # Append transformed parameter name to list
-            transformed_parameters.append((f'{transformation} '+self.parameter_names[i]))
-        # Get parameter name combinations for each plot
-        transformed_parameter_names = list(itertools.combinations(transformed_parameters, 2))
-
-        # Avoid plotting more than 3 plots
-        if num_plots > 3:
-            raise ValueError(f'Too many ({num_plots}) log posterior plots to handle!')
-        elif num_plots <= 0:
-            raise ValueError(f'You cannot plot {num_plots} plots!')
-
-        # print('Generating log posterior plots')
-        # Loop through each plot
-        figs = []
-
-        for i in range(num_plots):
-            index = parameter_indices[i]
-
-            # Set Q_hat to log posterior
-            Q_hat = self.log_unnormalised_posterior
-            # Sum up dimension not plotted if there log posterior is > 2dimensional
-            if len(Q_hat.shape) > 2:
-                Q_hat = np.sum(Q_hat,axis=list(set(range(self.num_learning_parameters)) - set(index))[0])
-
-            # Try to load plot parameters
-            levels = None
-            # Check if all plot parameters are not empty
-            if all(bool(x) for x in self.inference_metadata['plot']['true_posterior'].values()):
-                # Get number of colors in contour
-                num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),2])
-                # Update levels
-                levels = np.linspace(float(self.inference_metadata['plot']['true_posterior']['vmin']),float(self.inference_metadata['plot']['true_posterior']['vmax']),num_colors)
-            else:
-                vmin = np.min(Q_hat)
-                if bool(self.inference_metadata['plot']['true_posterior']['vmin']):
-                    vmin = np.max([float(self.inference_metadata['plot']['true_posterior']['vmin']),np.min(Q_hat)])
-                vmax = np.max(Q_hat)
-                if bool(self.inference_metadata['plot']['true_posterior']['vmax']):
-                    vmax = np.min([float(self.inference_metadata['plot']['true_posterior']['vmax']),np.max(Q_hat)])
-                num_colors = int(np.sqrt(np.prod(Q_hat.shape)))
-                if bool(self.inference_metadata['plot']['true_posterior']['num_colors']):
-                    # Get number of colors in contour
-                    num_colors = np.max([int(self.inference_metadata['plot']['true_posterior']['num_colors']),2])
-                # Get levels
-                if vmin >= vmax: print('Wrong order of vmin, vmax in unnormalised posterior plot'); levels = np.linspace(vmax,vmin,num_colors)
-                else: levels = np.linspace(vmin,vmax,num_colors)
-
-
-            # Create figure
-            fig = plt.figure(figsize=(10,8))
-
-            if num_plots == 1:
-                # Plot countour surface
-                im = plt.contourf(self.parameter_mesh[index[0]], self.parameter_mesh[index[1]], Q_hat, levels=levels)
-
-                plt.scatter(self.parameter_mesh[index[0]].flatten()[np.argmax(Q_hat)],self.parameter_mesh[index[1]].flatten()[np.argmax(Q_hat)],label='surface max',marker='x',s=200,color='blue',zorder=10)
-                if hasattr(self,'true_parameters'):
-                    plt.scatter(self.transform_parameters(self.true_parameters,False)[index[0]],self.transform_parameters(self.true_parameters,False)[index[1]],label='Simulation parameter',marker='x',s=100,color='black',zorder=11)
-                plt.xlim([np.min(self.parameter_mesh[index[0]]),np.max(self.parameter_mesh[index[0]])])
-                plt.ylim([np.min(self.parameter_mesh[index[1]]),np.max(self.parameter_mesh[index[1]])])
-                if show_title: plt.title(f'Log unnormalised posterior for {",".join(transformed_parameter_names[i])}')
-                plt.xlabel(f'{transformed_parameter_names[i][index[0]]}')
-                plt.ylabel(f'{transformed_parameter_names[i][index[1]]}')
-                plt.colorbar(im)
-                plt.legend(fontsize=10)
-            else:
-                raise ValueError('generate_log_unnormalised_posteriors_plots with num_plots > 1  does not work.')
-
-            # Show plot
-            if show_plot: plt.show()
-            # Append plot to list
-            figs.append({"parameters":[transformed_parameter_names[i][index[0]],transformed_parameter_names[i][index[1]]],"figure":fig})
-            # Close current plot
-            plt.close(fig)
-
 
         return figs
 
@@ -2298,51 +2046,6 @@ class MarkovChainMonteCarlo(object):
 
         if prints: print('Imported Thermodynamic Integration MCMC samples')
 
-
-    def import_log_unnormalised_posterior(self,parameter_pair:list,experiment:str='',prints:bool=False):
-
-        print('import_log_unnormalised_posterior needs testing')
-
-        # Define parameter transformation
-        transformation = self.inference_metadata['inference']['priors'][utils.remove_characters(p,latex_characters)]['transformation']
-
-        # Get rid of weird characters
-        transformed_params = []
-        for p in parameter_pair:
-            transformed_params.append(utils.remove_characters(transformation,latex_characters)+utils.remove_characters(p,latex_characters))
-
-        if experiment == '':
-            # Get inference filename
-            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
-        else:
-            # Get experiment filename
-            filename = utils.prepare_output_experiment_inference_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
-
-        # Get parameter names
-        param_names = "_".join(transformed_params)
-
-        # Load from txt file
-        try:
-            file = filename+f'log_unnormalised_posterior_{param_names}.txt'
-            self.log_unnormalised_posterior = np.loadtxt(file,dtype = np.float64)
-        except:
-            print('Available files are',list(glob.glob(filename + "*.txt")))
-            raise Exception(f'File {file} was not found.')
-
-        # Load from txt file
-        try:
-            file = filename+f'log_unnormalised_posterior_mesh_{param_names}.txt'
-            self.parameter_mesh = np.loadtxt(file,dtype = np.float64)
-            # Define new shape
-            parameter_mesh_shape = (2,self.log_unnormalised_posterior.shape[0],self.log_unnormalised_posterior.shape[1])
-            # Reshape parameter mesh
-            self.parameter_mesh = self.parameter_mesh.reshape(parameter_mesh_shape)
-        except:
-            print('Available files are',list(glob.glob(filename + "_log_unnormalised_posterior_mesh*.txt")))
-            raise Exception(f'File {file} was not found.')
-
-        if prints: print('Imported log unnormalised posterior')
-
     def import_posterior_predictive(self,experiment:str='',prints:bool=False):
 
         if experiment == '':
@@ -2380,115 +2083,6 @@ class MarkovChainMonteCarlo(object):
 
 
     """ ---------------------------------------------------------------------------Export data/plots-----------------------------------------------------------------------------"""
-
-
-    def export_log_unnormalised_posterior(self,experiment:str='',prints:bool=False):
-
-        # Make sure you have necessary attributes
-        utils.validate_attribute_existence(self,['log_unnormalised_posterior','parameter_mesh','inference_metadata'])
-
-        # Get starting time
-        start = time.time()
-
-        if experiment == '':
-            # Get inference filename
-            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
-        else:
-            # Get experiment filename
-            filename = utils.prepare_output_experiment_inference_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
-
-
-        # Export log_unnormalised_posterior
-        if len(self.log_unnormalised_posterior.shape) <= 3:
-
-            transformed_parameter_names = []
-            for i,k in enumerate(list(self.inference_metadata['inference']['true_posterior'])[0:self.num_learning_parameters]):
-                # Define parameter name
-                param_name = k
-                # Define parameter transformation
-                transformation  = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[i],latex_characters)]['transformation']
-                # True posterior parameter keys must be the same as prior keys
-                try:
-                    assert utils.remove_characters(param_name,latex_characters) == utils.remove_characters(self.parameter_names[i],latex_characters)
-                except:
-                    print(utils.remove_characters(param_name,latex_characters))
-                    print(utils.remove_characters(self.parameter_names[i],latex_characters))
-                # Append transformed name to list
-                transformed_parameter_names.append((utils.remove_characters(transformation,latex_characters)+utils.remove_characters(param_name,latex_characters)))
-
-
-            # Get parameter names
-            param_names = "_".join(transformed_parameter_names)
-            # Save to txt file
-            # np.savetxt((filename+f'log_unnormalised_posterior_{param_names}.txt'),self.log_unnormalised_posterior)
-            np.save((filename+f'log_unnormalised_posterior_{param_names}.npy'), self.log_unnormalised_posterior)
-
-            if prints: print(f"File exported to {(filename+f'log_unnormalised_posterior_{param_names}.npy')}")
-
-            # Save to txt file
-            # with open((filename+f'log_unnormalised_posterior_mesh_{param_names}.txt'), 'w') as outfile:
-                # for data_slice in self.parameter_mesh:
-                    # np.savetxt(outfile, data_slice, fmt='%-7.10f')
-            np.save((filename+f'log_unnormalised_posterior_mesh_{param_names}.npy'), self.parameter_mesh)
-
-            if prints: print(f"File exported to {(filename+f'log_unnormalised_posterior_mesh_{param_names}.npy')}")
-
-
-        elif len(self.log_unnormalised_posterior.shape) > 2:
-
-            print('export_log_unnormalised_posterior needs testing')
-
-            # Get number of arrays
-            num_arrays = int(comb(self.num_learning_parameters,2))
-
-            # Get number of plots
-            num_plots = int(comb(len(self.log_unnormalised_posterior.shape),2))
-
-            # Get plot combinations
-            parameter_indices = list(itertools.combinations(range(0,self.num_learning_parameters), 2))
-
-            # Transform paramter names
-            transformed_parameters = []
-            for i in range(self.num_learning_parameters):
-                # Define parameter transformation
-                transformation = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[i],latex_characters)]['transformation']
-                # Append transformed parameter name to list
-                transformed_parameters.append((f'{transformation} '+self.parameter_names[i]))
-            # Get parameter name combinations for each plot
-            transformed_parameter_names = list(itertools.combinations(transformed_parameters, 2))
-
-            # Convert parameter mesh to numpy array
-            parameter_mesh = np.array(self.parameter_mesh)
-
-            for i in range(num_plots):
-                index = parameter_indices[i]
-
-                # Set Q_hat to log posterior
-                Q_hat = self.log_unnormalised_posterior
-                # Sum up dimension not plotted if there log posterior is > 2dimensional
-                if len(Q_hat.shape) > 2:
-                    Q_hat = np.sum(Q_hat,axis=list(set(range(0,self.num_learning_parameters)) - set(index))[0])
-
-                # Save to parameter mesh file
-                # with open((filename+f'log_unnormalised_posterior_{transformed_parameter_names[i]}.txt'), 'w') as outfile:
-                #     for data_slice in Q_hat:
-                #         np.savetxt(outfile, data_slice, fmt='%-7.10f')
-                np.save((filename+f'log_unnormalised_posterior_{transformed_parameter_names[i]}.npy'), Q_hat)
-
-                if prints: print(f"File exported to {(filename+f'log_unnormalised_posterior_{param_names}.npy')}")
-
-                # Save to parameter mesh file
-                # with open((filename+f'log_unnormalised_posterior_mesh_{transformed_parameter_names[i]}.txt'), 'w') as outfile:
-                #     for data_slice in parameter_mesh[index,:]:
-                #         np.savetxt(outfile, data_slice, fmt='%-7.10f')
-                np.save((filename+f'log_unnormalised_posterior_{transformed_parameter_names[i]}.npy'), parameter_mesh[index,:])
-
-                if prints: print(f"File exported to {(filename+f'log_unnormalised_posterior_mesh_{param_names}.npy')}")
-
-
-        elif len(self.log_unnormalised_posterior.shape) < 2:
-            raise ValueError(f'Log unnormalised posterior has shape {len(self.log_unnormalised_posterior.shape)} < 2')
-
 
     def export_mcmc_samples(self,experiment:str='',prints:bool=False):
 
@@ -2639,23 +2233,6 @@ class MarkovChainMonteCarlo(object):
         # Export them
         self.export_plots(fig,filename,'prior')
 
-
-    def export_log_unnormalised_posterior_plots(self,experiment:str='',show_plot:bool=False,show_title:bool=True):
-
-        # Get subplots
-        figs = self.generate_log_unnormalised_posteriors_plots(show_plot=show_plot,show_title=show_title)
-
-        if experiment == '':
-            # Get inference filename
-            filename = utils.prepare_output_inference_filename(self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
-        else:
-            # Get experiment filename
-            filename = utils.prepare_output_experiment_inference_filename(experiment,inference_id=self.inference_metadata['id'],dataset=self.inference_metadata['data_id'],method=self.method)
-
-        # Export them
-        self.export_plots(figs,filename,"log_unnormalised_posterior")
-
-
     def export_mcmc_mixing_plots(self,experiment:str='',show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
 
         # Get subplots
@@ -2732,10 +2309,7 @@ class MarkovChainMonteCarlo(object):
         self.export_plots(figs,filename,"acf")
 
 
-    def export_vanilla_mcmc_space_exploration_plots(self,experiment:str='',show_posterior:bool=False,show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
-
-        # Set show posterior plot to true iff the metadata says so AND you have already computed the posterior
-        show_posterior = show_posterior and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
+    def export_vanilla_mcmc_space_exploration_plots(self,experiment:str='',show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
 
         # Generate plots
         figs = self.generate_vanilla_mcmc_space_exploration_plots(show_posterior=show_posterior,show_plot=show_plot,show_title=show_title,show_sim_param=show_sim_param)
@@ -2750,10 +2324,7 @@ class MarkovChainMonteCarlo(object):
         # Export them
         self.export_plots(figs,filename,"space_exploration")
 
-    def export_thermodynamic_integration_mcmc_space_exploration_plots(self,experiment:str='',show_posterior:bool=False,show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
-
-        # Set show posterior plot to true iff the metadata says so AND you have already computed the posterior
-        show_posterior = show_posterior and utils.has_attributes(self,['log_unnormalised_posterior','parameter_mesh'])
+    def export_thermodynamic_integration_mcmc_space_exploration_plots(self,experiment:str='',show_plot:bool=False,show_title:bool=True,show_sim_param:bool=False):
 
         # Generate plots
         figs = self.generate_thermodynamic_integration_mcmc_space_exploration_plots(show_posterior,show_plot=show_plot,show_title=show_title,show_sim_param=show_sim_param)

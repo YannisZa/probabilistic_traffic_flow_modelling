@@ -46,16 +46,6 @@ inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 # Plot univariate prior distributions
 inf_model.export_univariate_prior_plots()
 
-# Compute log unnormalised posterior
-# log_true_posterior,parameters_mesh = inf_model.evaluate_log_unnormalised_posterior()
-# Import log unnormalised posterior
-# inf_model.import_log_unnormalised_posterior(['alpha','beta'])
-
-# Export log unnormalised posterior
-# inf_model.export_log_unnormalised_posterior(prints=True)
-# Export log unnormalsed log posterior plot
-# inf_model.export_log_unnormalised_posterior_plots(show_plot=True)
-
 # Run Vanilla MCMC in parallel and get convergence diagnostic
 # vanilla_thetas = inf_model.run_parallel_mcmc(type='vanilla_mcmc',prints=True)
 # inf_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(vanilla_thetas,prints=True)
@@ -66,13 +56,13 @@ inf_model.export_univariate_prior_plots()
 # sys.exit(1)
 
 # Run Thermodynamic Integration MCMC in parallel and get convergence diagnostic
-# ti_thetas = inf_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',prints=True)
-# inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
+ti_thetas = inf_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',prints=True)
+inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
 
 # Compute thermodynamic integration marginal likelihood estimators
 # inf_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(ti_thetas,prints=True)
 
-# sys.exit(1)
+sys.exit(1)
 
 # Run MCMC
 # theta_accepted,acceptance = inf_model.vanilla_mcmc(i=0,seed=2021,prints=True)

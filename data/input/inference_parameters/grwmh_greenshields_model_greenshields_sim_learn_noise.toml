@@ -10,11 +10,21 @@ learn_noise = "True"
       p0 = [3.0,55.0,0.1]
       param_initialisation = "metadata"
 
+    [inference.likelihood]
+        type = 'mnormal'
+
     [inference.transition_kernel]
       type = "mnormal"
-      lower_bounds = ['0','40.0001','0']
-      upper_bounds = ['inf','inf','inf']
       action = '' # 'reflect', 'reject', ''
+
+    [inference.parameter_constraints]
+      lower_bounds = ['0','0','0']
+      upper_bounds = ['inf','inf','inf']
+      [inference.parameter_constraints.implicit]
+          [inference.parameter_constraints.implicit.constraint2]
+            lhs = 'rho_j'
+            operator = '>'
+            rhs = 'max_x'
 
     [inference.convergence_diagnostic]
         r_critical = 1.1
@@ -46,9 +56,6 @@ learn_noise = "True"
                 proposal_stds = [0.1, 0.2, 0.06]
                 beta_step = 1
 
-    [inference.likelihood]
-        type = 'mnormal'
-
     [inference.priors]
         [inference.priors.u_0]
             transformation = "$\\log$"
@@ -78,7 +85,3 @@ learn_noise = "True"
   [plot]
       acf_lags = 100
       hist_bins = 50
-      [plot.true_posterior]
-        vmin = "0"
-        vmax = ""
-        num_colors = "100"
