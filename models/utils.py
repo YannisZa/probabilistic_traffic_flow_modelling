@@ -63,7 +63,7 @@ def instantiate_fundamental_diagram(data_id,model:str=''):
     fd.simulation_metadata = simulation_params
 
     # Get flag of whether data are a simulation or not
-    fd.simulation_flag = strtobool(fd.simulation_metadata['simulation_flag']) and (model == fd.simulation_metadata['fundamental_diagram'])
+    fd.simulation_flag = strtobool(fd.simulation_metadata['simulation_flag']) and ((model == fd.simulation_metadata['fundamental_diagram']) or (model == ''))
 
     # Import metadata
     fd.store_simulation_data()
@@ -154,13 +154,14 @@ def validate_parameter_existence(necessary_parameters,current_params):
 
 """ ---------------------------------------------------------------------------String to function maps-----------------------------------------------------------------------------"""
 
-
 def map_name_to_fundamental_diagram(name):
 
     if name == 'exponential':
         return ExponentialFD
     elif name == 'greenshields':
         return GreenshieldsFD
+    elif name == 'daganzos':
+        return DaganzosFD
     else:
         raise Exception(f'No fundamental diagram model found for {name.lower()}')
 
@@ -243,6 +244,40 @@ def map_name_to_distribution_sampler(name,**kwargs):
     else:
         raise Exception(f'No numpy probability distribution found for {name.lower()}')
 
+def map_operation_symbol_to_binary(symbol,lhs,rhs):
+
+    if symbol == '>':
+        return int(lhs>rhs)
+    elif symbol == '>=':
+        return int(lhs>=rhs)
+    elif symbol == '==':
+        return int(lhs==rhs)
+    elif symbol == '!=':
+        return int(lhs!=rhs)
+    else:
+        raise ValueError(f'Symbol {symbol} was not found. Valid symbols are >,>=,==,!=.')
+
+def map_name_to_variable_or_variable_index(self,variable_name,latex_characters):
+    # Get parameter names and strip them off special characters
+    param_names = np.array([remove_characters(x,latex_characters) for x in self.parameter_names])
+    # print('param_names',param_names)
+    # print('variable_name',variable_name)
+    # IF x or y are in the variable name
+    if variable_name in ['max_x','min_x','min_y','max_y']:
+        if variable_name == 'max_x':
+            return float(max(self.x))
+        elif variable_name == 'max_y':
+            return float(max(self.y))
+        elif variable_name == 'min_x':
+            return float(min(self.x))
+        elif variable_name == 'min_y':
+            return float(min(self.y))
+    elif variable_name in param_names:
+        # print("np.where(param_names==variable_name)[0][0]",np.where(param_names==variable_name)[0][0])
+        return int(np.where(param_names==variable_name)[0][0])
+    else:
+        raise ValueError(f"Constraint {variable_name} not found. Available choices are parameter names or",", ".join(['max_x','min_x','min_y','max_y']))
+
 """ ---------------------------------------------------------------------------Prepare filenames for imports/exports-----------------------------------------------------------------------------"""
 
 def prepare_input_simulation_filename(simulation_id):
@@ -293,8 +328,8 @@ def prepare_input_experiment_filename(experiment_id):
 
 def prepare_output_experiment_inference_filename(experiment_id,*args,**kwargs):
     # Define output folder path
-    if len(args) > 0: output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('dataset'),kwargs.get('inference_id')+'/',*[args[i]+'/' for i in range(len(args))])
-    else: output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('dataset'),kwargs.get('inference_id')+'/')
+    if len(args) > 0: output_folder = os.path.join(root,'data/output/experiment_data',kwargs.get('dataset'),kwargs.get('inference_id')+'/',*[args[i]+'/' for i in range(len(args))])
+    else: output_folder = os.path.join(root,'data/output/experiment_data',kwargs.get('dataset'),kwargs.get('inference_id')+'/')
     # Create new folder if it doesn't exist
     ensure_dir(output_folder)
     # Return simulation filename
@@ -302,7 +337,7 @@ def prepare_output_experiment_inference_filename(experiment_id,*args,**kwargs):
 
 def prepare_output_experiment_simulation_filename(experiment_id,**kwargs):
     # Define output folder path
-    output_folder = os.path.join(root,'data/output/experiment_data',experiment_id,kwargs.get('dataset')+'/')
+    output_folder = os.path.join(root,'data/output/experiment_data',kwargs.get('dataset')+'/')
 
     # Create new folder if it doesn't exist
     ensure_dir(output_folder)

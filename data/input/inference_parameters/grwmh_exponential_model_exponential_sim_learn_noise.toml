@@ -6,9 +6,9 @@ fundamental_diagram = "exponential"
 learn_noise = "True"
 
 [inference]
-    [inference.mle]
+    [inference.initialisation]
       p0 = [0.4,0.2,0.1]
-      method = ""
+      param_initialisation = "metadata"
 
     [inference.transition_kernel]
       type = "mnormal"
@@ -18,7 +18,8 @@ learn_noise = "True"
 
     [inference.convergence_diagnostic]
         r_critical = 1.1
-        parallel_chains = 3
+        parallel_chains = 10
+        convergence_chains = 3
         burnin_step = 5000
 
     [inference.vanilla_mcmc]
@@ -27,8 +28,6 @@ learn_noise = "True"
       burnin = 5000
       posterior_predictive_samples = 20000
       marginal_likelihood_samples = 10000
-      param_initialisation = "metadata"
-      p0 = [0.4,0.2,0.1]
 
             [inference.vanilla_mcmc.transition_kernel]
                 proposal_stds = [0.01, 0.004, 0.04]
@@ -40,10 +39,8 @@ learn_noise = "True"
       temp_nsteps = 30
       temp_power = 5
       N = 300000
-      burnin = 100000
+      burnin = 60000
       marginal_likelihood_samples = 10000
-      param_initialisation = "metadata"
-      p0 = [0.4,0.2,0.1]
 
             [inference.thermodynamic_integration_mcmc.transition_kernel]
                 proposal_stds = [0.015, 0.02, 0.06]
@@ -54,7 +51,7 @@ learn_noise = "True"
 
     [inference.priors]
         [inference.priors.alpha]
-            transformation = "\\log"
+            transformation = "$\\log$"
             distribution = 'normal'
             min_log_prob = "-20"
             min = "0.1"
@@ -62,7 +59,7 @@ learn_noise = "True"
             loc = "0.6"
             scale = "0.01"
         [inference.priors.beta]
-            transformation = "\\log"
+            transformation = "$\\log$"
             distribution = 'normal'
             min_log_prob = "-20"
             min = "0.001"
@@ -70,7 +67,7 @@ learn_noise = "True"
             loc = "0.1"
             scale = "0.01"
         [inference.priors.sigma2]
-            transformation = "\\log"
+            transformation = "$\\log$"
             distribution = 'normal'
             min_log_prob = "-20"
             min = "0.001"
@@ -93,14 +90,9 @@ learn_noise = "True"
               steps = 100
 
   [plot]
+    acf_lags = 100
+    hist_bins = 50
       [plot.true_posterior]
         vmin = ""
         vmax = ""
         num_colors = "100"
-      [plot.vanilla_mcmc]
-        include_posterior = "False"
-        acf_lags = 100
-        hist_bins = 50
-      [plot.thermodynamic_integration_mcmc]
-        include_posterior = "False"
-        hist_bins = 50

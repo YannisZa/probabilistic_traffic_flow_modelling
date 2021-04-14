@@ -1,0 +1,24 @@
+id = "daganzos_fd_log_simulation"
+fundamental_diagram = "daganzos"
+simulation_flag = "True"
+seed = "2021"
+
+[ols]
+  p0 = [10.0,20.0,40.0,0.1]
+  method = ''
+
+[error]
+  iid = "True"
+  multiplicative = "True"
+
+[rho]
+  [rho.interval1]
+    rho_min = "0.1"
+    rho_max = "40"
+    rho_steps = 200
+
+[true_parameters]
+  q_c = "12.0"
+  rho_c = "20."
+  rho_j = "45.0"
+  sigma2 = "0.01"

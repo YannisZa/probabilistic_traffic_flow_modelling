@@ -30,9 +30,9 @@ class Experiment(object):
         proceed = True
 
         # Inference ids and simulation ids must be equal in number
-        if len(list(self.experiment_metadata['inference_ids'])) != len(list(self.experiment_metadata['data_ids'])):
-            proceed = False
-            print(f"Inference and data ids are not equal in number {len(list(self.experiment_metadata['inference_ids']))} != {len(list(self.experiment_metadata['data_ids']))}")
+        # if len(list(self.experiment_metadata['inference_ids'])) != len(list(self.experiment_metadata['data_ids'])):
+        #     proceed = False
+        #     print(f"Inference and data ids are not equal in number {len(list(self.experiment_metadata['inference_ids']))} != {len(list(self.experiment_metadata['data_ids']))}")
 
         return proceed
 
@@ -151,10 +151,8 @@ class Experiment(object):
                                                                                     prints = strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['print']))
 
         # Export MCMC chains
-        if (strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['export'])
-                and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']))\
-            or (strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['export'])
-                and strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute'])):
+        if (strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']))\
+            or (strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute'])):
             print('Export MCMC samples')
             inference_model.export_mcmc_samples(experiment=str(self.experiment_metadata['id']))
 

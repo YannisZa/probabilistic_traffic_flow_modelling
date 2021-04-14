@@ -6,9 +6,9 @@ fundamental_diagram = "greenshields"
 learn_noise = "True"
 
 [inference]
-    [inference.mle]
+    [inference.initialisation]
       p0 = [3.0,55.0,0.1]
-      method = ""
+      param_initialisation = "metadata"
 
     [inference.transition_kernel]
       type = "mnormal"
@@ -18,7 +18,8 @@ learn_noise = "True"
 
     [inference.convergence_diagnostic]
         r_critical = 1.1
-        parallel_chains = 3
+        parallel_chains = 10
+        convergence_chains = 3
         burnin_step = 5000
 
     [inference.vanilla_mcmc]
@@ -27,8 +28,6 @@ learn_noise = "True"
       burnin = 10000
       posterior_predictive_samples = 20000
       marginal_likelihood_samples = 10000
-      param_initialisation = "metadata"
-      p0 = [3.0,55.0,0.1]
 
             [inference.vanilla_mcmc.transition_kernel]
                 proposal_stds = [0.01, 0.03, 0.04]
@@ -42,8 +41,6 @@ learn_noise = "True"
       N = 300000
       burnin = 60000
       marginal_likelihood_samples = 100000
-      param_initialisation = "metadata"
-      p0 = [3.0,55.0,0.1]
 
             [inference.thermodynamic_integration_mcmc.transition_kernel]
                 proposal_stds = [0.1, 0.2, 0.06]
@@ -70,7 +67,7 @@ learn_noise = "True"
             loc = "45"
             scale = "1"
         [inference.priors.sigma2]
-            transformation = "\\log"
+            transformation = "$\\log$"
             distribution = 'normal'
             min_log_prob = "-20"
             min = "0.001"
@@ -78,25 +75,10 @@ learn_noise = "True"
             loc = "0.01"
             scale = "0.001"
 
-      # [inference.true_posterior]
-      #     [inference.true_posterior.u_0]
-      #         min = "0.4"
-      #         max = "0.8"
-      #         steps = 100
-      #     [inference.true_posterior.rho_j]
-      #         min = "0.08"
-      #         max = "0.12"
-      #         steps = 100
-
   [plot]
+      acf_lags = 100
+      hist_bins = 50
       [plot.true_posterior]
         vmin = "0"
         vmax = ""
         num_colors = "100"
-      [plot.vanilla_mcmc]
-        include_posterior = "False"
-        acf_lags = 100
-        hist_bins = 50
-      [plot.thermodynamic_integration_mcmc]
-        include_posterior = "False"
-        hist_bins = 50

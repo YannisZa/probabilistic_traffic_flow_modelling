@@ -60,11 +60,17 @@ inf_model.export_univariate_prior_plots()
 # vanilla_thetas = inf_model.run_parallel_mcmc(type='vanilla_mcmc',prints=True)
 # inf_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(vanilla_thetas,prints=True)
 
+# Compute posterior harmonic mean marginal likelihood estimator
+# inf_model.compute_log_posterior_harmonic_mean_estimator(vanilla_thetas,prints=True)
+
 # sys.exit(1)
 
 # Run Thermodynamic Integration MCMC in parallel and get convergence diagnostic
 # ti_thetas = inf_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',prints=True)
 # inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
+
+# Compute thermodynamic integration marginal likelihood estimators
+# inf_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(ti_thetas,prints=True)
 
 # sys.exit(1)
 
@@ -88,7 +94,7 @@ inf_model.export_mcmc_samples()
 # inf_model.export_mcmc_acf_plots(show_plot=True)
 # Export thermodynamic integration MCMC
 inf_model.export_thermodynamic_integration_mcmc_mixing_plots(show_plot=False,show_sim_param=True)
-inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(num_stds=2,show_plot=False,show_sim_param=True)
+# inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(num_stds=2,show_plot=False,show_sim_param=True)
 inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(show_plot=False,show_sim_param=True)
 
 # Compute posterior predictive
@@ -99,10 +105,6 @@ inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(show_plo
 # inf_model.export_posterior_predictive()
 # inf_model.export_mcmc_posterior_predictive_plot(fd,num_stds=2,show_plot=True)
 
-
-# Compute marginal likelihood estimators
-# inf_model.compute_log_posterior_harmonic_mean_estimator(prints=True)
-# inf_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(prints=True)
 
 # Export metadata
 inf_model.export_metadata()

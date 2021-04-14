@@ -1,9 +1,9 @@
-id = "exponential_fd_model_exponential_fd_data"
-inference_ids = ["grwmh_exponential_model_exponential_sim_learn_noise"]
-data_ids = ["exponential_fd_log_simulation"]
+id = "exponential_fd_model_experiments"
+inference_ids = ["grwmh_exponential_model_exponential_sim_learn_noise","grwmh_exponential_model_greenshields_sim_learn_noise"]
+data_ids = ["exponential_fd_log_simulation","greenshields_fd_log_simulation"]
 
   [routines]
-    generate_data = "False"
+    generate_data = "True"
     run_inference = "True"
 
   [data_simulation]

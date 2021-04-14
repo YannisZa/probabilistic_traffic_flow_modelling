@@ -1,22 +1,14 @@
-# Tuning
-
-- [] Exponential FD model
-	- [] Greenshields FD data with sigma learning
-		- [] Vanilla MCMC
-		- [] Thermodynamic MCMC
-
-
-
 # Bugs
 
 ## Urgent
-- Data id should not affect Fundamental Diagram Instance
 
 ## Non-urgent
 
 # Extensions
 
 ## Urgent
+- Implement len(p0) = len(proposal_stds) in valid_input in inference __init__.py
+
 - Implement the following Fundamental Diagrams:
  - []: 
 

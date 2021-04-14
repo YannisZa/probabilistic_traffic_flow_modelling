@@ -35,9 +35,9 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         hyperparams_list = []
 
         # Find lower and upper bounds
-        lower_bounds = [float(x) for x in list(self.inference_metadata['inference']['transition_kernel']['lower_bounds'])]
-        upper_bounds = [float(x) for x in list(self.inference_metadata['inference']['transition_kernel']['upper_bounds'])]
-        
+        lower_bounds = [float(x) for x in list(self.inference_metadata['inference']['parameter_constraints']['lower_bounds'])]
+        upper_bounds = [float(x) for x in list(self.inference_metadata['inference']['parameter_constraints']['upper_bounds'])]
+
         # Loop through number of parameters
         for i,k in enumerate(list(self.inference_metadata['inference']['priors'])[0:self.num_learning_parameters]):
             # Get prior hyperparameter kwargs and populate them with lower and upper parameter bounds

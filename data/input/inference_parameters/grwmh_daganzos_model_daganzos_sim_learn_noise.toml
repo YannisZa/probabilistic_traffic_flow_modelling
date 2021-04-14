@@ -1,20 +1,31 @@
-id = "grwmh_greenshields_model_exponential_sim_learn_noise"
+id = "grwmh_daganzos_model_daganzos_sim_learn_noise"
 inference_model = "grwmh"
-data_id = "exponential_fd_log_simulation"
-data_fundamental_diagram = "exponential"
-fundamental_diagram = "greenshields"
+data_id = "daganzos_fd_log_simulation"
+data_fundamental_diagram = "daganzos"
+fundamental_diagram = "daganzos"
 learn_noise = "True"
 
 [inference]
     [inference.initialisation]
-      p0 = [0.1,45.0,0.1]
+      p0 = [10.0,20.0,41.0,0.1]
       param_initialisation = "metadata"
 
     [inference.transition_kernel]
       type = "mnormal"
-      lower_bounds = ['0','40.0001','0']
-      upper_bounds = ['inf','inf','inf']
       action = '' # 'reflect', 'reject', ''
+
+    [inference.parameter_constraints]
+      lower_bounds = ['0','0','0','0']
+      upper_bounds = ['inf','inf','inf','inf']
+      [inference.parameter_constraints.implicit]
+          [inference.parameter_constraints.implicit.constraint1]
+            lhs = 'rho_j'
+            operator = '>'
+            rhs = 'rho_c'
+          [inference.parameter_constraints.implicit.constraint2]
+            lhs = 'rho_j'
+            operator = '>'
+            rhs = 'max_x'
 
     [inference.convergence_diagnostic]
         r_critical = 1.1
@@ -30,7 +41,7 @@ learn_noise = "True"
       marginal_likelihood_samples = 10000
 
             [inference.vanilla_mcmc.transition_kernel]
-                proposal_stds = [0.05, 0.2, 0.05]
+                proposal_stds = [0.005, 0.007, 0.004, 0.04]
                 beta_step = 1
 
     [inference.thermodynamic_integration_mcmc]
@@ -43,28 +54,36 @@ learn_noise = "True"
       marginal_likelihood_samples = 100000
 
             [inference.thermodynamic_integration_mcmc.transition_kernel]
-                proposal_stds = [0.1, 0.4, 0.1]
+                proposal_stds = [0.015, 0.02, 0.01, 0.06]
                 beta_step = 1
 
     [inference.likelihood]
         type = 'mnormal'
 
     [inference.priors]
-        [inference.priors.u_0]
+        [inference.priors.q_c]
             transformation = "$\\log$"
             distribution = 'normal'
             min_log_prob = "-10"
-            min = "0.001"
-            max = "4.0"
-            loc = "0.2"
-            scale = "0.05"
-        [inference.priors.rho_j]
+            min = "0.1"
+            max = "20"
+            loc = "12"
+            scale = "1"
+        [inference.priors.rho_c]
             transformation = "$\\log$"
             distribution = 'normal'
             min_log_prob = "-5"
-            min = "40"
-            max = "120"
-            loc = "40"
+            min = "0.1"
+            max = "40"
+            loc = "20"
+            scale = "1"
+        [inference.priors.rho_j]
+            transformation = "$\\log$"
+            distribution = 'normal'
+            min_log_prob = "-20"
+            min = "30"
+            max = "60"
+            loc = "45"
             scale = "1"
         [inference.priors.sigma2]
             transformation = "$\\log$"
@@ -72,22 +91,12 @@ learn_noise = "True"
             min_log_prob = "-20"
             min = "0.001"
             max = "1.0"
-            loc = "0.3"
-            scale = "0.02"
-
-      # [inference.true_posterior]
-      #     [inference.true_posterior.u_0]
-      #         min = "0.4"
-      #         max = "0.8"
-      #         steps = 100
-      #     [inference.true_posterior.rho_j]
-      #         min = "0.08"
-      #         max = "0.12"
-      #         steps = 100
+            loc = "0.01"
+            scale = "0.001"
 
   [plot]
-      acf_lags = 100
-      hist_bins = 50
+    acf_lags = 100
+    hist_bins = 50
       [plot.true_posterior]
         vmin = "0"
         vmax = ""

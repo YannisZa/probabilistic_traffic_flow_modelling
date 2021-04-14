@@ -1,0 +1,13 @@
+id = "generate_data"
+inference_ids = []
+data_ids = ["exponential_fd_log_simulation","greenshields_fd_log_simulation","daganzos_fd_log_simulation"]
+
+  [routines]
+    generate_data = "True"
+    run_inference = "False"
+
+  [data_simulation]
+    plot_log_data = "False"
+    show_plot = "False"
+    show_sim_param = "False"
+    print = "True"

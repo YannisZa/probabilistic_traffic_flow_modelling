@@ -44,3 +44,24 @@ class GreenshieldsFD(FundamentalDiagram):
 
     def hessian(self,p):
         return [-2*p[0]/p[1] for i in range(len(super().rho))]
+
+class DaganzosFD(FundamentalDiagram):
+    pass
+
+    def __init__(self,data_id):
+        super().__init__(data_id)
+        FundamentalDiagram.name.fset(self, 'daganzos')
+        FundamentalDiagram.num_learning_parameters.fset(self, 4)
+        FundamentalDiagram.parameter_names.fset(self, [r'$q_c$',r'$\rho_c$',r'$\rho_j$',r'$\sigma^2$'])
+
+    def simulate(self,p):
+        return np.array([(p[0]/p[1])*r if r < p[1] else p[0]*(p[2]-r)/(p[2]-p[1]) for r in super().rho])
+
+    def log_simulate(self,p):
+        return np.array([np.log(p[0])-np.log(p[1])+np.log(r) if np.log(r) < np.log(p[1]) else np.log(p[0])+np.log(p[2]-r)-np.log(p[2]-p[1]) for r in super().rho])
+
+    def log_simulate_with_x(self,p,rho):
+        return np.array([np.log(p[0])-np.log(p[1])+np.log(r) if np.log(r) < np.log(p[1]) else np.log(p[0])+np.log(p[2]-r)-np.log(p[2]-p[1]) for r in rho])
+
+    def hessian(self,p):
+        return [0 for i in range(len(super().rho))]

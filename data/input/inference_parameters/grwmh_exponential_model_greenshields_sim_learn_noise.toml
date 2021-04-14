@@ -1,37 +1,36 @@
-id = "grwmh_greenshields_model_greenshields_sim_fixed_noise"
+id = "grwmh_exponential_model_greenshields_sim_learn_noise"
 inference_model = "grwmh"
 data_id = "greenshields_fd_log_simulation"
 data_fundamental_diagram = "greenshields"
-fundamental_diagram = "greenshields"
-learn_noise = "False"
+fundamental_diagram = "exponential"
+learn_noise = "True"
 
 [inference]
-    [inference.mle]
-      p0 = [3,55]
-      method = ""
+    [inference.initialisation]
+      p0 = [2.5,0.05,0.2]
+      param_initialisation = "metadata"
 
     [inference.transition_kernel]
       type = "mnormal"
-      lower_bounds = ['0','40.0001']
-      upper_bounds = ['inf','inf']
+      lower_bounds = ['0','0','0']
+      upper_bounds = ['inf','inf','inf']
       action = '' # 'reflect', 'reject', ''
 
     [inference.convergence_diagnostic]
         r_critical = 1.1
-        parallel_chains = 3
+        parallel_chains = 10
+        convergence_chains = 3
         burnin_step = 5000
 
     [inference.vanilla_mcmc]
       seed = "2021"
       N = 100000
-      burnin = 10000
+      burnin = 5000
       posterior_predictive_samples = 20000
       marginal_likelihood_samples = 10000
-      param_initialisation = "metadata"
-      p0 = [3,55]
 
             [inference.vanilla_mcmc.transition_kernel]
-                proposal_stds = [0.01, 0.03]
+                proposal_stds = [0.013, 0.01, 0.04]
                 beta_step = 1
 
     [inference.thermodynamic_integration_mcmc]
@@ -42,53 +41,58 @@ learn_noise = "False"
       N = 300000
       burnin = 60000
       marginal_likelihood_samples = 100000
-      param_initialisation = "metadata"
-      p0 = [3,55]
 
             [inference.thermodynamic_integration_mcmc.transition_kernel]
-                proposal_stds = [0.1, 0.2]
+                proposal_stds = [0.035, 0.03, 0.1]
                 beta_step = 1
 
     [inference.likelihood]
         type = 'mnormal'
 
     [inference.priors]
-        [inference.priors.u_0]
+        [inference.priors.alpha]
             transformation = "$\\log$"
             distribution = 'normal'
-            min_log_prob = "-10"
+            min_log_prob = "-20"
             min = "0.1"
-            max = "4.0"
-            loc = "2"
-            scale = "0.5"
-        [inference.priors.rho_j]
+            max = "5.0"
+            loc = "3.0"
+            scale = "0.2"
+        [inference.priors.beta]
             transformation = "$\\log$"
             distribution = 'normal'
-            min_log_prob = "-5"
-            min = "40"
-            max = "100"
-            loc = "45"
-            scale = "1"
+            min_log_prob = "-20"
+            min = "0.001"
+            max = "1.0"
+            loc = "0.05"
+            scale = "0.01"
+        [inference.priors.sigma2]
+            transformation = "$\\log$"
+            distribution = 'normal'
+            min_log_prob = "-20"
+            min = "0.001"
+            max = "1.0"
+            loc = "0.01"
+            scale = "0.001"
 
       # [inference.true_posterior]
-      #     [inference.true_posterior.u_0]
+      #     [inference.true_posterior.alpha]
       #         min = "0.4"
       #         max = "0.8"
       #         steps = 100
-      #     [inference.true_posterior.rho_j]
+      #     [inference.true_posterior.beta]
       #         min = "0.08"
       #         max = "0.12"
       #         steps = 100
+      #     [inference.true_posterior.sigma2]
+      #         min = "0.001"
+      #         max = "0.1"
+      #         steps = 100
 
   [plot]
+    acf_lags = 100
+    hist_bins = 50
       [plot.true_posterior]
-        vmin = "0"
+        vmin = ""
         vmax = ""
         num_colors = "100"
-      [plot.vanilla_mcmc]
-        include_posterior = "False"
-        acf_lags = 100
-        hist_bins = 50
-      [plot.thermodynamic_integration_mcmc]
-        include_posterior = "False"
-        hist_bins = 50

@@ -12,7 +12,7 @@ from distutils.util import strtobool
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]+"probabilistic_traffic_flow_modelling"
 
 # Define simulation id
-experiment_id = "exponential_fd_model_exponential_fd_data"
+experiment_id = "generate_data"
 
 # Instantiate experiment
 experiment = Experiment(experiment_id)
