@@ -15,7 +15,7 @@ matplotlib.rc('font', **{'size' : 18})
 
 ignore_parameters = ["distribution","transformation","min_log_prob","min","max"]
 
-class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
+class MetropolisHastings(MarkovChainMonteCarlo):
     pass
 
     def __init__(self,inference_id):
@@ -175,12 +175,11 @@ class GaussianRandomWalkMetropolisHastings(MarkovChainMonteCarlo):
         MarkovChainMonteCarlo.predictive_likelihood.fset(self, _predictive_likelihood)
 
 
-    def update_transition_kernel(self,mcmc_type:str='vanilla_mcmc', prints:bool=False):
+    def update_transition_kernel(self, proposal_stds, mcmc_type:str='vanilla_mcmc', prints:bool=False):
 
         # Get kernel parameters
         kernel_params = self.inference_metadata['inference'][mcmc_type]['transition_kernel']
         kernel_type = str(self.inference_metadata['inference']['transition_kernel']['type'])
-        proposal_stds = list(kernel_params['proposal_stds'])[0:self.num_learning_parameters]
         K = np.diag([proposal_stds[i]**2 for i in range(len(proposal_stds))])
         beta_step = float(kernel_params['beta_step'])
 

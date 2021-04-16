@@ -1,0 +1,135 @@
+id = "grwmh_deromphs_model_deromphs_sim_learn_noise_n200"
+inference_model = "grwmh"
+data_id = "deromphs_fd_log_simulation_n200"
+data_fundamental_diagram = "deromphs"
+fundamental_diagram = "deromphs"
+learn_noise = "True"
+
+#33% acceptance
+
+[inference]
+    [inference.initialisation]
+      p0 = [2.5298210665658303, 20.000434976585087, 44.859818000701594, 367.00065028798514, 24.012698116711594, 1.996147450592182, 0.009851938584854647]
+      param_initialisation = "metadata" # "metadata", "map", ""
+
+    [inference.likelihood]
+        type = 'mnormal'
+
+    [inference.transition_kernel]
+      type = "mnormal"
+      action = '' # 'reflect', 'reject', ''
+
+    [inference.parameter_constraints]
+      lower_bounds = ['0','0','0','0','0','0','0']
+      upper_bounds = ['inf','inf','inf','inf','inf','inf','inf']
+      [inference.parameter_constraints.implicit]
+          [inference.parameter_constraints.implicit.constraint1]
+            lhs = 'rho_j'
+            operator = '>'
+            rhs = 'rho_c'
+          [inference.parameter_constraints.implicit.constraint2]
+            lhs = 'rho_j'
+            operator = '>'
+            rhs = 'max_x'
+          [inference.parameter_constraints.implicit.constraint3]
+            lhs = 'alpha'
+            operator = '>'
+            rhs = 'rho_c'
+
+    [inference.convergence_diagnostic]
+        r_critical = 1.1
+        parallel_chains = 3#10
+        convergence_chains = 3
+        burnin_step = 5000
+
+    [inference.vanilla_mcmc]
+      seed = "2021"
+      N = 100000
+      burnin = 10000
+      posterior_predictive_samples = 10000
+      marginal_likelihood_samples = 10000
+
+            [inference.vanilla_mcmc.transition_kernel]
+                                #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\alpha$',r'$\beta$',r'$\sigma^2$']
+                proposal_stds = [0.004, 0.001, 0.002, 0.002, 0.0015, 0.001, 0.03]
+                adapt_proposal_during_burnin = "True"
+                proposal_factor_adjustment = "0.4"
+                beta_step = 1
+
+    [inference.thermodynamic_integration_mcmc]
+      seed = "2021"
+      temp_schedule = 'prior'
+      temp_nsteps = 30
+      temp_power = 5
+      N = 300000
+      burnin = 60000
+      marginal_likelihood_samples = 10000
+
+            [inference.thermodynamic_integration_mcmc.transition_kernel]
+                                #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\alpha$',r'$\beta$',r'$\sigma^2$']
+                proposal_stds = [0.015423145325941018, 0.002235183869591796, 0.0011590901746212866, 0.0001385755268634464, 0.0020231891536117287, 0.012264328138797409, 0.04726966443512357]
+                adapt_proposal_during_burnin = "False"
+                proposal_factor_adjustment = "0.4"#"0.4"
+                beta_step = 1
+
+    [inference.priors]
+      [inference.priors.v_f]
+          transformation = "$\\log$"
+          distribution = 'normal'
+          min_log_prob = "-10"
+          min = "0.1"
+          max = "5.0"
+          loc = "2.5"
+          scale = "0.1"
+      [inference.priors.rho_c]
+          transformation = "$\\log$"
+          distribution = 'normal'
+          min_log_prob = "-5"
+          min = "0.1"
+          max = "40"
+          loc = "20"
+          scale = "0.1"
+      [inference.priors.rho_j]
+          transformation = "$\\log$"
+          distribution = 'normal'
+          min_log_prob = "-20"
+          min = "30"
+          max = "60"
+          loc = "45"
+          scale = "0.1"
+      [inference.priors.gamma]
+          transformation = "$\\log$"
+          distribution = 'normal'
+          min_log_prob = "-20"
+          min = "0.1"
+          max = "500"
+          loc = "367"
+          scale = "0.1"
+      [inference.priors.alpha]
+          transformation = "$\\log$"
+          distribution = 'normal'
+          min_log_prob = "-20"
+          min = "0.1"
+          max = "50"
+          loc = "24.0"
+          scale = "0.1"
+      [inference.priors.beta]
+          transformation = "$\\log$"
+          distribution = 'normal'
+          min_log_prob = "-20"
+          min = "0.1"
+          max = "5"
+          loc = "2.0"
+          scale = "0.1"
+      [inference.priors.sigma2]
+          transformation = "$\\log$"
+          distribution = 'normal'
+          min_log_prob = "-20"
+          min = "0.001"
+          max = "1.0"
+          loc = "0.01"
+          scale = "0.001"
+
+  [plot]
+    acf_lags = 100
+    hist_bins = 50

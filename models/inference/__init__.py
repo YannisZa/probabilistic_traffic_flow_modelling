@@ -280,6 +280,8 @@ class MarkovChainMonteCarlo(object):
         ti_proposal_stds = list(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['proposal_stds'])
         p0 = list(self.inference_metadata['inference']['initialisation']['p0'])
         burnin_step = int(self.inference_metadata['inference']['convergence_diagnostic']['burnin_step'])
+        priors = list(self.inference_metadata['inference']['priors'].keys())
+        # assert parallel_chains == 10
 
         # Sanity checks
         if len(lower_bounds) != len(upper_bounds):
@@ -325,7 +327,8 @@ class MarkovChainMonteCarlo(object):
         if any([len(vanilla_proposal_stds) != len(ti_proposal_stds),
             len(ti_proposal_stds) != len(p0),
             len(p0) != len(lower_bounds),
-            len(lower_bounds) != len(upper_bounds)]):
+            len(lower_bounds) != len(upper_bounds),
+            len(upper_bounds) != len(priors)]):
 
             proceed = False
             print('Number of parameters is inconsistent')
@@ -334,6 +337,7 @@ class MarkovChainMonteCarlo(object):
             print('p0',len(p0))
             print('lower_bounds',len(lower_bounds))
             print('upper_bounds',len(upper_bounds))
+            print('Number of priors',len(priors))
 
         if ti_marginal_likelihood_samples >= (ti_N+ti_burnin):
             proceed = False
@@ -403,8 +407,8 @@ class MarkovChainMonteCarlo(object):
         self.update_log_prior_log_pdf()
 
         # Update model transition kernels for vanilla and thermodynamic integration MCMC
-        self.update_transition_kernel(mcmc_type='vanilla_mcmc')
-        self.update_transition_kernel(mcmc_type='thermodynamic_integration_mcmc')
+        self.update_transition_kernel(proposal_stds=list(self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['proposal_stds'])[0:self.num_learning_parameters],mcmc_type='vanilla_mcmc')
+        self.update_transition_kernel(proposal_stds=list(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['proposal_stds'])[0:self.num_learning_parameters],mcmc_type='thermodynamic_integration_mcmc')
 
         # Add results key to metadata
         self.__inference_metadata['results'] = {}
@@ -690,20 +694,29 @@ class MarkovChainMonteCarlo(object):
         p0 = None
         # Read p0 or randomly initialise it from prior
         if utils.has_parameters(['p0'],self.inference_metadata['inference']['initialisation']) and self.inference_metadata['inference']['initialisation']['param_initialisation'] == 'metadata':
+            # Read p0 from toml parameters
             p0 = np.array(self.inference_metadata['inference']['initialisation']['p0'])
-        elif utils.has_parameters(['p0'],self.inference_metadata['inference']['initialisation']) and self.inference_metadata['inference']['initialisation']['param_initialisation'] == 'mle':
+            # Print
+            if prints: print('p0',p0)
+            # Transform p0
+            p0 = self.transform_parameters(p0[0:self.num_learning_parameters],False)
+        elif utils.has_attributes(self,['map_params']) and self.inference_metadata['inference']['initialisation']['param_initialisation'] == 'map':
             # Use MLE estimate
-            p0 = np.array(self.mle_params)
+            p0 = np.array(self.map_params)
+            # Print
+            if prints: print('p0',self.transform_parameters(p0,True))
             # Update metadata
-            utils.update(self.__inference_metadata['inference']['thermodynamic_integration_mcmc'],{'p0':list(p0)})
+            utils.update(self.__inference_metadata['inference']['vanilla_mcmc'],{'p0':list(p0)})
         else:
+            print('vanilla_mcmc sample_from_univariate_priors needs testing')
             # Sample from prior distributions
             p0 = self.sample_from_univariate_priors(1)
+            # Print
+            if prints: print('p0',self.transform_parameters(p0,True))
             # Update metadata
             utils.update(self.__inference_metadata['inference']['vanilla_mcmc'],{'p0':p0})
-
-        # Transform p0
-        p0 = self.transform_parameters(p0[0:self.num_learning_parameters],False)
+            # Transform p0
+            p0 = self.transform_parameters(p0[0:self.num_learning_parameters],False)
 
         # Initialise output variables
         theta = []
@@ -716,9 +729,10 @@ class MarkovChainMonteCarlo(object):
         N = max(int(self.inference_metadata['inference']['vanilla_mcmc']['N']),1)
         burnin = int(self.inference_metadata['inference']['vanilla_mcmc']['burnin'])
 
-        if prints:
-            print('p0',self.transform_parameters(p0,True))
-            print(f'Running MCMC with {N} iterations')
+        # Flag for adapting proposal stds during burnin
+        adapt_proposal_during_burnin = strtobool(self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['adapt_proposal_during_burnin'])
+
+        if prints: print(f'Running MCMC with {N} iterations')
 
         map_log_target = -1e9
         map = np.ones((len(p0)))*1e9
@@ -754,7 +768,30 @@ class MarkovChainMonteCarlo(object):
             if prints and (i in [int(j/10*N) for j in range(1,11)]):
                 print('p_prev',self.transform_parameters(p_prev,True),'lt_prev',lt_prev)
                 print('p_new',self.transform_parameters(p_new,True),'lt_new',lt_new)
-            # sys.exit(1)
+
+            if any(np.isnan(p_prev)) or any(np.isnan(p_new)):
+                print('p_prev',self.transform_parameters(p_prev,True))
+                print('p_new',self.transform_parameters(p_new,True))
+                sys.exit(1)
+
+            # Update proposal stds after burnin
+            if i == burnin:
+                # Get proposal factor adjustment from metadata
+                proposal_factor_adjustment = float(self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['proposal_factor_adjustment'])
+                # Adjust posterior variance during burnin by adjustment factor
+                post_std = np.std(theta[0:burnin],axis=0)*proposal_factor_adjustment
+                # Adjust proposal if flag is true
+                if adapt_proposal_during_burnin:
+                    # Update transition kernel
+                    self.update_transition_kernel(proposal_stds=list(post_std),mcmc_type='vanilla_mcmc',prints=prints)
+                    # Update metadata
+                    utils.update(self.__inference_metadata['results'],{"vanilla_mcmc": {"adapted_proposal_stds":list(post_std)}})
+                if prints:
+                    post_mu = np.mean(theta[0:burnin],axis=0)
+                    post_mu_str = [str(x) for x in post_mu]
+                    post_std_str = [str(x) for x in post_std]
+                    print('Empirical mu during burnin','['+", ".join(post_mu_str)+']')
+                    print('Empirical std during burnin','['+", ".join(post_std_str)+']')
 
             # Add proposal to relevant array
             theta_proposed.append(p_new)
@@ -847,22 +884,27 @@ class MarkovChainMonteCarlo(object):
         if utils.has_parameters(['p0'],self.inference_metadata['inference']['initialisation']) and self.inference_metadata['inference']['initialisation']['param_initialisation'] == 'metadata':
             # Use p0 from inference metadata
             p0 = np.array(self.inference_metadata['inference']['initialisation']['p0'])[0:self.num_learning_parameters]
+            # Print
+            if prints: print('p0',p0)
             # Transform p0
             p0 = self.transform_parameters(p0,False)
             # Repeat n times
             p0 = np.repeat([p0],t_len,axis=0)
-        elif utils.has_parameters(['p0'],self.inference_metadata['inference']['initialisation']) and self.inference_metadata['inference']['initialisation']['param_initialisation'] == 'mle':
+        elif utils.has_attributes(self,['map_params']) and self.inference_metadata['inference']['initialisation']['param_initialisation'] == 'map':
             # Use MLE estimate
-            p0 = np.array(self.mle_params)
-            # Transform p0
-            p0 = self.transform_parameters(p0,False)
+            p0 = np.array(self.map_params)
+            # Print
+            if prints: print('p0',self.transform_parameters(p0,True))
             # Update metadata
             utils.update(self.__inference_metadata['inference']['thermodynamic_integration_mcmc'],{'p0':list(p0)})
             # Repeat n times
             p0 = np.repeat([p0],t_len,axis=0)
         else:
+            print('thermodynamic_integration_mcmc sample_from_univariate_priors needs testing')
             # Sample from prior distributions
             p0 = self.sample_from_univariate_priors(t_len).reshape((t_len,self.num_learning_parameters))
+            # Print
+            if prints: print('p0',p0)
             # Transform p0
             p0 = np.array([self.transform_parameters(p0[0:self.num_learning_parameters,t],False) for t in range(len(self.temperature_schedule))])
             # Update metadata
@@ -874,15 +916,15 @@ class MarkovChainMonteCarlo(object):
         N = np.max([int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['N']),1])
         burnin = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin'])
 
+        # Flag for adapting proposal stds during burnin
+        adapt_proposal_during_burnin = strtobool(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['adapt_proposal_during_burnin'])
 
         # Initialise output variables
         theta = np.zeros((N,t_len,self.num_learning_parameters))
         theta_proposed = np.zeros((N,t_len,self.num_learning_parameters))
         acc,prop = np.zeros(t_len),np.zeros(t_len)
 
-        if prints:
-            print('p0',p_prev)
-            print(f'Running Thermodynamic Integration MCMC with {N} iterations')
+        if prints: print(f'Running Thermodynamic Integration MCMC with {N} iterations')
 
         # Loop through MCMC iterations
         for i in tqdm(range(N)):
@@ -944,6 +986,24 @@ class MarkovChainMonteCarlo(object):
                 print(f'Total acceptance rate {int(100*np.sum(acc) / np.sum(prop))}%')
                 print(f'Temperature acceptance rate {int(100*acc[random_t_index] / prop[random_t_index])}%')
 
+            # Update proposal stds after burnin
+            if i == (burnin-1):
+                # Get proposal factor adjustment from metadata
+                proposal_factor_adjustment = float(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['proposal_factor_adjustment'])
+                # Adjust posterior variance during burnin by adjustment factor
+                post_std = np.std(theta[0:burnin,:,:],axis=(0,1))*proposal_factor_adjustment
+                # Adjust proposal if flag is true
+                if adapt_proposal_during_burnin:
+                    # Update transition kernel
+                    self.update_transition_kernel(proposal_stds=list(post_std),mcmc_type='thermodynamic_integration_mcmc',prints=prints)
+                    # Update metadata
+                    utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"adapted_proposal_stds":list(post_std)}})
+                if prints:
+                    post_mu = np.mean(theta[0:burnin,:,:],axis=(0,1))
+                    post_mu_str = [str(x) for x in post_mu]
+                    post_std_str = [str(x) for x in post_std]
+                    print('Empirical mu during burnin','['+", ".join(post_mu_str)+']')
+                    print('Empirical std during burnin','['+", ".join(post_std_str)+']')
 
         # Update class attributes
         self.thermodynamic_integration_theta = np.array(theta).reshape((N,t_len,self.num_learning_parameters))
@@ -953,13 +1013,14 @@ class MarkovChainMonteCarlo(object):
         utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"acceptance_rate":int(100*(np.sum(acc) / np.sum(prop)))}})
         #"acceptances":list(acc)},"proposals":list(prop)})
 
-        result_summary = {"thermodynamic_integration_mcmc":{}}
-        for i in range(self.num_learning_parameters):
-            # Parameter name
-            param_name = utils.remove_characters(self.parameter_names[i],latex_characters)
-            result_summary['thermodynamic_integration_mcmc'][param_name] = {"mean":list(np.mean(self.thermodynamic_integration_theta[:,:,i],axis=0)),"std":list(np.std(self.thermodynamic_integration_theta[:,:,i],axis=0))}
-        # Update metadata on results
-        utils.update(self.__inference_metadata['results'],result_summary)
+        # Store posterior mean and variance for each temperature and parameter
+        # result_summary = {"thermodynamic_integration_mcmc":{}}
+        # for i in range(self.num_learning_parameters):
+        #     # Parameter name
+        #     param_name = utils.remove_characters(self.parameter_names[i],latex_characters)
+        #     result_summary['thermodynamic_integration_mcmc'][param_name] = {"mean":list(np.mean(self.thermodynamic_integration_theta[:,:,i],axis=0)),"std":list(np.std(self.thermodynamic_integration_theta[:,:,i],axis=0))}
+        # # Update metadata on results
+        # utils.update(self.__inference_metadata['results'],result_summary)
 
         if prints:
             print(f'Total acceptance rate {int(100*(np.sum(acc) / np.sum(prop)))}%')
@@ -1050,24 +1111,6 @@ class MarkovChainMonteCarlo(object):
         # Optimise parameters for negative_log_target
         map = fmin(negative_log_target, p0, disp = False)[0:self.num_learning_parameters]
 
-
-        # testp = np.log([2, 38.3])
-        # print(testp)
-        # print(self.evaluate_log_likelihood(testp))
-        # sys.exit(1)
-
-        # rjs = np.linspace(40,55,10000)
-        # ll = []
-        # for i in range(len(rjs)):
-        #     ll.append(self.evaluate_log_likelihood([np.log(1),self.transformations[1][0](rjs[i])]))
-        # ll = np.array(ll)
-        #
-        # plt.figure(figsize=(10,10))
-        # plt.plot(rjs,ll)
-        # plt.vlines(self.true_parameters[1],np.min(ll[np.isfinite(ll)]),np.max(ll[np.isfinite(ll)]),color='red')
-        # plt.show()
-        # sys.exit(1)
-
         # Get parameters
         self.map_params = map
         # Evaluate log target
@@ -1139,16 +1182,15 @@ class MarkovChainMonteCarlo(object):
         log_marginal_likelihoods_var = np.var(log_marginal_likelihoods)
 
         # Update metadata
-        utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"log_marginal_likelihoods":list(log_marginal_likelihoods),"log_marginal_likelihood_mean":float(log_marginal_likelihoods_mean),"log_marginal_likelihood_var":float(log_marginal_likelihoods_var)}})
+        utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"log_marginal_likelihoods":list(log_marginal_likelihoods),"log_marginal_likelihoods_mean":float(log_marginal_likelihoods_mean),"log_marginal_likelihoods_var":float(log_marginal_likelihoods_var)}})
 
         if prints:
             # Print log marginal likelihood
-            print(f'Log marginal likelihoods = {log_marginal_likelihoods}')
-            print(f'Log marginal likelihoods mean = {log_marginal_likelihoods_mean}')
-            print(f'Log marginal likelihoods var = {log_marginal_likelihoods_var}')
+            # print(f'Log marginal likelihoods = {log_marginal_likelihoods}')
+            print(f'Log marginal likelihoods: mean = {log_marginal_likelihoods_mean}, var = {log_marginal_likelihoods_var}')
             # Print time execution
-            toc = time.perf_counter()
-            print(f"Computed posterior harmonic mean estimator in {toc - tic:0.4f} seconds")
+            # toc = time.perf_counter()
+            # print(f"Computed posterior harmonic mean estimator in {toc - tic:0.4f} seconds")
 
         return log_marginal_likelihoods
 
@@ -1212,12 +1254,11 @@ class MarkovChainMonteCarlo(object):
 
         if prints:
             # Print log marginal likelihood
-            print(f'Log marginal likelihoods = {log_marginal_likelihoods}')
-            print(f'Log marginal likelihoods mean = {log_marginal_likelihoods_mean}')
-            print(f'Log marginal likelihoods var = {log_marginal_likelihoods_var}')
+            # print(f'Log marginal likelihoods = {log_marginal_likelihoods}')
+            print(f'Log marginal likelihoods: mean = {log_marginal_likelihoods_mean}, var = {log_marginal_likelihoods_var}')
             # Print time execution
-            toc = time.perf_counter()
-            print(f"Computed thermodynamic integration marginal likelihood estimator in {toc - tic:0.4f} seconds")
+            # toc = time.perf_counter()
+            # print(f"Computed thermodynamic integration marginal likelihood estimator in {toc - tic:0.4f} seconds")
 
         return log_marginal_likelihoods
 
@@ -1904,6 +1945,9 @@ class MarkovChainMonteCarlo(object):
                 figs.append({"parameters":[utils.remove_characters(transformation_0,latex_characters)+parameter_names[i][0],utils.remove_characters(transformation_1,latex_characters)+parameter_names[i][1],f'temperature_{tj}'],"figure":fig})
                 # Close current plot
                 plt.close(fig)
+
+                # REMOVE THIS BEFORE FORMAL EXPERIMENTS
+                if tj > 0: break
 
         return figs
 

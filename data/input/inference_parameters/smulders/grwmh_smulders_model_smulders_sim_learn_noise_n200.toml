@@ -1,13 +1,13 @@
-id = "grwmh_wangs_model_wangs_sim_learn_noise"
+id = "grwmh_smulders_model_smulders_sim_learn_noise_n200"
 inference_model = "grwmh"
-data_id = "wangs_fd_log_simulation"
-data_fundamental_diagram = "wangs"
-fundamental_diagram = "wangs"
+data_id = "smulders_fd_log_simulation_n200"
+data_fundamental_diagram = "smulders"
+fundamental_diagram = "smulders"
 learn_noise = "True"
 
 [inference]
     [inference.initialisation]
-      p0 = [1.0,40.0,45.0,0.1]
+      p0 = [1.5,15.0,45.0,16.0,0.1]
       param_initialisation = "metadata"
 
     [inference.likelihood]
@@ -18,8 +18,17 @@ learn_noise = "True"
       action = '' # 'reflect', 'reject', ''
 
     [inference.parameter_constraints]
-      lower_bounds = ['0','0','0','0']
-      upper_bounds = ['inf','inf','inf','inf']
+      lower_bounds = ['0','0','0','0','0']
+      upper_bounds = ['inf','inf','inf','inf','inf']
+      [inference.parameter_constraints.implicit]
+          [inference.parameter_constraints.implicit.constraint1]
+            lhs = 'rho_j'
+            operator = '>'
+            rhs = 'rho_c'
+          [inference.parameter_constraints.implicit.constraint2]
+            lhs = 'rho_j'
+            operator = '>'
+            rhs = 'max_x'
 
     [inference.convergence_diagnostic]
         r_critical = 1.1
@@ -35,8 +44,11 @@ learn_noise = "True"
       marginal_likelihood_samples = 10000
 
             [inference.vanilla_mcmc.transition_kernel]
-                proposal_stds = [0.007, 0.002, 0.005 , 0.04]
+                                #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\sigma^2$']
+                proposal_stds = [0.005, 0.008, 0.002, 0.005, 0.04]
                 beta_step = 1
+                adapt_proposal_during_burnin = "False"
+                proposal_factor_adjustment = "0.4"
 
     [inference.thermodynamic_integration_mcmc]
       seed = "2021"
@@ -48,34 +60,45 @@ learn_noise = "True"
       marginal_likelihood_samples = 10000
 
             [inference.thermodynamic_integration_mcmc.transition_kernel]
-                proposal_stds = [0.02, 0.005, 0.015 , 0.07]
+                                #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\sigma^2$']
+                proposal_stds = [0.02, 0.025, 0.01, 0.015, 0.07]
                 beta_step = 1
+                adapt_proposal_during_burnin = "False"
+                proposal_factor_adjustment = "0.4"
 
     [inference.priors]
         [inference.priors.v_f]
             transformation = "$\\log$"
             distribution = 'normal'
-            min_log_prob = "-20"
-            min = "0.01"
-            max = "4.0"
-            loc = "1.1"
+            min_log_prob = "-10"
+            min = "0.1"
+            max = "5.0"
+            loc = "1.5"
             scale = "0.1"
         [inference.priors.rho_c]
             transformation = "$\\log$"
             distribution = 'normal'
-            min_log_prob = "-20"
-            min = "5"
-            max = "40"
-            loc = "22.6"
+            min_log_prob = "-5"
+            min = "0.1"
+            max = "30"
+            loc = "15"
             scale = "1"
-        [inference.priors.theta]
+        [inference.priors.rho_j]
+            transformation = "$\\log$"
+            distribution = 'normal'
+            min_log_prob = "-20"
+            min = "30"
+            max = "60"
+            loc = "45"
+            scale = "1"
+        [inference.priors.gamma]
             transformation = "$\\log$"
             distribution = 'normal'
             min_log_prob = "-20"
             min = "0.1"
-            max = "10.0"
-            loc = "4.0"
-            scale = "0.1"
+            max = "30"
+            loc = "16"
+            scale = "1"
         [inference.priors.sigma2]
             transformation = "$\\log$"
             distribution = 'normal'

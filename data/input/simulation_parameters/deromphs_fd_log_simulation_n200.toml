@@ -1,0 +1,27 @@
+id = "deromphs_fd_log_simulation"
+fundamental_diagram = "deromphs"
+simulation_flag = "True"
+seed = "2021"
+
+[ols]
+  p0 = [2.5,20.0,45.0,367.0,24.0,2.0,0.1]
+  method = ''
+
+[error]
+  iid = "True"
+  multiplicative = "True"
+
+[rho]
+  [rho.interval1]
+    rho_min = "0.1"
+    rho_max = "40"
+    rho_steps = 200
+
+[true_parameters]
+  v_f = "2.5"
+  rho_c = "20.0"
+  rho_j = "45.0"
+  gamma = "367.0"
+  alpha = "24.0"
+  beta = "2.0"
+  sigma2 = "0.01"

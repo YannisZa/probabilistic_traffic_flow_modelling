@@ -66,7 +66,7 @@ class DaganzosFD(FundamentalDiagram):
     def hessian(self,p):
         return [0 for i in range(len(super().rho))]
 
-class DelCastillos(FundamentalDiagram):
+class DelCastillosFD(FundamentalDiagram):
     pass
 
     def __init__(self,data_id):
@@ -90,7 +90,7 @@ class DelCastillos(FundamentalDiagram):
         return num/denum
 
 
-class Greenbergs(FundamentalDiagram):
+class GreenbergsFD(FundamentalDiagram):
     pass
 
     def __init__(self,data_id):
@@ -112,7 +112,7 @@ class Greenbergs(FundamentalDiagram):
         return - p[1]/super().rho
 
 
-class Underwoods(FundamentalDiagram):
+class UnderwoodsFD(FundamentalDiagram):
     pass
 
     def __init__(self,data_id):
@@ -134,7 +134,7 @@ class Underwoods(FundamentalDiagram):
         return (p[0]/(p[1])**2)*(super().rho-2*p[1])*np.exp(-super().rho/p[1])
 
 
-class Northwesterns(FundamentalDiagram):
+class NorthwesternsFD(FundamentalDiagram):
     pass
 
     def __init__(self,data_id):
@@ -155,7 +155,7 @@ class Northwesterns(FundamentalDiagram):
     def hessian(self,p):
         return ( p[1]*super().rho * (super().rho**2 - 3*(p[1])**2) * np.exp(-0.5*(super().rho/p[1])**2) ) / (p[1])**4
 
-class Newells(FundamentalDiagram):
+class NewellsFD(FundamentalDiagram):
     pass
 
     def __init__(self,data_id):
@@ -165,19 +165,19 @@ class Newells(FundamentalDiagram):
         FundamentalDiagram.parameter_names.fset(self, [r'$v_f$',r'$\lambda$',r'$\rho_j$',r'$\sigma^2$'])
 
     def simulate(self,p):
-        return p[0] * super().rho * ( 1 - np.exp( - (p[1]/p[0]) * ( (1/super().rho) - (1/p[2])) ) )
+        return p[0] * super().rho * ( 1 - np.exp( - (p[1]/p[0]) * ( (1./super().rho) - (1./p[2])) ) )
 
     def log_simulate(self,p):
-        return np.log(p[0]) + np.log(super().rho) + np.log( 1 - np.exp( -(p[1]/p[0]) * ( (1/super().rho) - (1/p[2])) ) )
+        return np.log(p[0]) + np.log(super().rho) + np.log( 1 - np.exp( -(p[1]/p[0]) * ( (1./super().rho) - (1/p[2])) ) )
 
     def log_simulate_with_x(self,p,rho):
-        return np.log(p[0]) + np.log(rho) + np.log( 1 - np.exp( -(p[1]/p[0]) * ( (1/rho) - (1/p[2])) ) )
+        return np.log(p[0]) + np.log(rho) + np.log( 1 - np.exp( -(p[1]/p[0]) * ( (1./rho) - (1./p[2])) ) )
 
     def hessian(self,p):
         return -(p[1]**2)/(p[0])*np.exp( -(p[1]/p[0])*((1/super().rho) - (1/p[2]))**2 )
 
 
-class Wangs(FundamentalDiagram):
+class WangsFD(FundamentalDiagram):
     pass
 
     def __init__(self,data_id):
@@ -187,7 +187,7 @@ class Wangs(FundamentalDiagram):
         FundamentalDiagram.parameter_names.fset(self, [r'$v_f$',r'$\rho_c$',r'$\theta$',r'$\sigma^2$'])
 
     def simulate(self,p):
-        return p[0] * super().rho * ( 1  / ( 1 + np.exp( (super().rho - p[1]) / p[2] ) ) )
+        return p[0] * super().rho * ( 1.  / ( 1 + np.exp( (super().rho - p[1]) / p[2] ) ) )
 
     def log_simulate(self,p):
         return np.log(p[0]) + np.log(super().rho) - np.log( 1 + np.exp( (super().rho - p[1]) / p[2] ) )
@@ -199,3 +199,46 @@ class Wangs(FundamentalDiagram):
         num = p[0] * np.exp((super().rho-p[1])/p[2]) * ( (super().rho - 2*p[2])*np.exp((super().rho-p[1])/p[2]) - super().rho - 2*p[2])
         den = p[2]**2 * ( np.exp((super().rho-p[1])/p[2]) + 1 )**3
         return num/den
+
+
+class SmuldersFD(FundamentalDiagram):
+    pass
+
+    def __init__(self,data_id):
+        super().__init__(data_id)
+        FundamentalDiagram.name.fset(self, 'smulders')
+        FundamentalDiagram.num_learning_parameters.fset(self, 5)
+        FundamentalDiagram.parameter_names.fset(self, [r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\sigma^2$'])
+
+    def simulate(self,p):
+        return np.array([ p[0]*r*(1-r/p[2]) if r < p[1] else p[3]*r*(1./r-1./p[2]) for r in super().rho])
+
+    def log_simulate(self,p):
+        return np.array([ np.log(p[0])+np.log(r)+np.log(1-r/p[2]) if r < p[1] else np.log(p[3])+np.log(r)+np.log(1/r-1/p[2]) for r in super().rho])
+
+    def log_simulate_with_x(self,p,rho):
+        return np.array([ np.log(p[0])+np.log(r)+np.log(1-r/p[2]) if r < p[1] else np.log(p[3])+np.log(r)+np.log(1/r-1/p[2]) for r in rho])
+
+    def hessian(self,p):
+        return np.array([ -2*(p[0]/p[2]) if r < p[1] else 0 for r in super().rho])
+
+class DeRomphsFD(FundamentalDiagram):
+    pass
+
+    def __init__(self,data_id):
+        super().__init__(data_id)
+        FundamentalDiagram.name.fset(self, 'deromphs')
+        FundamentalDiagram.num_learning_parameters.fset(self, 7)
+        FundamentalDiagram.parameter_names.fset(self, [r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\alpha$',r'$\beta$',r'$\sigma^2$'])
+
+    def simulate(self,p):
+        return np.array([ p[0]*r*(1-r/p[4]) if r < p[1] else p[3]*r*(1./r-1./p[2])**p[5] for r in super().rho])
+
+    def log_simulate(self,p):
+        return np.array([ np.log(p[0])+np.log(r)+np.log(1-r/p[4]) if r < p[1] else np.log(p[3])+np.log(r)+p[5]*np.log(1./r-1./p[2]) for r in super().rho])
+
+    def log_simulate_with_x(self,p,rho):
+        return np.array([ np.log(p[0])+np.log(r)+np.log(1-r/p[4]) if r < p[1] else np.log(p[3])+np.log(r)+p[5]*np.log(1./r-1./p[2]) for r in rho])
+
+    def hessian(self,p):
+        return np.array([ -2*(p[0]/p[4]) if r < p[1] else ( (p[5]-1)*p[5]*p[3]*(p[2])**2*(1./r-1./p[2])**p[5] )/ ( r*(r-p[2])**2 ) for r in super().rho])

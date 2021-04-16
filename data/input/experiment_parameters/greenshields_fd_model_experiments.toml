@@ -1,16 +1,21 @@
 id = "greenshields_fd_model_experiments"
-inference_ids = ["grwmh_greenshields_model_greenshields_sim_learn_noise","grwmh_greenshields_model_exponential_sim_learn_noise"]
-data_ids = ["greenshields_fd_log_simulation","exponential_fd_log_simulation"]
+inference_ids = ["grwmh_greenshields_model_greenshields_sim_learn_noise_n200","grwmh_greenshields_model_exponential_sim_learn_noise_n200"]
+data_ids = ["greenshields_fd_log_simulation_n200","exponential_fd_log_simulation_n200"]
 
   [routines]
     generate_data = "False"
     run_inference = "True"
+    compile_marginal_likelihood_matrix = "True"
+
+  [experiment_summary]
+    export = "False"
+    print = "False"
 
   [data_simulation]
     plot_log_data = "False"
     show_plot = "False"
     show_sim_param = "False"
-    print = "True"
+    print = "False"
 
   [priors]
     export = "True"

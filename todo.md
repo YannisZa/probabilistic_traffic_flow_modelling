@@ -1,9 +1,11 @@
 # Bugs
 
 ## Urgent
-- Check Greenshield's FD convergence
+
+- Make De Romph's thermodynamic integration mcmc to converge
 
 ## Non-urgent
+
 
 # Extensions
 
@@ -18,32 +20,32 @@
  - [x]: Northwestern's FD
  - [x]: Newell's FD
  - [x]: Wang's FD
- - []: Smulder's velocity FD
+ - [x]: Smulder's velocity FD
  - []: DeRomph's FD
-
-- Implement discontinuous versions of Daganzo's, Smulder's, De Romph's ?
 
 - Ammend FD-specific experiment toml files to reflect all existing datasets and inference metadata
 
-
 ## Non-urgent
+- Rename vanilla mcmc to metropolis_hastings
 - Write validate attribute and parameter statements where necessary
 - Write tests for important functions
 
 ## Nice-to-have
 - Allow construction of non-diagonal covariance matrices
-- Allow transition kernel not to be symmetric - incroporate it into acceptance probability
+- Allow transition kernel not to be symmetric - incorporate it into acceptance probability
 
 # Tidying up
 
 ## Urgent
 
 ## Non-urgent
+- Add explainer doc for toml files
+- Readme file for running code 
+- List of all FDs with their references
 
 # Testing
 
 ## Urgent
-- Exponential FD inference using updated code and toml files
 
 ## Non urgent
 - All experiments using identity parameter transformation

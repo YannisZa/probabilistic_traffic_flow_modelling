@@ -1,26 +1,35 @@
 id = "diagonal_marginal_likelihood_experiments"
-inference_ids = ["grwmh_exponential_model_exponential_sim_learn_noise",
-                  "grwmh_greenshields_model_greenshields_sim_learn_noise",
-                  "grwmh_daganzos_model_daganzos_sim_learn_noise",
-                  "grwmh_delcastillos_model_delcastillos_sim_learn_noise",
-                  "grwmh_greenbergs_model_greenbergs_sim_learn_noise",
-                  "grwmh_underwoods_model_underwoods_sim_learn_noise",
-                  "grwmh_northwesterns_model_northwesterns_sim_learn_noise",
-                  "grwmh_newells_model_newells_sim_learn_noise",
-                  "grwmh_wangs_model_wangs_sim_learn_noise"]
-data_ids = ["exponential_fd_log_simulation",
-            "greenshields_fd_log_simulation",
-            "daganzos_fd_log_simulation",
-            "delcastillos_fd_log_simulation",
-            "greenbergs_fd_log_simulation",
-            "underwoods_fd_log_simulation",
-            "northwesterns_fd_log_simulation",
-            "newells_fd_log_simulation",
-            "wangs_fd_log_simulation"]
+inference_ids = ["grwmh_exponential_model_exponential_sim_learn_noise_n200",
+                  "grwmh_greenshields_model_greenshields_sim_learn_noise_n200",
+                  "grwmh_daganzos_model_daganzos_sim_learn_noise_n200",
+                  "grwmh_delcastillos_model_delcastillos_sim_learn_noise_n200",
+                  "grwmh_greenbergs_model_greenbergs_sim_learn_noise_n200",
+                  "grwmh_underwoods_model_underwoods_sim_learn_noise_n200",
+                  "grwmh_northwesterns_model_northwesterns_sim_learn_noise_n200",
+                  "grwmh_newells_model_newells_sim_learn_noise_n200",
+                  "grwmh_wangs_model_wangs_sim_learn_noise_n200",
+                  "grwmh_smulders_model_smulders_sim_learn_noise_n200"]#,
+                  #"grwmh_deromphs_model_deromphs_sim_learn_noise"]
+data_ids = ["exponential_fd_log_simulation_n200",
+            "greenshields_fd_log_simulation_n200",
+            "daganzos_fd_log_simulation_n200",
+            "delcastillos_fd_log_simulation_n200",
+            "greenbergs_fd_log_simulation_n200",
+            "underwoods_fd_log_simulation_n200",
+            "northwesterns_fd_log_simulation_n200",
+            "newells_fd_log_simulation_n200",
+            "wangs_fd_log_simulation_n200",
+            "smulders_fd_log_simulation_n200"]#,
+            #"deromphs_fd_log_simulation_n200"]
 
   [routines]
     generate_data = "False"
-    run_inference = "True"
+    run_inference = "False"
+    compile_marginal_likelihood_matrix = "True"
+
+  [experiment_summary]
+    export = "True"
+    print = "True"
 
   [data_simulation]
     plot_log_data = "False"
@@ -57,7 +66,7 @@ data_ids = ["exponential_fd_log_simulation",
         export = "False"
         show_plot = "False"
         show_title = "True"
-        print = "True"
+        print = "False"
 
       [vanilla_mcmc.marginal_likelihood]
         compute = "True"
@@ -75,7 +84,7 @@ data_ids = ["exponential_fd_log_simulation",
         export = "False"
         show_plot = "False"
         show_title = "True"
-        print = "True"
+        print = "False"
 
     [thermodynamic_integration_mcmc.marginal_likelihood]
         compute = "True"

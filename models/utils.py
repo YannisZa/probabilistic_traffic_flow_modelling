@@ -74,7 +74,7 @@ def instantiate_fundamental_diagram(data_id,model:str=''):
 def instantiate_inference_method(inference_id):
 
     # Get model name from inference_id
-    model_name = inference_id.split('_',1)[1].split('_model',1)[0]
+    model_name = inference_id.split('_model',1)[0].split("_",1)[1]
 
     # Load inference parameters
     inference_params = import_inference_metadata(model=model_name,inference_id=inference_id)
@@ -167,24 +167,28 @@ def map_name_to_fundamental_diagram(name):
     elif name == 'daganzos':
         return DaganzosFD
     elif name == 'delcastillos':
-        return DelCastillos
+        return DelCastillosFD
     elif name == 'greenbergs':
-        return Greenbergs
+        return GreenbergsFD
     elif name == 'underwoods':
-        return Underwoods
+        return UnderwoodsFD
     elif name == 'northwesterns':
-        return Northwesterns
+        return NorthwesternsFD
     elif name == 'newells':
-        return Newells
+        return NewellsFD
     elif name == 'wangs':
-        return Wangs
+        return WangsFD
+    elif name == 'smulders':
+        return SmuldersFD
+    elif name == 'deromphs':
+        return DeRomphsFD
     else:
         raise Exception(f'No fundamental diagram model found for {name.lower()}')
 
 def map_name_to_inference_method(name):
 
-    if name.lower() == 'grwmh':
-        return GaussianRandomWalkMetropolisHastings
+    if any([x in name.lower() for x in ['mh','metropolis_hastings']]):
+        return MetropolisHastings
     else:
         raise Exception(f'No probability distribution found for {name.lower()}')
 
@@ -360,6 +364,13 @@ def prepare_output_experiment_simulation_filename(experiment_id,**kwargs):
     # Return simulation filename
     return output_folder
 
+def prepare_output_experiment_summary_filename(experiment_id):
+    # Define output folder path
+    output_folder = os.path.join(root,'data/output/experiment_data',experiment_id+'/')
+    # Create new folder if it doesn't exist
+    ensure_dir(output_folder)
+    # Return simulation filename
+    return output_folder
 
 """ ---------------------------------------------------------------------------Import metadata from file-----------------------------------------------------------------------------"""
 

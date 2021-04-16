@@ -1,6 +1,6 @@
-id = "grwmh_greenbergs_model_greenbergs_sim_learn_noise"
+id = "grwmh_greenbergs_model_greenbergs_sim_learn_noise_n200"
 inference_model = "grwmh"
-data_id = "greenbergs_fd_log_simulation"
+data_id = "greenbergs_fd_log_simulation_n200"
 data_fundamental_diagram = "greenbergs"
 fundamental_diagram = "greenbergs"
 learn_noise = "True"
@@ -42,6 +42,8 @@ learn_noise = "True"
             [inference.vanilla_mcmc.transition_kernel]
                 proposal_stds = [0.01, 0.003, 0.04]
                 beta_step = 1
+                adapt_proposal_during_burnin = "False"
+                proposal_factor_adjustment = "0.4"
 
     [inference.thermodynamic_integration_mcmc]
       seed = "2021"
@@ -50,11 +52,13 @@ learn_noise = "True"
       temp_power = 5
       N = 300000
       burnin = 60000
-      marginal_likelihood_samples = 100000
+      marginal_likelihood_samples = 10000
 
             [inference.thermodynamic_integration_mcmc.transition_kernel]
                 proposal_stds = [0.025, 0.01, 0.07]
                 beta_step = 1
+                adapt_proposal_during_burnin = "False"
+                proposal_factor_adjustment = "0.4"
 
     [inference.priors]
         [inference.priors.v_f]
