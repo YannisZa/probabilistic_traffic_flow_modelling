@@ -294,6 +294,8 @@ class Experiment(object):
             data_fd = inference_id.split('_sim',1)[0].split("_",-1)[1]
             # Get inference model name
             inference_fd = inference_id.split('_model',1)[0].split("_",1)[1]
+            # Get inference id ending - this describes things like number of data points, prior specification etc.
+            experiment_type = inference_id.split('_sim_learn_noise',1)[1]
 
             if prints: print('data_fd',data_fd,'inference_fd',inference_fd)
 
@@ -392,5 +394,6 @@ class Experiment(object):
 
         # Export to file
         if export:
-            vanilla_mcmc_lmls_df.to_csv(filename+'posterior_harmonic_mean_marginal_likelihoood_estimator.csv')
-            ti_mcmc_lmls_df.to_csv(filename+'thermodynamic_integral_marginal_likelihoood_estimator.csv')
+            # CAREFUL: experiment_type is based on the last inference id
+            vanilla_mcmc_lmls_df.to_csv(filename+f'posterior_harmonic_mean_marginal_likelihoood_estimator{experiment_type}.csv')
+            ti_mcmc_lmls_df.to_csv(filename+f'thermodynamic_integral_marginal_likelihoood_estimator{experiment_type}.csv')
