@@ -1,4 +1,4 @@
-id = "daganzos_fd_log_simulation"
+id = "daganzos_fd_log_simulation_n200"
 fundamental_diagram = "daganzos"
 simulation_flag = "True"
 seed = "2021"

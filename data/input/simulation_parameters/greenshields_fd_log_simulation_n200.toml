@@ -1,4 +1,4 @@
-id = "greenshields_fd_log_simulation"
+id = "greenshields_fd_log_simulation_n200"
 fundamental_diagram = "greenshields"
 simulation_flag = "True"
 seed = "2021"

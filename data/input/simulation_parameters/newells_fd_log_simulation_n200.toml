@@ -1,4 +1,4 @@
-id = "newells_fd_log_simulation"
+id = "newells_fd_log_simulation_n200"
 fundamental_diagram = "newells"
 simulation_flag = "True"
 seed = "2021"

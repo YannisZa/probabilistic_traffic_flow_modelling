@@ -10,7 +10,7 @@ learn_noise = "True"
 [inference]
     [inference.initialisation]
       p0 = [2.5298210665658303, 20.000434976585087, 44.859818000701594, 367.00065028798514, 24.012698116711594, 1.996147450592182, 0.009851938584854647]
-      param_initialisation = "metadata" # "metadata", "map", ""
+      param_initialisation = "map" # "metadata", "map", ""
 
     [inference.likelihood]
         type = 'mnormal'
@@ -68,7 +68,7 @@ learn_noise = "True"
             [inference.thermodynamic_integration_mcmc.transition_kernel]
                                 #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\alpha$',r'$\beta$',r'$\sigma^2$']
                 proposal_stds = [0.015423145325941018, 0.002235183869591796, 0.0011590901746212866, 0.0001385755268634464, 0.0020231891536117287, 0.012264328138797409, 0.04726966443512357]
-                adapt_proposal_during_burnin = "False"
+                adapt_proposal_during_burnin = "True"
                 proposal_factor_adjustment = "0.4"#"0.4"
                 beta_step = 1
 
@@ -88,7 +88,7 @@ learn_noise = "True"
           min = "0.1"
           max = "40"
           loc = "20"
-          scale = "0.1"
+          scale = "1.0"
       [inference.priors.rho_j]
           transformation = "$\\log$"
           distribution = 'normal'
@@ -96,7 +96,7 @@ learn_noise = "True"
           min = "30"
           max = "60"
           loc = "45"
-          scale = "0.1"
+          scale = "1.0"
       [inference.priors.gamma]
           transformation = "$\\log$"
           distribution = 'normal'
@@ -104,7 +104,7 @@ learn_noise = "True"
           min = "0.1"
           max = "500"
           loc = "367"
-          scale = "0.1"
+          scale = "1.0"
       [inference.priors.alpha]
           transformation = "$\\log$"
           distribution = 'normal'
@@ -112,7 +112,7 @@ learn_noise = "True"
           min = "0.1"
           max = "50"
           loc = "24.0"
-          scale = "0.1"
+          scale = "1.0"
       [inference.priors.beta]
           transformation = "$\\log$"
           distribution = 'normal'
