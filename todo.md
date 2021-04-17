@@ -2,10 +2,7 @@
 
 ## Urgent
 
-- Make De Romph's thermodynamic integration mcmc to converge
-
 ## Non-urgent
-
 
 # Extensions
 
@@ -21,7 +18,7 @@
  - [x]: Newell's FD
  - [x]: Wang's FD
  - [x]: Smulder's velocity FD
- - []: DeRomph's FD
+ - [x]: DeRomph's FD
 
 - Ammend FD-specific experiment toml files to reflect all existing datasets and inference metadata
 
@@ -50,4 +47,6 @@
 ## Non urgent
 - All experiments using identity parameter transformation
 - MLE parameter initialisation in vanilla/thermodynamic mcmc
+
+
 

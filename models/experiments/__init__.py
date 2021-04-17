@@ -1,6 +1,7 @@
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import re
 import time
 import toml
 import json
@@ -339,7 +340,8 @@ class Experiment(object):
             ti_mcmc_converged = all([bool(inference_metadata['results']['thermodynamic_integration_mcmc']['converged']),
                                         int(inference_metadata['results']['thermodynamic_integration_mcmc']['burnin']) <= int(inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin']),
                                         float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) >= 40.0,
-                                        float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) <= 50.0])
+                                        float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) <= 55.0])
+
 
             # Add log marginal likelihood mean and var to records only if convergence was achieved
             if ti_mcmc_converged:

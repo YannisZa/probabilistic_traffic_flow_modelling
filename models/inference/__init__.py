@@ -12,6 +12,7 @@ import warnings
 import itertools
 import collections.abc
 import numpy as np
+import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import multiprocessing as mp
@@ -833,7 +834,9 @@ class MarkovChainMonteCarlo(object):
         if prints:
             print(f'Acceptance rate {int(100*(acc / N))}%')
             print('Posterior means', self.transform_parameters(np.mean(self.theta[burnin:,:],axis=0),True))
-            print('Posterior stds', np.std(self.theta[burnin:,:],axis=0))
+            post_stds = np.std(self.theta[burnin:,:],axis=0)*proposal_factor_adjustment
+            post_std_str = [str(x) for x in post_std]
+            print('Posterior stds','['+", ".join(post_std_str)+']')
             print('MAP', self.transform_parameters(map,True))
             print('MAP log target', map_log_target)
 
@@ -1322,7 +1325,8 @@ class MarkovChainMonteCarlo(object):
             # Print if chains have converged
             if all(r_stat < r_critical):
                 if prints:
-                    print(r'Vanilla MCMC chains have converged with $\hat{R}$=',r_stat,'!')
+                    print(r'Vanilla MCMC chains have converged!')
+                    print(pd.DataFrame(r_stat))
                     print(f'Run experiment again with burnin = {burnin}')
                 # Update metadata
                 utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":True,"burnin":int(burnin)}})
@@ -1332,9 +1336,10 @@ class MarkovChainMonteCarlo(object):
         utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"r_stat":list(r_stat)}})
 
         if any(r_stat >= r_critical):
-            print(r'Vanilla MCMC chains have NOT converged with $\hat{R}$=',r_stat,'...')
+            print(r'Vanilla MCMC chains have NOT converged ...')
+            print(pd.DataFrame(r_stat))
             # Update metadata
-            utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":False}})
+            utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":False,"burnin":int(N)}})
 
         # Print time execution
         toc = time.perf_counter()
@@ -1404,21 +1409,23 @@ class MarkovChainMonteCarlo(object):
             # Print if chains have converged
             if all(r_stat < r_critical):
                 if prints:
-                    print(r'Thermodynamic Integration MCMC chains have converged with $\hat{R}$=',r_stat,'!')
+                    print(r'Thermodynamic Integration MCMC chains have converged!')
+                    print(pd.DataFrame(r_stat.reshape((T,P))))
                     print(f'Run experiment again with burnin = {burnin}')
                 # Update metadata
                 utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":True,"burnin":int(burnin)}})
                 break
+
 
         # Update metadata
         utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"r_stat":list(r_stat)}})
 
         # If chains have not converged
         if any(r_stat >= r_critical):
-            print(r'Thermodynamic Integration MCMC chains have NOT converged with $\hat{R}$=')
-            print(np.array(r_stat))
+            print(r'Thermodynamic Integration MCMC chains have NOT converged ...')
+            print(pd.DataFrame(r_stat.reshape((T,P))))
             # Update metadata
-            utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":False}})
+            utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":False,"burnin":int(N)}})
 
 
         # Print time execution
