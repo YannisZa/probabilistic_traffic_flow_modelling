@@ -1,5 +1,5 @@
 id = "diagonal_marginal_likelihood_experiments"
-inference_ids = [#"grwmh_exponential_model_exponential_sim_learn_noise_n200",
+inference_ids = [
                   "grwmh_greenshields_model_greenshields_sim_learn_noise_n200",
                   "grwmh_daganzos_model_daganzos_sim_learn_noise_n200",
                   "grwmh_delcastillos_model_delcastillos_sim_learn_noise_n200",
@@ -9,8 +9,9 @@ inference_ids = [#"grwmh_exponential_model_exponential_sim_learn_noise_n200",
                   "grwmh_newells_model_newells_sim_learn_noise_n200",
                   "grwmh_wangs_model_wangs_sim_learn_noise_n200",
                   "grwmh_smulders_model_smulders_sim_learn_noise_n200",
-                  "grwmh_deromphs_model_deromphs_sim_learn_noise_n200"]
-data_ids = [#"exponential_fd_log_simulation_n200",
+                  "grwmh_deromphs_model_deromphs_sim_learn_noise_n200"
+                  ]
+data_ids = [
             "greenshields_fd_log_simulation_n200",
             "daganzos_fd_log_simulation_n200",
             "delcastillos_fd_log_simulation_n200",
@@ -20,7 +21,8 @@ data_ids = [#"exponential_fd_log_simulation_n200",
             "newells_fd_log_simulation_n200",
             "wangs_fd_log_simulation_n200",
             "smulders_fd_log_simulation_n200",
-            "deromphs_fd_log_simulation_n200"]
+            "deromphs_fd_log_simulation_n200"
+            ]
 
   [routines]
     generate_data = "False"
