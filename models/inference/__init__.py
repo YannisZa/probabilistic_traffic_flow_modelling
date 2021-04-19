@@ -1033,7 +1033,7 @@ class MarkovChainMonteCarlo(object):
         return np.array(theta).reshape((N,t_len,self.num_learning_parameters)), int(100*(np.sum(acc) / np.sum(prop)))
 
     # @staticmethod
-    def run_parallel_mcmc(self,type,prints:bool=False):
+    def run_parallel_mcmc(self,type,n:int=None,prints:bool=False):
 
         # Time execution
         tic = time.perf_counter()
@@ -1042,12 +1042,18 @@ class MarkovChainMonteCarlo(object):
             # Define partial function
             mcmc_partial = partial(self.vanilla_mcmc,seed=None,prints=False)
             # Get number of chains from metadata
-            n_chains = int(self.inference_metadata['inference']['convergence_diagnostic']['parallel_chains'])
+            if n is None:
+                n_chains = int(self.inference_metadata['inference']['convergence_diagnostic']['parallel_chains'])
+            else:
+                n_chains = int(n)
         elif 'thermodynamic_integration_mcmc' in type:
             # Define partial function
             mcmc_partial = partial(self.thermodynamic_integration_mcmc,seed=None,prints=False)
             # Get number of chains from metadata
-            n_chains = int(self.inference_metadata['inference']['convergence_diagnostic']['parallel_chains'])
+            if n is None:
+                n_chains = int(self.inference_metadata['inference']['convergence_diagnostic']['parallel_chains'])
+            else:
+                n_chains = int(n)
         else:
             raise ValueError(f'MCMC type f{type} not found and therefore cannot run MCMC in parallel.')
 
@@ -1103,7 +1109,7 @@ class MarkovChainMonteCarlo(object):
         # If no p0 is provided set p0 to true parameter values
         if len(p0) < 1:
             if self.raw_data:
-                raise ValueError('True parameters cannot be found for MLE estimator initialisation.')
+                raise ValueError('True parameters cannot be found for MAP estimator initialisation.')
             else:
                 p0 = self.transform_parameters(self.true_parameters,False)
 

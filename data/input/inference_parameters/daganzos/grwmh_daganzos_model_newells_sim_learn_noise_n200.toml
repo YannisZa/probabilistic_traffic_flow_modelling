@@ -1,8 +1,8 @@
-id = "grwmh_greenshields_model_daganzos_sim_learn_noise_n200"
+id = "grwmh_daganzos_model_newells_sim_learn_noise_n200"
 inference_model = "grwmh"
-data_id = "daganzos_fd_log_simulation_n200"
-data_fundamental_diagram = "daganzos"
-fundamental_diagram = "greenshields"
+data_id = "newells_fd_log_simulation_n200"
+data_fundamental_diagram = "newells"
+fundamental_diagram = "daganzos"
 learn_noise = "True"
 
 [plot]
@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [0.8565363387630254, 42.46264744690307, 0.02903936229729087]
+p0 = [18.882534446421843, 15.973580437895157, 47.76634350955909, 0.013113130150821214]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -21,13 +21,18 @@ type = "mnormal"
 action = ""
 
 [inference.parameter_constraints]
-lower_bounds = [ "0", "0", "0"]
-upper_bounds = [ "inf", "inf", "inf"]
-[inference.parameter_constraints.implicit]
-    [inference.parameter_constraints.implicit.constraint2]
-      lhs = 'rho_j'
-      operator = '>'
-      rhs = 'max_x'
+lower_bounds = [ "0", "0", "0", "0",]
+upper_bounds = [ "inf", "inf", "inf", "inf",]
+[inference.parameter_constraints.implicit.constraint1]
+lhs = "rho_j"
+operator = ">"
+rhs = "rho_c"
+
+[inference.parameter_constraints.implicit.constraint2]
+lhs = "rho_j"
+operator = ">"
+rhs = "max_x"
+
 
 [inference.convergence_diagnostic]
 r_critical = 1.1
@@ -52,35 +57,43 @@ burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.008, 0.003, 0.06]
+proposal_stds = [ 0.005, 0.007, 0.004, 0.04,]
 beta_step = 1
 adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = "1"
+proposal_factor_adjustment = 1.0
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.03, 0.015, 0.2]
+proposal_stds = [ 0.02, 0.025, 0.015, 0.07,]
 beta_step = 1
 adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = "0.7"
+proposal_factor_adjustment = 0.5
 
-
-[inference.priors.v_f]
+[inference.priors.q_c]
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-10"
-min = "0.001"
-max = "4.0"
-loc = "0.85"
-scale = "0.1"
+min = "0.1"
+max = "20"
+loc = "19"
+scale = "2"
+
+[inference.priors.rho_c]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-5"
+min = "0.1"
+max = "40"
+loc = "16"
+scale = "2"
 
 [inference.priors.rho_j]
 transformation = "$\\log$"
 distribution = "normal"
-min_log_prob = "-5"
-min = "40"
-max = "80"
-loc = "42.5"
-scale = "1"
+min_log_prob = "-20"
+min = "30"
+max = "60"
+loc = "48"
+scale = "3"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -88,5 +101,5 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
-loc = "0.03"
+loc = "0.02"
 scale = "0.01"

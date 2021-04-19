@@ -449,10 +449,13 @@ class Experiment(object):
         fd.populate(experiment_id=str(self.experiment_metadata['id']))
         inference_model.populate(fd)
 
+        # Compute MAP
+        inference_model.compute_maximum_a_posteriori_estimate(prints=strtobool(self.experiment_metadata['mle']['print']))
+
         vanilla_converged = True
         vanilla_acceptances = [40]
         if strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['compute']):
-            vanilla_thetas,vanilla_acceptances = inference_model.run_parallel_mcmc(type='vanilla_mcmc',prints=False)
+            vanilla_thetas,vanilla_acceptances = inference_model.run_parallel_mcmc(n=3,type='vanilla_mcmc',prints=False)
             r_stat,vanilla_converged = inference_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(vanilla_thetas,prints=False)
 
         if not vanilla_converged or np.mean(vanilla_acceptances) < min_acceptance or np.mean(vanilla_acceptances) > max_acceptance:
@@ -465,7 +468,7 @@ class Experiment(object):
         ti_converged = True
         ti_acceptances = [40]
         if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['compute']):
-            ti_thetas,ti_acceptances = inference_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',prints=False)
+            ti_thetas,ti_acceptances = inference_model.run_parallel_mcmc(n=3,type='thermodynamic_integration_mcmc',prints=False)
             r_stat,ti_converged = inference_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=False)
 
         if not ti_converged or np.mean(ti_acceptances) < min_acceptance or np.mean(ti_acceptances) > max_acceptance:

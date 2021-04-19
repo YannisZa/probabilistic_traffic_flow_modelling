@@ -1,19 +1,19 @@
-id = "greenshields_fd_model_experiments"
+id = "daganzos_fd_model_experiments"
 inference_ids = [
-                "grwmh_greenshields_model_daganzos_sim_learn_noise_n200",
-                "grwmh_greenshields_model_delcastillos_sim_learn_noise_n200",
-                "grwmh_greenshields_model_greenbergs_sim_learn_noise_n200",
-                "grwmh_greenshields_model_underwoods_sim_learn_noise_n200",
-                "grwmh_greenshields_model_northwesterns_sim_learn_noise_n200",
-                "grwmh_greenshields_model_newells_sim_learn_noise_n200",
-                "grwmh_greenshields_model_wangs_sim_learn_noise_n200",
-                "grwmh_greenshields_model_smulders_sim_learn_noise_n200",
-                "grwmh_greenshields_model_deromphs_sim_learn_noise_n200"
+                "grwmh_daganzos_model_delcastillos_sim_learn_noise_n200",
+                "grwmh_daganzos_model_greenbergs_sim_learn_noise_n200",
+                "grwmh_daganzos_model_greenshields_sim_learn_noise_n200",
+                "grwmh_daganzos_model_underwoods_sim_learn_noise_n200",
+                "grwmh_daganzos_model_northwesterns_sim_learn_noise_n200",
+                "grwmh_daganzos_model_newells_sim_learn_noise_n200",
+                "grwmh_daganzos_model_wangs_sim_learn_noise_n200",
+                "grwmh_daganzos_model_smulders_sim_learn_noise_n200",
+                "grwmh_daganzos_model_deromphs_sim_learn_noise_n200"
                 ]
 data_ids = [
-            "daganzos_fd_log_simulation_n200",
             "delcastillos_fd_log_simulation_n200",
             "greenbergs_fd_log_simulation_n200",
+            "greenshields_fd_log_simulation_n200",
             "underwoods_fd_log_simulation_n200",
             "northwesterns_fd_log_simulation_n200",
             "newells_fd_log_simulation_n200",
@@ -55,7 +55,7 @@ data_ids = [
 
       [vanilla_mcmc.parameter_posterior]
         compute = "True"# "True"
-        import = "False"# False
+        import = "False"
         export = "False"
         show_plot = "False"
         show_title = "False"
@@ -66,7 +66,7 @@ data_ids = [
         import = "False"
         export = "True"
         show_plot = "False"
-        show_title = "True"
+        show_title = "False"
         print = "True"
 
       [vanilla_mcmc.marginal_likelihood]
@@ -76,11 +76,11 @@ data_ids = [
   [thermodynamic_integration_mcmc]
 
     [thermodynamic_integration_mcmc.convergence_diagnostic]
-      compute = "True"# True
+      compute = "True"#True
       print = "True"
 
     [thermodynamic_integration_mcmc.parameter_posterior]
-        compute = "True"# True
+        compute = "True"#True
         import = "False"
         export = "False"
         show_plot = "False"
@@ -88,5 +88,5 @@ data_ids = [
         print = "True"
 
     [thermodynamic_integration_mcmc.marginal_likelihood]
-        compute = "True"# True
+        compute = "True"#True
         print = "True"
