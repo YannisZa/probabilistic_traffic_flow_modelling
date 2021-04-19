@@ -2,7 +2,7 @@ id = "greenbergs_fd_model_experiments"
 inference_ids = [
                 "grwmh_greenbergs_model_daganzos_sim_learn_noise_n200",
                 "grwmh_greenbergs_model_delcastillos_sim_learn_noise_n200",
-                "grwmh_greenbergs_model_greenbergs_sim_learn_noise_n200",
+                "grwmh_greenbergs_model_greenshields_sim_learn_noise_n200",
                 "grwmh_greenbergs_model_underwoods_sim_learn_noise_n200",
                 "grwmh_greenbergs_model_northwesterns_sim_learn_noise_n200",
                 "grwmh_greenbergs_model_newells_sim_learn_noise_n200",
@@ -24,7 +24,8 @@ data_ids = [
 
   [routines]
     generate_data = "False"
-    run_inference = "True"
+    run_inference = "False"
+    tune_inference = "True"
     compile_marginal_likelihood_matrix = "False"
 
   [experiment_summary]
@@ -53,7 +54,7 @@ data_ids = [
         print = "True"
 
       [vanilla_mcmc.parameter_posterior]
-        compute = "False"# "True"
+        compute = "True"# "True"
         import = "False"
         export = "False"
         show_plot = "False"
@@ -61,25 +62,25 @@ data_ids = [
         print = "True"
 
       [vanilla_mcmc.posterior_predictive]
-        compute = "False"
+        compute = "True"
         import = "False"
-        export = "False"
+        export = "True"
         show_plot = "False"
         show_title = "False"
         print = "True"
 
       [vanilla_mcmc.marginal_likelihood]
-        compute = "False"# "True"
+        compute = "True"# "True"
         print = "True"
 
   [thermodynamic_integration_mcmc]
 
     [thermodynamic_integration_mcmc.convergence_diagnostic]
-      compute = "True"
+      compute = "True"#True
       print = "True"
 
     [thermodynamic_integration_mcmc.parameter_posterior]
-        compute = "False"#True
+        compute = "True"#True
         import = "False"
         export = "False"
         show_plot = "False"

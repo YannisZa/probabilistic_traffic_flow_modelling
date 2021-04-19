@@ -27,6 +27,7 @@ data_ids = [
   [routines]
     generate_data = "False"
     run_inference = "False"
+    tune_inference = "False"
     compile_marginal_likelihood_matrix = "True"
 
   [experiment_summary]

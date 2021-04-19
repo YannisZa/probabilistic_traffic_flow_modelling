@@ -1078,7 +1078,7 @@ class MarkovChainMonteCarlo(object):
             toc = time.perf_counter()
             print(f"Run parallel vanilla MCMC chains in {toc - tic:0.4f} seconds")
 
-        return np.array([chain[0] for chain in mcmc_chains])
+        return np.array([chain[0] for chain in mcmc_chains]),np.array([chain[1] for chain in mcmc_chains])
 
 
     def compute_maximum_a_posteriori_estimate(self,prints:bool=False):
@@ -1302,6 +1302,7 @@ class MarkovChainMonteCarlo(object):
         if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N-max_used_samples}, P = {P}')
 
         r_stat = np.ones(P)*1e9
+        converged = False
         # Loop over possible burnins
         for burnin in possible_burnins:
 
@@ -1329,6 +1330,7 @@ class MarkovChainMonteCarlo(object):
                     print(pd.DataFrame(r_stat))
                     print(f'Run experiment again with burnin = {burnin}')
                 # Update metadata
+                converged = True
                 utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"converged":True,"burnin":int(burnin)}})
                 break
 
@@ -1343,8 +1345,8 @@ class MarkovChainMonteCarlo(object):
 
         # Print time execution
         toc = time.perf_counter()
-        print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
-        return r_stat
+        if prints: print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
+        return r_stat, converged
 
 
     def compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(self,theta_list,prints:bool=False):
@@ -1382,6 +1384,7 @@ class MarkovChainMonteCarlo(object):
         if prints: print(f'Gelman Rubin convergence criterion with M = {M}, N = {N-max_used_samples}, P = {P}, T = {T}')
 
         r_stat = list(np.ones((T*P))*1e9)
+        converged = False
         # Loop over possible burnins
         for burnin in possible_burnins:
 
@@ -1413,6 +1416,7 @@ class MarkovChainMonteCarlo(object):
                     print(pd.DataFrame(r_stat.reshape((T,P))))
                     print(f'Run experiment again with burnin = {burnin}')
                 # Update metadata
+                converged = True
                 utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc":{"converged":True,"burnin":int(burnin)}})
                 break
 
@@ -1430,8 +1434,8 @@ class MarkovChainMonteCarlo(object):
 
         # Print time execution
         toc = time.perf_counter()
-        print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
-        return r_stat
+        if prints: print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
+        return r_stat,converged
 
 
 
@@ -2074,6 +2078,7 @@ class MarkovChainMonteCarlo(object):
             self.theta_proposed = np.loadtxt(file)
 
         if prints: print('Imported Vanilla MCMC samples')
+
 
     def import_thermodynamic_integration_mcmc_samples(self,experiment:str='',prints:bool=False):
 

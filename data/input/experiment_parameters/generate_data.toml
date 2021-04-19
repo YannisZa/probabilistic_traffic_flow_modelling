@@ -15,6 +15,7 @@ data_ids = ["exponential_fd_log_simulation_n200",
   [routines]
     generate_data = "True"
     run_inference = "False"
+    tune_inference = "False"
     compile_marginal_likelihood_matrix = "False"
 
   [data_simulation]

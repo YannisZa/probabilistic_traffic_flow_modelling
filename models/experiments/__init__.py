@@ -56,6 +56,11 @@ class Experiment(object):
             # Wait for 10 seconds for files to be exported properly
             time.sleep(10)
 
+        if 'tune_inference' in self.experiment_metadata['routines'].keys() and strtobool(self.experiment_metadata['routines']['tune_inference']):
+            for inference_id in list(self.experiment_metadata['inference_ids']):
+                self.tune_inference(inference_id)
+
+
         if strtobool(self.experiment_metadata['routines']['run_inference']):
             for inference_id in list(self.experiment_metadata['inference_ids']):
                 self.run_inference(inference_id)
@@ -125,14 +130,14 @@ class Experiment(object):
 
         # Compute convergence criterion for Vanilla MCMC
         if strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['compute']):
-            vanilla_thetas = inference_model.run_parallel_mcmc(type='vanilla_mcmc',
+            vanilla_thetas,vanilla_acceptances = inference_model.run_parallel_mcmc(type='vanilla_mcmc',
                                                                 prints=strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['print']))
             inference_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(vanilla_thetas,
                                                                             prints=strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['print']))
             print("\n")
         # Compute convergence criterion for Thermodynamic Integration MCMC
         if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['compute']):
-            ti_thetas = inference_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',
+            ti_thetas,ti_acceptances = inference_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',
                                                     prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['print']))
             inference_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,
                                                                                         prints=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['print']))
@@ -157,7 +162,7 @@ class Experiment(object):
         if strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
             # Import Vanilla MCMC chain
             print('Import Vanilla MCMC samples')
-            inference_model.import_vanilla_mcmc_samples()
+            inference_model.import_vanilla_mcmc_samples(experiment=self.experiment_metadata['id'])
             print("\n")
         elif not strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']):
             print('Run Vanilla MCMC')
@@ -170,7 +175,7 @@ class Experiment(object):
         if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
             # Import Thermodynamic Integration MCMC chain
             print('Import Thermodynamic Integration MCMC samples')
-            inference_model.import_thermodynamic_integration_mcmc_samples()
+            inference_model.import_thermodynamic_integration_mcmc_samples(experiment=self.experiment_metadata['id'])
             print("\n")
         elif not strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['import']) and strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute']):
             print('Run Thermodynamic Integration MCMC')
@@ -180,7 +185,7 @@ class Experiment(object):
             print("\n")
 
         # Export MCMC chains
-        if (strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']))\
+        if (strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['compute']) and not strtobool(self.experiment_metadata['vanilla_mcmc']['parameter_posterior']['import']))\
             or (strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['compute'])):
             print('Export MCMC samples')
             inference_model.export_mcmc_samples(experiment=str(self.experiment_metadata['id']))
@@ -427,6 +432,51 @@ class Experiment(object):
             # CAREFUL: experiment_type is based on the last inference id
             vanilla_mcmc_lmls_df.to_csv(filename+f'posterior_harmonic_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
             ti_mcmc_lmls_df.to_csv(filename+f'thermodynamic_integral_marginal_likelihoood_estimator_{experiment_type}.csv')
+
+
+    def tune_inference(self,inference_id):
+
+        print(f'------------------------------------Inference id: {inference_id} ------------------------------------')
+
+        # Ensure you provide valid inputs
+        if not self.valid_input(): raise ValueError(f"Cannot proceed with experiment {self.experiment_metadata['id']}")
+
+        # Instantiate objects
+        inference_model = utils.instantiate_inference_method(inference_id)
+        fd = utils.instantiate_fundamental_diagram(data_id=inference_model.inference_metadata['data_id'],model=inference_model.inference_metadata['fundamental_diagram'])
+
+        # Populate them with data
+        fd.populate(experiment_id=str(self.experiment_metadata['id']))
+        inference_model.populate(fd)
+
+        vanilla_converged = True
+        vanilla_acceptances = [40]
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['convergence_diagnostic']['compute']):
+            vanilla_thetas,vanilla_acceptances = inference_model.run_parallel_mcmc(type='vanilla_mcmc',prints=False)
+            r_stat,vanilla_converged = inference_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(vanilla_thetas,prints=False)
+
+        if not vanilla_converged or np.mean(vanilla_acceptances) < min_acceptance or np.mean(vanilla_acceptances) > max_acceptance:
+            print('Vanilla MCMC')
+            print('inference_id',inference_id)
+            print('converged',vanilla_converged)
+            print('acceptances',vanilla_acceptances)
+
+        # Compute convergence criterion for Thermodynamic Integration MCMC
+        ti_converged = True
+        ti_acceptances = [40]
+        if strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['convergence_diagnostic']['compute']):
+            ti_thetas,ti_acceptances = inference_model.run_parallel_mcmc(type='thermodynamic_integration_mcmc',prints=False)
+            r_stat,ti_converged = inference_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=False)
+
+        if not ti_converged or np.mean(ti_acceptances) < min_acceptance or np.mean(ti_acceptances) > max_acceptance:
+            print('Thermodynamic Integration MCMC')
+            print('inference_id',inference_id)
+            print('converged',ti_converged)
+            print('acceptances',ti_acceptances)
+
+        print("\n")
+
+
 
 
 

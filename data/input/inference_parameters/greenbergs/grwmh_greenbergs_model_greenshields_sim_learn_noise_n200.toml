@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [ 2.0, 45.0, 0.1,]
+p0 = [0.987240830565999, 53.241372850003074, 0.020795636989070613]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -49,13 +49,13 @@ marginal_likelihood_samples = 10000
 [inference.vanilla_mcmc.transition_kernel]
 proposal_stds = [ 0.01, 0.003, 0.04,]
 beta_step = 1
-adapt_proposal_during_burnin = true
-proposal_factor_adjustment = 1.0
+adapt_proposal_during_burnin = "True"
+proposal_factor_adjustment = 0.8
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
 proposal_stds = [ 0.025, 0.01, 0.07,]
 beta_step = 1
-adapt_proposal_during_burnin = true
+adapt_proposal_during_burnin = "True"
 proposal_factor_adjustment = 0.5
 
 [inference.priors.v_f]
@@ -64,7 +64,7 @@ distribution = "normal"
 min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
-loc = "2.2"
+loc = "1.0"
 scale = "0.1"
 
 [inference.priors.rho_j]
@@ -73,7 +73,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "30"
 max = "60"
-loc = "45"
+loc = "53"
 scale = "1"
 
 [inference.priors.sigma2]
@@ -82,7 +82,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
-loc = "0.01"
+loc = "0.02"
 scale = "0.001"
 
 [inference.parameter_constraints.implicit.constraint2]
