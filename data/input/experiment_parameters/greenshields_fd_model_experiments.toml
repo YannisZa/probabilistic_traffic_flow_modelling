@@ -1,6 +1,26 @@
 id = "greenshields_fd_model_experiments"
-inference_ids = ["grwmh_greenshields_model_greenshields_sim_learn_noise_n200","grwmh_greenshields_model_exponential_sim_learn_noise_n200"]
-data_ids = ["greenshields_fd_log_simulation_n200","exponential_fd_log_simulation_n200"]
+inference_ids = [
+                # "grwmh_greenshields_model_daganzos_sim_learn_noise_n200",
+                "grwmh_greenshields_model_delcastillos_sim_learn_noise_n200",
+                "grwmh_greenshields_model_greenbergs_sim_learn_noise_n200",
+                # "grwmh_greenshields_model_underwoods_sim_learn_noise_n200",
+                # "grwmh_greenshields_model_northwesterns_sim_learn_noise_n200",
+                "grwmh_greenshields_model_newells_sim_learn_noise_n200",
+                "grwmh_greenshields_model_wangs_sim_learn_noise_n200",
+                # "grwmh_greenshields_model_smulders_sim_learn_noise_n200",
+                "grwmh_greenshields_model_deromphs_sim_learn_noise_n200"
+                ]
+data_ids = [
+            # "daganzos_fd_log_simulation_n200",
+            "delcastillos_fd_log_simulation_n200",
+            "greenbergs_fd_log_simulation_n200",
+            # "underwoods_fd_log_simulation_n200",
+            # "northwesterns_fd_log_simulation_n200",
+            "newells_fd_log_simulation_n200",
+            "wangs_fd_log_simulation_n200",
+            # "smulders_fd_log_simulation_n200",
+            "deromphs_fd_log_simulation_n200"
+            ]
 
   [routines]
     generate_data = "False"
@@ -9,7 +29,7 @@ data_ids = ["greenshields_fd_log_simulation_n200","exponential_fd_log_simulation
 
   [experiment_summary]
     export = "False"
-    print = "False"
+    print = "True"
 
   [data_simulation]
     plot_log_data = "False"
@@ -29,27 +49,27 @@ data_ids = ["greenshields_fd_log_simulation_n200","exponential_fd_log_simulation
   [vanilla_mcmc]
 
       [vanilla_mcmc.convergence_diagnostic]
-        compute = "True"
+        compute = "False"# "True"
         print = "True"
 
       [vanilla_mcmc.parameter_posterior]
-        compute = "True"
+        compute = "False"# "True"
         import = "False"
-        export = "True"
+        export = "False"
         show_plot = "False"
         show_title = "False"
         print = "True"
 
       [vanilla_mcmc.posterior_predictive]
-        compute = "True"
+        compute = "False"
         import = "False"
-        export = "True"
+        export = "False"
         show_plot = "False"
         show_title = "False"
         print = "True"
 
       [vanilla_mcmc.marginal_likelihood]
-        compute = "True"
+        compute = "False"# "True"
         print = "True"
 
   [thermodynamic_integration_mcmc]
@@ -59,7 +79,7 @@ data_ids = ["greenshields_fd_log_simulation_n200","exponential_fd_log_simulation
       print = "True"
 
     [thermodynamic_integration_mcmc.parameter_posterior]
-        compute = "True"
+        compute = "False"#True
         import = "False"
         export = "False"
         show_plot = "False"
@@ -67,5 +87,5 @@ data_ids = ["greenshields_fd_log_simulation_n200","exponential_fd_log_simulation
         print = "True"
 
     [thermodynamic_integration_mcmc.marginal_likelihood]
-        compute = "True"
+        compute = "False"#True
         print = "True"

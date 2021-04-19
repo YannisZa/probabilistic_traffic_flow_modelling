@@ -41,7 +41,7 @@ inf_model.populate(fd)
 # Compute MLE estimate
 inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 
-# sys.exit(1)
+sys.exit(1)
 
 # Plot univariate prior distributions
 inf_model.export_univariate_prior_plots()

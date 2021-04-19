@@ -20,6 +20,9 @@ from inference import MarkovChainMonteCarlo
 matplotlib.rc('font', **{'size'   : 18})
 
 
+min_acceptance = 39.0
+max_acceptance = 51.0
+
 class Experiment(object):
 
     def __init__(self,experiment_id):
@@ -282,6 +285,20 @@ class Experiment(object):
         print("\n")
         print("\n")
 
+    # def compile_marginal_likelihood_matrix(self,inference_ids,prints:bool=False,export:bool=False):
+    #
+    #     # Get inference and data fds and compute union
+    #     data_fds = set([x.split('_sim',1)[0].split("model_",1)[1] for x in inference_ids])
+    #     inference_fds = set([x.split('_model',1)[0].split("_",1)[1] for x in inference_ids])
+    #
+    #     # Compute all fds by taking union over data and inference fds
+    #     fds = data_fds.union(inference_fds)
+    #
+    #     # Get first inference id ending - this describes things like number of data points, prior specification etc.
+    #     experiment_type = inference_ids[0].split('_sim_learn_noise',1)[1]
+    #
+    #     for data_fd in tqdm(fds):
+    #         for inference_fd in tqdm(fds):
 
     def compile_marginal_likelihood_matrix(self,inference_ids,prints:bool=False,export:bool=True):
 
@@ -292,13 +309,15 @@ class Experiment(object):
         for inference_id in tqdm(inference_ids):
 
             # Get data model name
-            data_fd = inference_id.split('_sim',1)[0].split("_",-1)[1]
+            data_fd = inference_id.split('_sim',1)[0].split("model_",1)[1]
             # Get inference model name
             inference_fd = inference_id.split('_model',1)[0].split("_",1)[1]
             # Get inference id ending - this describes things like number of data points, prior specification etc.
             experiment_type = inference_id.split('_sim_learn_noise',1)[1]
 
-            if prints: print('data_fd',data_fd,'inference_fd',inference_fd)
+            # if prints:
+                # print('inference id',inference_id)
+                # print('data_fd',data_fd,'inference_fd',inference_fd)
 
             # Import inference id parameters
             inference_parameters = utils.import_inference_metadata(model=inference_fd,inference_id=inference_id)
@@ -322,8 +341,13 @@ class Experiment(object):
             # Check that acceptance rate is between 40% and 50%
             vanilla_mcmc_converged = all([bool(inference_metadata['results']['vanilla_mcmc']['converged']),
                                         int(inference_metadata['results']['vanilla_mcmc']['burnin']) <= int(inference_metadata['inference']['vanilla_mcmc']['burnin']),
-                                        float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= 40.0,
-                                        float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= 50.0])
+                                        float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= min_acceptance,
+                                        float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= max_acceptance])
+
+
+            if any([float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) < min_acceptance,
+                float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) > max_acceptance]):
+                print('Vanilla mcmc',data_fd,':',json.dumps(inference_metadata['results']['vanilla_mcmc']['acceptance_rate'],indent=2))
 
             # Add log marginal likelihood mean and var to records only if convergence was achieved
             if vanilla_mcmc_converged:
@@ -339,10 +363,12 @@ class Experiment(object):
             # Get convergence flag and check that Gelman and Rubin-inferred burnin is lower than used burnin
             ti_mcmc_converged = all([bool(inference_metadata['results']['thermodynamic_integration_mcmc']['converged']),
                                         int(inference_metadata['results']['thermodynamic_integration_mcmc']['burnin']) <= int(inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin']),
-                                        float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) >= 40.0,
-                                        float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) <= 55.0])
+                                        float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) >= min_acceptance,
+                                        float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) <= max_acceptance])
 
-
+            if any([float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) < min_acceptance,
+                float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) > max_acceptance]):
+                print('Thermodynamic Integration mcmc',data_fd,':',json.dumps(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate'],indent=2))
             # Add log marginal likelihood mean and var to records only if convergence was achieved
             if ti_mcmc_converged:
                 # Get log marginal likelihood mean variance for thermodynamic integration MCMC

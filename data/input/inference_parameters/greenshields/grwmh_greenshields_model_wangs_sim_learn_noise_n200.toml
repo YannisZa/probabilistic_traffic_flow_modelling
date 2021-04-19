@@ -1,0 +1,91 @@
+id = "grwmh_greenshields_model_wangs_sim_learn_noise_n200"
+inference_model = "grwmh"
+data_id = "wangs_fd_log_simulation_n200"
+data_fundamental_diagram = "wangs"
+fundamental_diagram = "greenshields"
+learn_noise = "True"
+
+[plot]
+acf_lags = 100
+hist_bins = 50
+
+[inference.initialisation]
+p0 = [1.0179416527617655, 40.15485207781551, 0.08084724827904077]
+param_initialisation = "map"
+
+[inference.likelihood]
+type = "mnormal"
+
+[inference.transition_kernel]
+type = "mnormal"
+action = ""
+
+[inference.parameter_constraints]
+lower_bounds = [ "0", "0", "0"]
+upper_bounds = [ "inf", "inf", "inf"]
+[inference.parameter_constraints.implicit]
+    [inference.parameter_constraints.implicit.constraint2]
+      lhs = 'rho_j'
+      operator = '>'
+      rhs = 'max_x'
+
+[inference.convergence_diagnostic]
+r_critical = 1.1
+parallel_chains = 10
+convergence_chains = 3
+burnin_step = 5000
+
+[inference.vanilla_mcmc]
+seed = "2021"
+N = 100000
+burnin = 10000
+posterior_predictive_samples = 10000
+marginal_likelihood_samples = 10000
+
+[inference.thermodynamic_integration_mcmc]
+seed = "2021"
+temp_schedule = "prior"
+temp_nsteps = 30
+temp_power = 5
+N = 300000
+burnin = 60000
+marginal_likelihood_samples = 10000
+
+[inference.vanilla_mcmc.transition_kernel]
+proposal_stds = [ 0.008, 0.003, 0.06,]
+beta_step = 1
+adapt_proposal_during_burnin = "True"
+proposal_factor_adjustment = "1"
+
+[inference.thermodynamic_integration_mcmc.transition_kernel]
+proposal_stds = [ 0.03, 0.015, 0.2,]
+beta_step = 1
+adapt_proposal_during_burnin = "True"
+proposal_factor_adjustment = "0.4"
+
+[inference.priors.v_f]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-10"
+min = "0.001"
+max = "4.0"
+loc = "1.0"
+scale = "0.1"
+
+[inference.priors.rho_j]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-5"
+min = "40"
+max = "80"
+loc = "40"
+scale = "1"
+
+[inference.priors.sigma2]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.001"
+max = "1.0"
+loc = "0.08"
+scale = "0.01"
