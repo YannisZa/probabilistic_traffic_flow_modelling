@@ -5,6 +5,7 @@ import re
 import time
 import toml
 import json
+import copy
 import utils
 import numpy as np
 import pandas as pd
@@ -25,6 +26,22 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probab
 # Define min and max acceptance rate that all experiments should have
 min_acceptance = 39.0#35.0
 max_acceptance = 51.0
+
+# Function that substracts strings expressed with uncertainties
+def subtract_lmls(a,b):
+    if a == 'nan' or b == 'nan':
+        return 'nan'
+    # Get a mean and uncertainty
+    a_mean = float(a.split('+/-')[0])
+    a_uncertainty = float(a.split('+/-')[1])
+    # Get b mean and uncertainty
+    b_mean = float(b.split('+/-')[0])
+    b_uncertainty = float(b.split('+/-')[1])
+    # Subtract the two quantities and add up errors
+    result_mean = np.round(a_mean - b_mean,2)
+    result_uncertainty = np.round(a_uncertainty + b_uncertainty,2)
+    return str(result_mean)+"+/-"+str(result_uncertainty)
+
 
 class Experiment(object):
 
@@ -416,6 +433,23 @@ class Experiment(object):
         for i in range(np.shape(ti_mcmc_lmls)[0]):
             ti_mcmc_lmls_df.loc[ti_mcmc_lmls[i,0], ti_mcmc_lmls[i,1]] = ti_mcmc_lmls[i,2]
 
+        # Compute Bayes factors
+        # Copy log_marginal_likelihoods
+        vanilla_mcmc_bayes_factors_df = copy.deepcopy(vanilla_mcmc_lmls_df)
+        vanilla_mcmc_diagonal_lmls = np.diag(vanilla_mcmc_bayes_factors_df)
+        # Loop through rows
+        for i in range(vanilla_mcmc_bayes_factors_df.shape[0]):
+            # Perform row-wise substraction of diagonal
+            vanilla_mcmc_bayes_factors_df.iloc[i,:] = vanilla_mcmc_bayes_factors_df.iloc[i,:].apply(lambda x: subtract_lmls(x,vanilla_mcmc_diagonal_lmls[i]))
+
+        # Copy log_marginal_likelihoods
+        ti_mcmc_bayes_factors_df = copy.deepcopy(ti_mcmc_lmls_df)
+        ti_mcmc_diagonal_lmls = np.diag(ti_mcmc_bayes_factors_df)
+        # Loop through rows
+        for i in range(ti_mcmc_bayes_factors_df.shape[0]):
+            # Perform row-wise substraction of diagonal
+            ti_mcmc_bayes_factors_df.iloc[i,:] = ti_mcmc_bayes_factors_df.iloc[i,:].apply(lambda x: subtract_lmls(x,ti_mcmc_diagonal_lmls[i]))
+
         if prints:
             print('Posterior Harmonic Mean marginal likelihood estimator (mu +/- var)')
             print(vanilla_mcmc_lmls_df)
@@ -423,6 +457,14 @@ class Experiment(object):
             print('Thermodynamic Integral marginal likelihood estimator (mu +/- var)')
             print(ti_mcmc_lmls_df)
             print("\n")
+
+            print('Posterior Harmonic Mean estimated Bayes factors (mu +/- var)')
+            print(vanilla_mcmc_bayes_factors_df)
+            print("\n")
+            print('Thermodynamic Integral estimated Bayes factors (mu +/- var)')
+            print(ti_mcmc_bayes_factors_df)
+            print("\n")
+
 
         # Prepare export file
         filename = utils.prepare_output_experiment_summary_filename(self.experiment_metadata['id'])
@@ -432,6 +474,8 @@ class Experiment(object):
             # CAREFUL: experiment_type is based on the last inference id
             vanilla_mcmc_lmls_df.to_csv(filename+f'posterior_harmonic_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
             ti_mcmc_lmls_df.to_csv(filename+f'thermodynamic_integral_marginal_likelihoood_estimator_{experiment_type}.csv')
+            vanilla_mcmc_bayes_factors_df.to_csv(filename+f'posterior_harmonic_mean_estimated_bayes_factors_{experiment_type}.csv')
+            ti_mcmc_bayes_factors_df.to_csv(filename+f'thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
 
 
     def tune_inference(self,inference_id):
