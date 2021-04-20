@@ -60,13 +60,13 @@ marginal_likelihood_samples = 10000
 proposal_stds = [ 0.005, 0.007, 0.004, 0.04,]
 beta_step = 1
 adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.9
+proposal_factor_adjustment = 0.6
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
 proposal_stds = [ 0.02, 0.025, 0.015, 0.07,]
 beta_step = 1
 adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.5
+proposal_factor_adjustment = 0.4
 
 [inference.priors.q_c]
 transformation = "$\\log$"
