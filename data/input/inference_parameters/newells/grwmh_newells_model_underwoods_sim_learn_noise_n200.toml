@@ -1,0 +1,100 @@
+id = "grwmh_newells_model_underwoods_sim_learn_noise_n200"
+inference_model = "grwmh"
+data_id = "underwoods_fd_log_simulation_n200"
+data_fundamental_diagram = "underwoods"
+fundamental_diagram = "newells"
+learn_noise = "True"
+
+[plot]
+acf_lags = 100
+hist_bins = 50
+
+[inference.initialisation]
+p0 = [6.014523217736984, 16.79528495169439, 41.91988755482357, 0.04471126530329026]
+param_initialisation = "metadata"
+
+[inference.likelihood]
+type = "mnormal"
+
+[inference.transition_kernel]
+type = "mnormal"
+action = ""
+
+[inference.parameter_constraints]
+lower_bounds = [ "0", "0", "0", "0",]
+upper_bounds = [ "inf", "inf", "inf", "inf",]
+[inference.parameter_constraints.implicit.constraint1]
+lhs = "rho_j"
+operator = ">"
+rhs = "max_x"
+
+
+[inference.convergence_diagnostic]
+r_critical = 1.1
+parallel_chains = 10
+convergence_chains = 3
+burnin_step = 5000
+
+[inference.vanilla_mcmc]
+seed = "2021"
+N = 100000
+burnin = 5000
+posterior_predictive_samples = 20000
+marginal_likelihood_samples = 10000
+
+[inference.thermodynamic_integration_mcmc]
+seed = "2021"
+temp_schedule = "prior"
+temp_nsteps = 30
+temp_power = 5
+N = 300000
+burnin = 60000
+marginal_likelihood_samples = 10000
+
+[inference.vanilla_mcmc.transition_kernel]
+proposal_stds = [ 0.008, 0.01, 0.003, 0.04,]
+beta_step = 1
+adapt_proposal_during_burnin = "True"
+proposal_factor_adjustment = 0.8
+
+[inference.thermodynamic_integration_mcmc.transition_kernel]
+proposal_stds = [ 0.025, 0.02, 0.01, 0.047,]
+beta_step = 1
+adapt_proposal_during_burnin = "True"
+proposal_factor_adjustment = 0.6
+
+[inference.priors.v_f]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.01"
+max = "4.0"
+loc = "6"
+scale = "1"
+
+[inference.priors.lambda]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "20"
+max = "60"
+loc = "17"
+scale = "2"
+
+[inference.priors.rho_j]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "30.0"
+max = "60.0"
+loc = "42.0"
+scale = "3"
+
+[inference.priors.sigma2]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.001"
+max = "1.0"
+loc = "0.05"
+scale = "0.02"

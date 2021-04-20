@@ -208,6 +208,11 @@ class FundamentalDiagram(object):
         # Get p0 from metadata
         p0 = list(self.simulation_metadata['ols']['p0'])
 
+        # Add arbitrarily chosen positive integer (e.g. 10) to parameters if len(p0) is not equal to # of learning parameters
+        if len(p0) < self.num_learning_parameters:
+            for i in range(self.num_learning_parameters-len(p0)):
+                p0.append(10)
+
         # Define constraints on positivty and concavity
         positivity_constraint = so.NonlinearConstraint(self.simulate,np.ones(len(self.rho))* np.inf,np.zeros(len(self.rho)))
         concavity_constraint = so.NonlinearConstraint(self.hessian,np.ones(len(self.rho))* -np.inf,np.zeros(len(self.rho)))

@@ -1,3 +1,4 @@
 python models/scripts/fundamental_diagram_experiments.py daganzos_fd_model_experiments
 python models/scripts/fundamental_diagram_experiments.py northwesterns_fd_model_experiments
 python models/scripts/fundamental_diagram_experiments.py underwoods_fd_log_model_experiments
+python models/scripts/fundamental_diagram_experiments.py newells_fd_model_experiments

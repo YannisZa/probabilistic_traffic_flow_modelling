@@ -14,6 +14,9 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probab
 # Define simulation id
 experiment_id = str(sys.argv[1])
 
+# print('experiment_id',experiment_id)
+# sys.exit(1)
+
 # Instantiate experiment
 experiment = Experiment(experiment_id)
 

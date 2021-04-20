@@ -18,6 +18,6 @@ seed = "2021"
     rho_steps = 200
 
 [true_parameters]
-  v_f = "2"
+  v_f = "2."
   rho_j = "45."
   sigma2 = "0.01"
