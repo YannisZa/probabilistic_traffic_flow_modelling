@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [2.324859656555932, 13.04269483428924, 4.232236134736199, 0.02491058850191845]
+p0 = [2.355922275269688, 12.94662027902183, 4.241088506416261, 0.024896337459247866]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -47,16 +47,16 @@ burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.007, 0.002, 0.005, 0.04,]
+proposal_stds = [0.027967566508922986, 0.014679989093163075, 0.008566251307676572, 0.08417681507194642]
 beta_step = 1
 adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.4
+proposal_factor_adjustment = 0.45
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.02, 0.005, 0.015, 0.07,]
+proposal_stds = [0.027967566508922986, 0.014679989093163075, 0.008566251307676572, 0.08417681507194642]
 beta_step = 1
-adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.4
+adapt_proposal_during_burnin = "False"
+proposal_factor_adjustment = 0.5
 
 [inference.priors.v_f]
 transformation = "$\\log$"
@@ -65,7 +65,7 @@ min_log_prob = "-20"
 min = "0.01"
 max = "4.0"
 loc = "2"
-scale = "0.2"
+scale = "0.1"
 
 [inference.priors.rho_c]
 transformation = "$\\log$"
@@ -74,7 +74,7 @@ min_log_prob = "-20"
 min = "5"
 max = "40"
 loc = "13"
-scale = "2"
+scale = "0.45"
 
 [inference.priors.theta]
 transformation = "$\\log$"
@@ -83,7 +83,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "10.0"
 loc = "4.0"
-scale = "1"
+scale = "0.1"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -92,4 +92,4 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.025"
-scale = "0.01"
+scale = "0.005"

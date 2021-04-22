@@ -1,23 +1,23 @@
 id = "wangs_fd_model_experiments"
 inference_ids = [
-                "grwmh_wangs_model_daganzos_sim_learn_noise_n200",
-                "grwmh_wangs_model_delcastillos_sim_learn_noise_n200",
-                "grwmh_wangs_model_greenbergs_sim_learn_noise_n200",
+                # "grwmh_wangs_model_daganzos_sim_learn_noise_n200",
+                # "grwmh_wangs_model_delcastillos_sim_learn_noise_n200",
+                # "grwmh_wangs_model_greenbergs_sim_learn_noise_n200",
                 # "grwmh_wangs_model_underwoods_sim_learn_noise_n200",
                 # "grwmh_wangs_model_northwesterns_sim_learn_noise_n200",
-                "grwmh_wangs_model_greenshields_sim_learn_noise_n200",
-                "grwmh_wangs_model_newells_sim_learn_noise_n200",
+                # "grwmh_wangs_model_greenshields_sim_learn_noise_n200",
+                # "grwmh_wangs_model_newells_sim_learn_noise_n200",
                 # "grwmh_wangs_model_smulders_sim_learn_noise_n200",
                 "grwmh_wangs_model_deromphs_sim_learn_noise_n200"
                 ]
 data_ids = [
-            "daganzos_fd_log_simulation_n200",
-            "delcastillos_fd_log_simulation_n200",
-            "greenbergs_fd_log_simulation_n200",
+            # "daganzos_fd_log_simulation_n200",
+            # "delcastillos_fd_log_simulation_n200",
+            # "greenbergs_fd_log_simulation_n200",
             # "underwoods_fd_log_simulation_n200",
             # "northwesterns_fd_log_simulation_n200",
-            "greenshields_fd_log_simulation_n200",
-            "newells_fd_log_simulation_n200",
+            # "greenshields_fd_log_simulation_n200",
+            # "newells_fd_log_simulation_n200",
             # "smulders_fd_log_simulation_n200",
             "deromphs_fd_log_simulation_n200"
             ]
@@ -76,17 +76,17 @@ data_ids = [
   [thermodynamic_integration_mcmc]
 
     [thermodynamic_integration_mcmc.convergence_diagnostic]
-      compute = "True"# True
+      compute = "False"# True
       print = "True"
 
     [thermodynamic_integration_mcmc.parameter_posterior]
-        compute = "True"# True
+        compute = "False"# True
         import = "False"
-        export = "False"
+        export = "True"
         show_plot = "False"
         show_title = "False"
         print = "True"
 
     [thermodynamic_integration_mcmc.marginal_likelihood]
-        compute = "True"# True
+        compute = "False"# True
         print = "True"

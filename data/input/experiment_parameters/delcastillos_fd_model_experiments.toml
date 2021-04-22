@@ -54,7 +54,7 @@ data_ids = [
         print = "True"
 
       [vanilla_mcmc.parameter_posterior]
-        compute = "True"# "True"
+        compute = "False"# "True"
         import = "False"# False
         export = "False"
         show_plot = "False"
@@ -62,7 +62,7 @@ data_ids = [
         print = "True"
 
       [vanilla_mcmc.posterior_predictive]
-        compute = "True"
+        compute = "False"
         import = "False"
         export = "True"
         show_plot = "False"
@@ -70,7 +70,7 @@ data_ids = [
         print = "True"
 
       [vanilla_mcmc.marginal_likelihood]
-        compute = "True"# "True"
+        compute = "False"# "True"
         print = "True"
 
   [thermodynamic_integration_mcmc]

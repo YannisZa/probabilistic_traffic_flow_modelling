@@ -84,7 +84,6 @@ class Experiment(object):
 
         if strtobool(self.experiment_metadata['routines']['compile_marginal_likelihood_matrix']):
             self.compile_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
-            #self.compile_marginal_likelihood_matrix_for_inference_ids(list(self.experiment_metadata['inference_ids']),
                                                     prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
                                                     export=strtobool(self.experiment_metadata['experiment_summary']['export']))
 
@@ -251,11 +250,12 @@ class Experiment(object):
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
                                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
                                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
-                inference_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(experiment=str(self.experiment_metadata['id']),
-                                                                                    num_stds=2,
-                                                                                    show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
-                                                                                    show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
-                                                                                    show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
+                # REMOVE THIS BEFORE FORMAL EXPERIMENTS
+                # inference_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(experiment=str(self.experiment_metadata['id']),
+                #                                                                     num_stds=2,
+                #                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
+                #                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
+                #                                                                     show_sim_param=strtobool(self.experiment_metadata['data_simulation']['show_sim_param']))
                 inference_model.export_thermodynamic_integration_mcmc_space_exploration_plots(experiment=str(self.experiment_metadata['id']),
                                                                                     show_plot=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_plot']),
                                                                                     show_title=strtobool(self.experiment_metadata['thermodynamic_integration_mcmc']['parameter_posterior']['show_title']),
@@ -354,52 +354,58 @@ class Experiment(object):
                 with open((metadata_filename+'metadata.json')) as json_file:
                     inference_metadata = json.load(json_file)
 
-                # Get convergence flag
-                # Check that Gelman and Rubin-inferred burnin is lower than used burnin
-                # Check that acceptance rate is between 40% and 50%
-                vanilla_mcmc_converged = all([bool(inference_metadata['results']['vanilla_mcmc']['converged']),
-                                            int(inference_metadata['results']['vanilla_mcmc']['burnin']) <= int(inference_metadata['inference']['vanilla_mcmc']['burnin']),
-                                            float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= min_acceptance,
-                                            float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= max_acceptance])
+                if 'vanilla_mcmc' in inference_metadata['results'].keys():
+                    # Get convergence flag
+                    # Check that Gelman and Rubin-inferred burnin is lower than used burnin
+                    # Check that acceptance rate is between 40% and 50%
+                    vanilla_mcmc_converged = all([bool(inference_metadata['results']['vanilla_mcmc']['converged']),
+                                                int(inference_metadata['results']['vanilla_mcmc']['burnin']) <= int(inference_metadata['inference']['vanilla_mcmc']['burnin']),
+                                                float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= min_acceptance,
+                                                float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= max_acceptance])
 
 
-                if not vanilla_mcmc_converged:
-                    print('Vanilla mcmc data fd:',data_fd,'inference fd:',inference_fd)
-                    print('acceptance rate:',json.dumps(inference_metadata['results']['vanilla_mcmc']['acceptance_rate'],indent=2))
-                    print('burnin:',json.dumps(inference_metadata['results']['vanilla_mcmc']['burnin'],indent=2))
-                    print('\n')
+                    if not vanilla_mcmc_converged:
+                        print('Vanilla mcmc data fd:',data_fd,'inference fd:',inference_fd)
+                        print('acceptance rate:',json.dumps(inference_metadata['results']['vanilla_mcmc']['acceptance_rate'],indent=2))
+                        print('burnin:',json.dumps(inference_metadata['results']['vanilla_mcmc']['burnin'],indent=2))
+                        print('\n')
 
-                # Add log marginal likelihood mean and var to records only if convergence was achieved
-                if vanilla_mcmc_converged:
-                    # Get log marginal likelihood mean variance for vanilla MCMC
-                    vanilla_lml_mean = np.round(float(inference_metadata['results']['vanilla_mcmc']['log_marginal_likelihoods_mean']),2)
-                    vanilla_lml_var = np.round(float(inference_metadata['results']['vanilla_mcmc']['log_marginal_likelihoods_var']),2)
-                    # Compute them into a string
-                    vanilla_mcmc_lml_entry = str(vanilla_lml_mean)+' +/- '+str(vanilla_lml_var)
+                    # Add log marginal likelihood mean and var to records only if convergence was achieved
+                    if vanilla_mcmc_converged:
+                        # Get log marginal likelihood mean variance for vanilla MCMC
+                        vanilla_lml_mean = np.round(float(inference_metadata['results']['vanilla_mcmc']['log_marginal_likelihoods_mean']),2)
+                        vanilla_lml_var = np.round(float(inference_metadata['results']['vanilla_mcmc']['log_marginal_likelihoods_var']),2)
+                        # Compute them into a string
+                        vanilla_mcmc_lml_entry = str(vanilla_lml_mean)+' +/- '+str(vanilla_lml_var)
+                    else:
+                        vanilla_mcmc_lml_entry = 'tuning_problem'
                 else:
-                    vanilla_mcmc_lml_entry = 'tuning_problem'
+                    vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
 
                 # DITTO for thermodynamic integration
-                # Get convergence flag and check that Gelman and Rubin-inferred burnin is lower than used burnin
-                ti_mcmc_converged = all([bool(inference_metadata['results']['thermodynamic_integration_mcmc']['converged']),
+                if 'thermodynamic_integration_mcmc' in inference_metadata['results'].keys():
+                    # Get convergence flag and check that Gelman and Rubin-inferred burnin is lower than used burnin
+                    ti_mcmc_converged = all([bool(inference_metadata['results']['thermodynamic_integration_mcmc']['converged']),
                                             int(inference_metadata['results']['thermodynamic_integration_mcmc']['burnin']) <= int(inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin']),
                                             float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) >= min_acceptance,
                                             float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) <= max_acceptance])
 
-                if not ti_mcmc_converged:
-                    print('Thermodynamic Integration mcmc data fd:',data_fd,'inference fd:',inference_fd)
-                    print('acceptance rate:',json.dumps(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate'],indent=2))
-                    print('burnin:',json.dumps(inference_metadata['results']['thermodynamic_integration_mcmc']['burnin'],indent=2))
-                    print('\n')
-                # Add log marginal likelihood mean and var to records only if convergence was achieved
-                if ti_mcmc_converged:
-                    # Get log marginal likelihood mean variance for thermodynamic integration MCMC
-                    ti_lml_mean = np.round(float(inference_metadata['results']['thermodynamic_integration_mcmc']['log_marginal_likelihoods_mean']),2)
-                    ti_lml_var = np.round(float(inference_metadata['results']['thermodynamic_integration_mcmc']['log_marginal_likelihoods_var']),2)
-                    # Compute them into a string
-                    ti_mcmc_lml_entry = str(ti_lml_mean)+' +/- '+str(ti_lml_var)
+                    if not ti_mcmc_converged:
+                        print('Thermodynamic Integration mcmc data fd:',data_fd,'inference fd:',inference_fd)
+                        print('acceptance rate:',json.dumps(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate'],indent=2))
+                        print('burnin:',json.dumps(inference_metadata['results']['thermodynamic_integration_mcmc']['burnin'],indent=2))
+                        print('\n')
+                    # Add log marginal likelihood mean and var to records only if convergence was achieved
+                    if ti_mcmc_converged:
+                        # Get log marginal likelihood mean variance for thermodynamic integration MCMC
+                        ti_lml_mean = np.round(float(inference_metadata['results']['thermodynamic_integration_mcmc']['log_marginal_likelihoods_mean']),2)
+                        ti_lml_var = np.round(float(inference_metadata['results']['thermodynamic_integration_mcmc']['log_marginal_likelihoods_var']),2)
+                        # Compute them into a string
+                        ti_mcmc_lml_entry = str(ti_lml_mean)+' +/- '+str(ti_lml_var)
+                    else:
+                        ti_mcmc_lml_entry = 'tuning_problem'
                 else:
-                    ti_mcmc_lml_entry = 'tuning_problem'
+                    ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
 
                 # Append entry to results
                 vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),vanilla_mcmc_lml_entry])

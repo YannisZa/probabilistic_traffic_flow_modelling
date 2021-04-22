@@ -593,9 +593,12 @@ class MarkovChainMonteCarlo(object):
         log_pprev = self.evaluate_log_target(pprev) + self.evaluate_log_kernel(pprev,pnew)
 
         if np.isnan(log_pnew) or np.isnan(log_pprev):
+            print('NaN value found')
             print('log_pnew',log_pnew,'pnew',self.transform_parameters(pnew,True),'prior',self.evaluate_log_joint_prior(pnew),'likelihood',self.evaluate_log_likelihood(pnew))
             print('log_pprev',log_pprev,'pprev',self.transform_parameters(pprev,True),'prior',self.evaluate_log_joint_prior(pprev),'likelihood',self.evaluate_log_likelihood(pprev))
-            raise ValueError('NaN value found')
+            print('\n')
+            return 0, log_pnew, log_pprev
+            # raise ValueError('NaN value found')
 
         # If numerator is + infty and denominator - infty
         if (np.isinf(log_pnew) and log_pnew > 0) or (np.isinf(log_pprev) and log_pprev < 0):
@@ -629,11 +632,14 @@ class MarkovChainMonteCarlo(object):
 
         if np.isnan(log_pnew) or np.isnan(log_pprev):
             delta_prev = self.evaluate_parameter_delta_function(pprev[t,:])
+            print('NaN value found')
             print('pnew:',self.transform_parameters(pnew[t,:],True),'constraints satisfied:',delta_new)
             print('log_pnew',log_pnew,'prior',self.evaluate_log_joint_prior(pnew[t,:]),'likelihood',self.evaluate_log_likelihood(pnew[t,:]))
             print('pprev:',self.transform_parameters(pprev[t,:],True),'constraints satisfied:',delta_prev)
             print('log_pprev',log_pprev,'prior',self.evaluate_log_joint_prior(pprev[t,:]),'likelihood',self.evaluate_log_likelihood(pprev[t,:]))
-            raise ValueError('NaN value found')
+            print('\n')
+            return 0, log_pnew, log_pprev
+            # raise ValueError('NaN value found')
 
         # If numerator is + infty and denominator - infty
         if (np.isinf(log_pnew) and log_pnew > 0) or (np.isinf(log_pprev) and log_pprev < 0):
@@ -787,12 +793,13 @@ class MarkovChainMonteCarlo(object):
                     self.update_transition_kernel(proposal_stds=list(post_std),mcmc_type='vanilla_mcmc',prints=prints)
                     # Update metadata
                     utils.update(self.__inference_metadata['results'],{"vanilla_mcmc": {"adapted_proposal_stds":list(post_std)}})
-                if prints:
-                    post_mu = np.mean(theta[0:burnin],axis=0)
-                    post_mu_str = [str(x) for x in post_mu]
-                    post_std_str = [str(x) for x in post_std]
-                    print('Empirical mu during burnin','['+", ".join(post_mu_str)+']')
-                    print('Empirical std during burnin','['+", ".join(post_std_str)+']')
+                # REMOVE THIS BEFORE FORMAL EXPERIMENTS
+                # if prints:
+                post_mu = np.mean(theta[0:burnin],axis=0)
+                post_mu_str = [str(x) for x in post_mu]
+                post_std_str = [str(x) for x in post_std]
+                # print('Empirical mu during burnin','['+", ".join(post_mu_str)+']')
+                print('Empirical std during burnin','['+", ".join(post_std_str)+']')
 
             # Add proposal to relevant array
             theta_proposed.append(p_new)
@@ -960,9 +967,9 @@ class MarkovChainMonteCarlo(object):
             u = np.random.random()
 
             # Printing proposals every 0.1*Nth iteration
-            if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                print('p_prev',self.transform_parameters(p_prev[random_t_index,:],True),'lt_prev',lt_prev)
-                print('p_new',self.transform_parameters(p_new[random_t_index,:],True),'lt_new',lt_new)
+            # if prints and (i in [int(j/10*N) for j in range(1,11)]):
+                # print('p_prev',self.transform_parameters(p_prev[random_t_index,:],True),'lt_prev',lt_prev)
+                # print('p_new',self.transform_parameters(p_new[random_t_index,:],True),'lt_new',lt_new)
 
             # Increment proposal counter
             prop[random_t_index] += 1
@@ -984,10 +991,9 @@ class MarkovChainMonteCarlo(object):
                 theta[i,:,:] = p_prev
 
             if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                print('Rejected...')
-                print(f'i = {random_t_index}, t_i = {self.temperature_schedule[random_t_index]}, p_new = {self.transform_parameters(p_new[random_t_index,:],True)}')
+                # print(f'i = {random_t_index}, t_i = {self.temperature_schedule[random_t_index]}, p_new = {self.transform_parameters(p_new[random_t_index,:],True)}')
                 print(f'Total acceptance rate {int(100*np.sum(acc) / np.sum(prop))}%')
-                print(f'Temperature acceptance rate {int(100*acc[random_t_index] / prop[random_t_index])}%')
+                # print(f'Temperature acceptance rate {int(100*acc[random_t_index] / prop[random_t_index])}%')
 
             # Update proposal stds after burnin
             if i == (burnin-1):
@@ -1001,12 +1007,13 @@ class MarkovChainMonteCarlo(object):
                     self.update_transition_kernel(proposal_stds=list(post_std),mcmc_type='thermodynamic_integration_mcmc',prints=prints)
                     # Update metadata
                     utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"adapted_proposal_stds":list(post_std)}})
-                if prints:
-                    post_mu = np.mean(theta[0:burnin,:,:],axis=(0,1))
-                    post_mu_str = [str(x) for x in post_mu]
-                    post_std_str = [str(x) for x in post_std]
-                    print('Empirical mu during burnin','['+", ".join(post_mu_str)+']')
-                    print('Empirical std during burnin','['+", ".join(post_std_str)+']')
+                # if prints:
+                # REMOVE THIS BEFORE FORMAL EXPERIMENTS
+                    # post_mu = np.mean(theta[0:burnin,:,:],axis=(0,1))
+                    # post_mu_str = [str(x) for x in post_mu]
+                post_std_str = [str(x) for x in post_std]
+                    # print('Empirical mu during burnin','['+", ".join(post_mu_str)+']')
+                print('Empirical std during burnin','['+", ".join(post_std_str)+']')
 
         # Update class attributes
         self.thermodynamic_integration_theta = np.array(theta).reshape((N,t_len,self.num_learning_parameters))
