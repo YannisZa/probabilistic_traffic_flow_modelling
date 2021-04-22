@@ -1,25 +1,25 @@
 id = "newells_fd_model_experiments"
 inference_ids = [
-                "grwmh_newells_model_daganzos_sim_learn_noise_n200",
-                "grwmh_newells_model_delcastillos_sim_learn_noise_n200",
-                "grwmh_newells_model_greenbergs_sim_learn_noise_n200",
-                "grwmh_newells_model_underwoods_sim_learn_noise_n200",
-                "grwmh_newells_model_northwesterns_sim_learn_noise_n200",
-                "grwmh_newells_model_greenshields_sim_learn_noise_n200",
-                "grwmh_newells_model_wangs_sim_learn_noise_n200",
+                # "grwmh_newells_model_daganzos_sim_learn_noise_n200",
+                # "grwmh_newells_model_delcastillos_sim_learn_noise_n200",
+                # "grwmh_newells_model_greenbergs_sim_learn_noise_n200",
+                # "grwmh_newells_model_underwoods_sim_learn_noise_n200",
+                # "grwmh_newells_model_northwesterns_sim_learn_noise_n200",
+                # "grwmh_newells_model_greenshields_sim_learn_noise_n200",
+                # "grwmh_newells_model_wangs_sim_learn_noise_n200",
                 "grwmh_newells_model_smulders_sim_learn_noise_n200",
-                "grwmh_newells_model_deromphs_sim_learn_noise_n200"
+                # "grwmh_newells_model_deromphs_sim_learn_noise_n200"
                 ]
 data_ids = [
-            "daganzos_fd_log_simulation_n200",
-            "delcastillos_fd_log_simulation_n200",
-            "greenbergs_fd_log_simulation_n200",
-            "underwoods_fd_log_simulation_n200",
-            "northwesterns_fd_log_simulation_n200",
-            "greenshields_fd_log_simulation_n200",
-            "wangs_fd_log_simulation_n200",
+            # "daganzos_fd_log_simulation_n200",
+            # "delcastillos_fd_log_simulation_n200",
+            # "greenbergs_fd_log_simulation_n200",
+            # "underwoods_fd_log_simulation_n200",
+            # "northwesterns_fd_log_simulation_n200",
+            # "greenshields_fd_log_simulation_n200",
+            # "wangs_fd_log_simulation_n200",
             "smulders_fd_log_simulation_n200",
-            "deromphs_fd_log_simulation_n200"
+            # "deromphs_fd_log_simulation_n200"
             ]
 
   [routines]

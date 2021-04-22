@@ -628,7 +628,7 @@ class MarkovChainMonteCarlo(object):
         log_pprev = self.evaluate_log_target_thermodynamic_integration(pprev,t) + self.evaluate_log_kernel(pprev,pnew)
 
         if np.isnan(log_pnew) or np.isnan(log_pprev):
-            delta_prev = self.evaluate_parameter_delta_function(pprev)
+            delta_prev = self.evaluate_parameter_delta_function(pprev[t,:])
             print('pnew:',self.transform_parameters(pnew[t,:],True),'constraints satisfied:',delta_new)
             print('log_pnew',log_pnew,'prior',self.evaluate_log_joint_prior(pnew[t,:]),'likelihood',self.evaluate_log_likelihood(pnew[t,:]))
             print('pprev:',self.transform_parameters(pprev[t,:],True),'constraints satisfied:',delta_prev)
@@ -637,10 +637,10 @@ class MarkovChainMonteCarlo(object):
 
         # If numerator is + infty and denominator - infty
         if (np.isinf(log_pnew) and log_pnew > 0) or (np.isinf(log_pprev) and log_pprev < 0):
-            return 0, log_pnew, log_pprev
+            return 1, log_pnew, log_pprev
         # If numerator is - infty and denominator + infty
         elif (np.isinf(log_pprev) and log_pprev > 0) or (np.isinf(log_pnew) and log_pnew < 0):
-            return -1e9, log_pnew, log_pprev
+            return 0, log_pnew, log_pprev
 
         # Compute log difference
         log_acc = log_pnew - log_pprev
@@ -648,7 +648,7 @@ class MarkovChainMonteCarlo(object):
         # If exp floating point exceeded
         # # Delta function is equal to 1 (see line 574)
         if log_acc >= 709:
-            return 0, log_pnew, log_pprev
+            return 1, log_pnew, log_pprev
         else:
             return min(1,np.exp(log_acc)), log_pnew, log_pprev
 
@@ -1352,7 +1352,7 @@ class MarkovChainMonteCarlo(object):
         # Print time execution
         toc = time.perf_counter()
         if prints: print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
-        return r_stat, converged
+        return r_stat, converged, burnin
 
 
     def compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(self,theta_list,prints:bool=False):
@@ -1441,7 +1441,7 @@ class MarkovChainMonteCarlo(object):
         # Print time execution
         toc = time.perf_counter()
         if prints: print(f"Computed Gelman & Rubin estimator in {toc - tic:0.4f} seconds")
-        return r_stat,converged
+        return r_stat, converged, burnin
 
 
 
@@ -1650,7 +1650,10 @@ class MarkovChainMonteCarlo(object):
         power = np.max([1,int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_power'])])
 
         # Loop through parameter indices
-        for ti in range(len(self.temperature_schedule)):
+        # for ti in range(len(self.temperature_schedule)):
+        # REMOVE THIS BEFORE FORMAL EXPERIMENTS
+        for ti in [0,1,28,29]:
+        # for ti in range(len(np.concatenate([self.temperature_schedule[0:2],self.temperature_schedule[(len(self.temperature_schedule)-3):len(self.temperature_schedule-1)]]))):
 
             # Loop through parameter indices
             for p in range(self.num_learning_parameters):
@@ -1931,7 +1934,9 @@ class MarkovChainMonteCarlo(object):
             # Get parameter indices
             index = parameter_indices[i]
 
-            for tj in range(len(self.temperature_schedule)):
+            # REMOVE THIS BEFORE FORMAL EXPERIMENTS
+            # for tj in range(len(self.temperature_schedule)):
+            for tj in [0,1,28,29]:
                 # Define parameter transformation
                 transformation_0 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[0]],latex_characters)]['transformation']
                 transformation_1 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[1]],latex_characters)]['transformation']
@@ -1963,8 +1968,6 @@ class MarkovChainMonteCarlo(object):
                 # Close current plot
                 plt.close(fig)
 
-                # REMOVE THIS BEFORE FORMAL EXPERIMENTS
-                if tj > 0: break
 
         return figs
 

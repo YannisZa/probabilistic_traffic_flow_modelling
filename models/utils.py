@@ -292,6 +292,8 @@ def map_name_to_variable_or_variable_index(self,variable_name,latex_characters):
             return float(min(self.x))
         elif variable_name == 'min_y':
             return float(min(self.y))
+    elif variable_name.isnumeric():
+        return float(variable_name)
     elif variable_name in param_names:
         # print("np.where(param_names==variable_name)[0][0]",np.where(param_names==variable_name)[0][0])
         return int(np.where(param_names==variable_name)[0][0])

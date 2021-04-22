@@ -61,7 +61,7 @@ proposal_factor_adjustment = 0.8
 proposal_stds = [ 0.025, 0.02, 0.01, 0.047,]
 beta_step = 1
 adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.6
+proposal_factor_adjustment = 0.55
 
 [inference.priors.v_f]
 transformation = "$\\log$"
