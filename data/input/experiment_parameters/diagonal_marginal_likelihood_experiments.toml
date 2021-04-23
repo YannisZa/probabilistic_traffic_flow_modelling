@@ -52,11 +52,11 @@ data_ids = [
   [vanilla_mcmc]
 
       [vanilla_mcmc.convergence_diagnostic]
-        compute = "True"
+        compute = "False"
         print = "True"
 
       [vanilla_mcmc.parameter_posterior]
-        compute = "True"
+        compute = "False"
         import = "False"
         export = "True"
         show_plot = "False"
@@ -72,7 +72,7 @@ data_ids = [
         print = "False"
 
       [vanilla_mcmc.marginal_likelihood]
-        compute = "True"
+        compute = "False"
         print = "True"
 
   [thermodynamic_integration_mcmc]

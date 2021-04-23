@@ -314,7 +314,7 @@ class Experiment(object):
     def compile_marginal_likelihood_matrix(self,data_ids,experiment_type:str='n200',inference_method='grwmh',prints:bool=False,export:bool=False):
 
         # Initialise list of rows of log marginal likelihoods
-        vanilla_mcmc_lmls = []
+        # vanilla_mcmc_lmls = []
         ti_mcmc_lmls = []
 
         # Get data FDs
@@ -339,13 +339,14 @@ class Experiment(object):
                 # print('\n')
                 # sys.exit(1)
 
+
                 # Define experiment metadata filename
                 metadata_filename = utils.prepare_output_experiment_inference_filename(experiment_id=self.experiment_metadata['id'],inference_id=inference_id,dataset=data_id,method=inference_method)
 
                 # Make sure file exists
                 if not os.path.exists((metadata_filename+'metadata.json')):
                     # if prints: print(f"Metadata file {metadata_filename}metadata.json not found")
-                    vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
+                    # vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
                     ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
                     continue
 
@@ -354,33 +355,33 @@ class Experiment(object):
                 with open((metadata_filename+'metadata.json')) as json_file:
                     inference_metadata = json.load(json_file)
 
-                if 'vanilla_mcmc' in inference_metadata['results'].keys():
-                    # Get convergence flag
-                    # Check that Gelman and Rubin-inferred burnin is lower than used burnin
-                    # Check that acceptance rate is between 40% and 50%
-                    vanilla_mcmc_converged = all([bool(inference_metadata['results']['vanilla_mcmc']['converged']),
-                                                int(inference_metadata['results']['vanilla_mcmc']['burnin']) <= int(inference_metadata['inference']['vanilla_mcmc']['burnin']),
-                                                float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= min_acceptance,
-                                                float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= max_acceptance])
-
-
-                    if not vanilla_mcmc_converged:
-                        print('Vanilla mcmc data fd:',data_fd,'inference fd:',inference_fd)
-                        print('acceptance rate:',json.dumps(inference_metadata['results']['vanilla_mcmc']['acceptance_rate'],indent=2))
-                        print('burnin:',json.dumps(inference_metadata['results']['vanilla_mcmc']['burnin'],indent=2))
-                        print('\n')
-
-                    # Add log marginal likelihood mean and var to records only if convergence was achieved
-                    if vanilla_mcmc_converged:
-                        # Get log marginal likelihood mean variance for vanilla MCMC
-                        vanilla_lml_mean = np.round(float(inference_metadata['results']['vanilla_mcmc']['log_marginal_likelihoods_mean']),2)
-                        vanilla_lml_var = np.round(float(inference_metadata['results']['vanilla_mcmc']['log_marginal_likelihoods_var']),2)
-                        # Compute them into a string
-                        vanilla_mcmc_lml_entry = str(vanilla_lml_mean)+' +/- '+str(vanilla_lml_var)
-                    else:
-                        vanilla_mcmc_lml_entry = 'tuning_problem'
-                else:
-                    vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
+                # if 'vanilla_mcmc' in inference_metadata['results'].keys():
+                #     # Get convergence flag
+                #     # Check that Gelman and Rubin-inferred burnin is lower than used burnin
+                #     # Check that acceptance rate is between 40% and 50%
+                #     vanilla_mcmc_converged = all([bool(inference_metadata['results']['vanilla_mcmc']['converged']),
+                #                                 int(inference_metadata['results']['vanilla_mcmc']['burnin']) <= int(inference_metadata['inference']['vanilla_mcmc']['burnin']),
+                #                                 float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= min_acceptance,
+                #                                 float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= max_acceptance])
+                #
+                #
+                #     if not vanilla_mcmc_converged:
+                #         print('Vanilla mcmc data fd:',data_fd,'inference fd:',inference_fd)
+                #         print('acceptance rate:',json.dumps(inference_metadata['results']['vanilla_mcmc']['acceptance_rate'],indent=2))
+                #         print('burnin:',json.dumps(inference_metadata['results']['vanilla_mcmc']['burnin'],indent=2))
+                #         print('\n')
+                #
+                #     # Add log marginal likelihood mean and var to records only if convergence was achieved
+                #     if vanilla_mcmc_converged:
+                #         # Get log marginal likelihood mean variance for vanilla MCMC
+                #         vanilla_lml_mean = np.round(float(inference_metadata['results']['vanilla_mcmc']['log_marginal_likelihoods_mean']),2)
+                #         vanilla_lml_var = np.round(float(inference_metadata['results']['vanilla_mcmc']['log_marginal_likelihoods_var']),2)
+                #         # Compute them into a string
+                #         vanilla_mcmc_lml_entry = str(vanilla_lml_mean)+' +/- '+str(vanilla_lml_var)
+                #     else:
+                #         vanilla_mcmc_lml_entry = 'tuning_problem'
+                # else:
+                #     vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
 
                 # DITTO for thermodynamic integration
                 if 'thermodynamic_integration_mcmc' in inference_metadata['results'].keys():
@@ -404,29 +405,30 @@ class Experiment(object):
                         ti_mcmc_lml_entry = str(ti_lml_mean)+' +/- '+str(ti_lml_var)
                     else:
                         ti_mcmc_lml_entry = 'tuning_problem'
-                else:
-                    ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
 
-                # Append entry to results
-                vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),vanilla_mcmc_lml_entry])
-                ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),ti_mcmc_lml_entry])
+                    # Append entry to results
+                    # vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),vanilla_mcmc_lml_entry])
+                    ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),ti_mcmc_lml_entry])
+                else:
+                    # print('data_id',data_id)
+                    # print('inference_id',inference_id)
+                    # print('\n')
+                    ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
 
 
         # Convert to np array
-        vanilla_mcmc_lmls = np.array(vanilla_mcmc_lmls)
+        # vanilla_mcmc_lmls = np.array(vanilla_mcmc_lmls)
         ti_mcmc_lmls = np.array(ti_mcmc_lmls)
 
-        # print(vanilla_mcmc_lmls)
-
-        # Get list of unique data models
-        data_fds = np.unique(vanilla_mcmc_lmls[:,0])
-        inference_fds = np.unique(vanilla_mcmc_lmls[:,1])
-
-        # Create empty dataframe
-        vanilla_mcmc_lmls_df = pd.DataFrame(index=data_fds,columns=inference_fds)
-        # Add rows to pandas dataframe
-        for i in range(np.shape(vanilla_mcmc_lmls)[0]):
-            vanilla_mcmc_lmls_df.loc[vanilla_mcmc_lmls[i,0], vanilla_mcmc_lmls[i,1]] = vanilla_mcmc_lmls[i,2]
+        # # Get list of unique data models
+        # data_fds = np.unique(vanilla_mcmc_lmls[:,0])
+        # inference_fds = np.unique(vanilla_mcmc_lmls[:,1])
+        #
+        # # Create empty dataframe
+        # vanilla_mcmc_lmls_df = pd.DataFrame(index=data_fds,columns=inference_fds)
+        # # Add rows to pandas dataframe
+        # for i in range(np.shape(vanilla_mcmc_lmls)[0]):
+        #     vanilla_mcmc_lmls_df.loc[vanilla_mcmc_lmls[i,0], vanilla_mcmc_lmls[i,1]] = vanilla_mcmc_lmls[i,2]
 
         # Get list of unique data models
         data_fds = np.unique(ti_mcmc_lmls[:,0])
@@ -441,12 +443,12 @@ class Experiment(object):
 
         # Compute Bayes factors
         # Copy log_marginal_likelihoods
-        vanilla_mcmc_bayes_factors_df = copy.deepcopy(vanilla_mcmc_lmls_df)
-        vanilla_mcmc_diagonal_lmls = np.diag(vanilla_mcmc_bayes_factors_df)
-        # Loop through rows
-        for i in range(vanilla_mcmc_bayes_factors_df.shape[0]):
-            # Perform row-wise substraction of diagonal
-            vanilla_mcmc_bayes_factors_df.iloc[i,:] = vanilla_mcmc_bayes_factors_df.iloc[i,:].apply(lambda x: subtract_lmls(x,vanilla_mcmc_diagonal_lmls[i]))
+        # vanilla_mcmc_bayes_factors_df = copy.deepcopy(vanilla_mcmc_lmls_df)
+        # vanilla_mcmc_diagonal_lmls = np.diag(vanilla_mcmc_bayes_factors_df)
+        # # Loop through rows
+        # for i in range(vanilla_mcmc_bayes_factors_df.shape[0]):
+        #     # Perform row-wise substraction of diagonal
+        #     vanilla_mcmc_bayes_factors_df.iloc[i,:] = vanilla_mcmc_bayes_factors_df.iloc[i,:].apply(lambda x: subtract_lmls(x,vanilla_mcmc_diagonal_lmls[i]))
 
         # Copy log_marginal_likelihoods
         ti_mcmc_bayes_factors_df = copy.deepcopy(ti_mcmc_lmls_df)
@@ -478,9 +480,9 @@ class Experiment(object):
         # Export to file
         if export:
             # CAREFUL: experiment_type is based on the last inference id
-            vanilla_mcmc_lmls_df.to_csv(filename+f'posterior_harmonic_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
+            # vanilla_mcmc_lmls_df.to_csv(filename+f'posterior_harmonic_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
+            # vanilla_mcmc_bayes_factors_df.to_csv(filename+f'posterior_harmonic_mean_estimated_bayes_factors_{experiment_type}.csv')
             ti_mcmc_lmls_df.to_csv(filename+f'thermodynamic_integral_marginal_likelihoood_estimator_{experiment_type}.csv')
-            vanilla_mcmc_bayes_factors_df.to_csv(filename+f'posterior_harmonic_mean_estimated_bayes_factors_{experiment_type}.csv')
             ti_mcmc_bayes_factors_df.to_csv(filename+f'thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
 
 

@@ -1659,7 +1659,7 @@ class MarkovChainMonteCarlo(object):
         # Loop through parameter indices
         # for ti in range(len(self.temperature_schedule)):
         # REMOVE THIS BEFORE FORMAL EXPERIMENTS
-        for ti in [0,1,28,29]:
+        for ti in [0,29]:
         # for ti in range(len(np.concatenate([self.temperature_schedule[0:2],self.temperature_schedule[(len(self.temperature_schedule)-3):len(self.temperature_schedule-1)]]))):
 
             # Loop through parameter indices
@@ -1943,7 +1943,7 @@ class MarkovChainMonteCarlo(object):
 
             # REMOVE THIS BEFORE FORMAL EXPERIMENTS
             # for tj in range(len(self.temperature_schedule)):
-            for tj in [0,1,28,29]:
+            for tj in [0,29]:
                 # Define parameter transformation
                 transformation_0 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[0]],latex_characters)]['transformation']
                 transformation_1 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[1]],latex_characters)]['transformation']
