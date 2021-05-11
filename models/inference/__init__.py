@@ -1144,8 +1144,11 @@ class MarkovChainMonteCarlo(object):
             utils.update(self.__inference_metadata['results'],{"map":{"params":list(self.map_params),"map":map_log_target}})
 
         if prints:
+            # my_choice = [7,13,0.026]
             print(f'MAP parameters: {self.transform_parameters(self.map_params,True)}')
             print(f'MAP log target: {map_log_target}')
+            # print('My choice',my_choice)
+            # print(f'My choice log target: {self.evaluate_log_target(self.transform_parameters(my_choice,False))}')
             if hasattr(self,'true_parameters'):
                 print(f'True log prior: {true_log_prior}')
                 print(f'True log likelihood: {true_log_likelihood}')
@@ -1943,7 +1946,7 @@ class MarkovChainMonteCarlo(object):
 
             # REMOVE THIS BEFORE FORMAL EXPERIMENTS
             # for tj in range(len(self.temperature_schedule)):
-            for tj in [0,29]:
+            for tj in [29]:
                 # Define parameter transformation
                 transformation_0 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[0]],latex_characters)]['transformation']
                 transformation_1 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[1]],latex_characters)]['transformation']

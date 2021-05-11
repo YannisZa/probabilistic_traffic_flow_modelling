@@ -65,7 +65,7 @@ min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
 loc = "0.8"
-scale = "0.1"
+scale = "0.1"#0.1
 
 [inference.priors.rho_j]
 transformation = "$\\log$"

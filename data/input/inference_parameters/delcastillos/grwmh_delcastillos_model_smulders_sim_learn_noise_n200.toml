@@ -58,9 +58,9 @@ adapt_proposal_during_burnin = "True"
 proposal_factor_adjustment = 0.6
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.02, 0.025, 0.005, 0.025, 0.07,]
+proposal_stds = [0.02505050723745485709, 0.02055178324218376, 0.002054844845486638274, 0.040066343136192195, 0.094731805316882]
 beta_step = 1
-adapt_proposal_during_burnin = "True"
+adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.6
 
 [inference.priors.Z]
@@ -70,7 +70,7 @@ min_log_prob = "-20"
 min = "1"
 max = "100"
 loc = "17.5"
-scale = "4"
+scale = "1"
 
 [inference.priors.u]
 transformation = "$\\log$"
@@ -79,7 +79,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "10"
 loc = "3.5"
-scale = "1"
+scale = "0.2"
 
 [inference.priors.rho_j]
 transformation = "$\\log$"
@@ -88,7 +88,7 @@ min_log_prob = "-20"
 min = "30"
 max = "100"
 loc = "44"
-scale = "5"
+scale = "0.2"
 
 [inference.priors.omega]
 transformation = "$\\log$"
@@ -97,7 +97,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "10"
 loc = "5"
-scale = "1"
+scale = "0.2"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"

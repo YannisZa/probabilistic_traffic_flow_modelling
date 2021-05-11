@@ -316,6 +316,7 @@ class Experiment(object):
         # Initialise list of rows of log marginal likelihoods
         # vanilla_mcmc_lmls = []
         ti_mcmc_lmls = []
+        ti_mcmc_mean_lmls = []
 
         # Get data FDs
         fds = [d.split('_fd')[0] for d in data_ids]
@@ -348,6 +349,7 @@ class Experiment(object):
                     # if prints: print(f"Metadata file {metadata_filename}metadata.json not found")
                     # vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
                     ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
+                    ti_mcmc_mean_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
                     continue
 
 
@@ -403,22 +405,27 @@ class Experiment(object):
                         ti_lml_var = np.round(float(inference_metadata['results']['thermodynamic_integration_mcmc']['log_marginal_likelihoods_var']),2)
                         # Compute them into a string
                         ti_mcmc_lml_entry = str(ti_lml_mean)+' +/- '+str(ti_lml_var)
+                        ti_mcmc_mean_lmls_entry = ti_lml_mean
                     else:
                         ti_mcmc_lml_entry = 'tuning_problem'
+                        ti_mcmc_mean_lmls_entry = 'nan'
 
                     # Append entry to results
                     # vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),vanilla_mcmc_lml_entry])
                     ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),ti_mcmc_lml_entry])
+                    ti_mcmc_mean_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),ti_mcmc_mean_lmls_entry])
                 else:
                     # print('data_id',data_id)
                     # print('inference_id',inference_id)
                     # print('\n')
                     ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
+                    ti_mcmc_mean_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
 
 
         # Convert to np array
         # vanilla_mcmc_lmls = np.array(vanilla_mcmc_lmls)
         ti_mcmc_lmls = np.array(ti_mcmc_lmls)
+        ti_mcmc_mean_lmls = np.array(ti_mcmc_mean_lmls)
 
         # # Get list of unique data models
         # data_fds = np.unique(vanilla_mcmc_lmls[:,0])
@@ -441,6 +448,12 @@ class Experiment(object):
         for i in range(np.shape(ti_mcmc_lmls)[0]):
             ti_mcmc_lmls_df.loc[ti_mcmc_lmls[i,0], ti_mcmc_lmls[i,1]] = ti_mcmc_lmls[i,2]
 
+        # Create empty dataframe
+        ti_mcmc_mean_lmls_df = pd.DataFrame(index=data_fds,columns=inference_fds)
+        # Add rows to pandas dataframe
+        for i in range(np.shape(ti_mcmc_mean_lmls)[0]):
+            ti_mcmc_mean_lmls_df.loc[ti_mcmc_mean_lmls[i,0], ti_mcmc_mean_lmls[i,1]] = ti_mcmc_mean_lmls[i,2]
+
         # Compute Bayes factors
         # Copy log_marginal_likelihoods
         # vanilla_mcmc_bayes_factors_df = copy.deepcopy(vanilla_mcmc_lmls_df)
@@ -450,7 +463,7 @@ class Experiment(object):
         #     # Perform row-wise substraction of diagonal
         #     vanilla_mcmc_bayes_factors_df.iloc[i,:] = vanilla_mcmc_bayes_factors_df.iloc[i,:].apply(lambda x: subtract_lmls(x,vanilla_mcmc_diagonal_lmls[i]))
 
-        # Copy log_marginal_likelihoods
+        # Compute Bayes factors
         ti_mcmc_bayes_factors_df = copy.deepcopy(ti_mcmc_lmls_df)
         ti_mcmc_diagonal_lmls = np.diag(ti_mcmc_bayes_factors_df)
         # Loop through rows
@@ -483,6 +496,7 @@ class Experiment(object):
             # vanilla_mcmc_lmls_df.to_csv(filename+f'posterior_harmonic_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
             # vanilla_mcmc_bayes_factors_df.to_csv(filename+f'posterior_harmonic_mean_estimated_bayes_factors_{experiment_type}.csv')
             ti_mcmc_lmls_df.to_csv(filename+f'thermodynamic_integral_marginal_likelihoood_estimator_{experiment_type}.csv')
+            ti_mcmc_mean_lmls_df.to_csv(filename+f'thermodynamic_integral_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
             ti_mcmc_bayes_factors_df.to_csv(filename+f'thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
 
 
