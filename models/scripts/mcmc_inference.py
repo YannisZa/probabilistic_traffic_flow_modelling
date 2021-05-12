@@ -12,20 +12,10 @@ from distutils.util import strtobool
 # Root directory
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]+"probabilistic_traffic_flow_modelling"
 
-# Define simulation id
-# data_id = "exponential_fd_simulation_smaller"
-#"exponential_fd_simulation_small_medium_noise"
-#"exponential_fd_simulation_small"
 # Define experiment id
 inference_id = str(sys.argv[1])
-#"grwmh_inference_wide_gamma_priors_sigma2_fixed_small"
-#"grwmh_inference_wide_gamma_priors_sigma2_fixed_smaller_more_data"
-#"grwmh_inference_wide_gamma_priors_sigma2_fixed_small"
-#"grwmh_inference_wide_gamma_priors_sigma2_fixed"
 
-# Print parameters
-# print(json.dumps(inference_params,indent=2))
-# print(json.dumps(simulation_params,indent=2))
+convergence_diagnostic = False # True False
 
 # Instantiate objects
 inf_model = utils.instantiate_inference_method(inference_id)
@@ -55,14 +45,15 @@ inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 
 # sys.exit(1)
 
-# Run Thermodynamic Integration MCMC in parallel and get convergence diagnostic
-ti_thetas,ti_acceptances = inf_model.run_parallel_mcmc(n=3,type='thermodynamic_integration_mcmc',prints=True)
-r_stat,ti_converged,ti_burnin = inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
+if convergence_diagnostic:
+    # Run Thermodynamic Integration MCMC in parallel and get convergence diagnostic
+    ti_thetas,ti_acceptances = inf_model.run_parallel_mcmc(n=3,type='thermodynamic_integration_mcmc',prints=True)
+    r_stat,ti_converged,ti_burnin = inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
 
-# Compute thermodynamic integration marginal likelihood estimators
-# inf_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(ti_thetas,prints=True)
+    # Compute thermodynamic integration marginal likelihood estimators
+    # inf_model.compute_thermodynamic_integration_log_marginal_likelihood_estimator(ti_thetas,prints=True)
 
-sys.exit(1)
+    sys.exit(1)
 
 # Run MCMC
 # theta_accepted,acceptance = inf_model.vanilla_mcmc(i=0,seed=2021,prints=True)
