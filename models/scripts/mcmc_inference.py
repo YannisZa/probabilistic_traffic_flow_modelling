@@ -15,7 +15,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probab
 # Define experiment id
 inference_id = str(sys.argv[1])
 
-convergence_diagnostic = False # True False
+convergence_diagnostic = True # True False
 
 # Instantiate objects
 inf_model = utils.instantiate_inference_method(inference_id)

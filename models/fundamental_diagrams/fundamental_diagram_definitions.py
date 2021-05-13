@@ -242,6 +242,6 @@ class DeRomphsFD(FundamentalDiagram):
 
     def log_simulate_with_x(self,p,rho):
         return (np.log(p[0])+np.log(rho)+np.nan_to_num(np.log(1-rho/p[4]))) *  ((rho < p[1])*1) + (np.log(p[3])+np.log(rho)+p[5]*np.log(1./rho-1./p[2])) * ((rho >= p[1])*1)
-        
+
     def hessian(self,p):
-        -2*(p[0]/p[4]) * (super().rho < p[1])*1 + ( (p[5]-1)*p[5]*p[3]*(p[2])**2*(1./super().rho-1./p[2])**p[5] )/ ( super().rho*(super().rho-p[2])**2 ) * (super().rho >= p[1])*1
+        return -2*(p[0]/p[4]) * (super().rho < p[1])*1 + ( (p[5]-1)*p[5]*p[3]*(p[2])**2*(1./super().rho-1./p[2])**p[5] )/ ( super().rho*(super().rho-p[2])**2 ) * (super().rho >= p[1])*1

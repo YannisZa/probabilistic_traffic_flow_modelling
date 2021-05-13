@@ -1,16 +1,18 @@
-id = "smulders_fd_model_experiments"
+id = "deromphs_fd_model_experiments"
 inference_ids = [
-                "grwmh_smulders_model_daganzos_sim_learn_noise_n200",
-                "grwmh_smulders_model_delcastillos_sim_learn_noise_n200",
-                "grwmh_smulders_model_greenbergs_sim_learn_noise_n200",
-                "grwmh_smulders_model_greenshields_sim_learn_noise_n200",
-                "grwmh_smulders_model_underwoods_sim_learn_noise_n200",
-                "grwmh_smulders_model_northwesterns_sim_learn_noise_n200",
-                "grwmh_smulders_model_newells_sim_learn_noise_n200",
-                "grwmh_smulders_model_wangs_sim_learn_noise_n200",
-                "grwmh_smulders_model_deromphs_sim_learn_noise_n200"
+                # "grwmh_deromphs_model_deromphs_sim_learn_noise_n200",
+                "grwmh_deromphs_model_daganzos_sim_learn_noise_n200",
+                "grwmh_deromphs_model_delcastillos_sim_learn_noise_n200",
+                "grwmh_deromphs_model_greenbergs_sim_learn_noise_n200",
+                "grwmh_deromphs_model_greenshields_sim_learn_noise_n200",
+                "grwmh_deromphs_model_underwoods_sim_learn_noise_n200",
+                "grwmh_deromphs_model_northwesterns_sim_learn_noise_n200",
+                "grwmh_deromphs_model_newells_sim_learn_noise_n200",
+                "grwmh_deromphs_model_wangs_sim_learn_noise_n200",
+                "grwmh_deromphs_model_smulders_sim_learn_noise_n200"
                 ]
 data_ids = [
+            # "deromphs_fd_log_simulation_n200",
             "daganzos_fd_log_simulation_n200",
             "delcastillos_fd_log_simulation_n200",
             "greenbergs_fd_log_simulation_n200",
@@ -19,7 +21,7 @@ data_ids = [
             "northwesterns_fd_log_simulation_n200",
             "newells_fd_log_simulation_n200",
             "wangs_fd_log_simulation_n200",
-            "deromphs_fd_log_simulation_n200"
+            "smulders_fd_log_simulation_n200"
             ]
 
   [routines]
