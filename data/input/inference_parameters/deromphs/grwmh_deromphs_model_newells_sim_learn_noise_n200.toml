@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [1.5140526897966027, 33.182904152508314, 50.59855694273311, 515.0019194708082, 40.287381652134336, 1.6254648368182494, 0.01038431193870264]
+p0 = [1.5127911618392678, 32.98253469416718, 50.59028584155222, 539.5887470863112, 40.30650277531186, 1.634775400385851, 0.010000390853771633]
 param_initialisation = "map"
 
 [inference.likelihood]
@@ -54,7 +54,7 @@ beta_step = 1
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
                 #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\alpha$',r'$\beta$',r'$\sigma^2$']
-proposal_stds = [0.00039001570832142185, 0.000160156049395837644, 0.00013111318143937118, 2.7052025528658335e-05, 0.00024083536139625551, 0.000290447141886210407, 0.000990026450358617741]
+proposal_stds = [0.00039001570832142185, 0.000160156049395837644, 0.00013111318143937118, 2.7052025528658335e-05, 0.00020083536139625551, 0.000290447141886210407, 0.000990026450358617741]
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.4
 beta_step = 1
@@ -92,7 +92,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
 max = "1000"
-loc = "550"
+loc = "540"
 scale = "0.02"
 
 [inference.priors.alpha]
@@ -110,8 +110,8 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
 max = "5"
-loc = "1.5"
-scale = "0.0005"
+loc = "1.6203"
+scale = "0.0005"#"0.0005"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"

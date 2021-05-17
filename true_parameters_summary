@@ -1,0 +1,43 @@
+True parameters 
+
+1. Greenshields
+	v_f = "2."
+ 	rho_j = "45."
+2. Greenbergs
+	v_f = "2.2"
+	rho_j = "45.0"
+3. Newells
+	v_f = "1.3"
+	lambda = "40.3"
+	rho_j = "45"
+4. Wangs
+	v_f = "1.1"
+	rho_c = "22.6"
+	theta = "4.0"
+5. Underwoods
+	v_f = "5.1"
+	rho_j = "8.0"
+6. Northwesterns 
+	v_f = "2.1"
+	rho_j = "11.7"
+7. DelCastillos
+	Z = "26"
+	u = "2.8"
+	rho_j = "45"
+	omega = "2.8"
+8. Daganzos
+	q_c = "12.0"
+	rho_c = "20."
+	rho_j = "45.0"
+9. Smulders
+	v_f = "1.5"
+	rho_c = "15.0"
+	rho_j = "45.0"
+	gamma = "16.0"
+10. DeRomphs
+	v_f = "2.5"
+	rho_c = "20.0"
+	rho_j = "45.0"
+	gamma = "367.0"
+	alpha = "24.0"
+	beta = "2.0"
