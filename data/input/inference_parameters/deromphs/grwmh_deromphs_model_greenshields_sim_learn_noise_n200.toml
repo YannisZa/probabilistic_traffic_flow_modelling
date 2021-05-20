@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [2.0338887686860114, 16.741696793097997, 41.53046938470517, 8.393540229078173, 43.60549596164069, 0.5418230016378353, 0.009803235078045775]
+p0 = [2.032925131724301, 16.000013562290516, 41.323119972530904, 7.892371028966828, 43.99977495245486, 0.5266395836764525, 0.00999898306075405]
 param_initialisation = "map"
 
 [inference.likelihood]
@@ -65,7 +65,7 @@ distribution = "normal"
 min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
-loc = "2.1"
+loc = "2.033"
 scale = "0.02"
 
 [inference.priors.rho_c]
@@ -83,7 +83,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "30"
 max = "60"
-loc = "41"
+loc = "41.3"
 scale = "0.1"
 
 [inference.priors.gamma]
@@ -92,7 +92,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
 max = "500"
-loc = "8"
+loc = "7.892"
 scale = "0.05"
 
 [inference.priors.alpha]
@@ -110,7 +110,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
 max = "5"
-loc = "0.5"
+loc = "0.527"
 scale = "0.005"
 
 [inference.priors.sigma2]

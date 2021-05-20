@@ -15,7 +15,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probab
 # Define experiment id
 inference_id = str(sys.argv[1])
 
-convergence_diagnostic = True # True False
+convergence_diagnostic = False # True False
 
 # Instantiate objects
 inf_model = utils.instantiate_inference_method(inference_id)
@@ -31,7 +31,20 @@ inf_model.populate(fd)
 # Compute MLE estimate
 inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 
-# sys.exit(1)
+
+# [r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\sigma^2$'])
+# param = [1.7212974372955934, 15.016179284568013, 44.74034640205288, 26.065566580251833, 44.70995124361817, 1.0, 0.010395255107354152]
+#[1.7212974372955934, 15.016179284568013, 44.74034640205288, 26.065566580251833, 0.010395255107354152]
+
+# [r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\alpha$',r'$\beta$',r'$\sigma^2$']
+# [1.8912121904146477, 26.999964810756076, 50.526424880359315, 193.8806265765878, 33.061141967186764, 1.502221663285689, 0.011036697717723323]
+# tparam = inf_model.transform_parameters(param,False)
+# lt = inf_model.evaluate_log_target(tparam)
+#
+# print('lt',lt)
+# print()
+#
+sys.exit(1)
 
 # Plot univariate prior distributions
 # inf_model.export_univariate_prior_plots()
