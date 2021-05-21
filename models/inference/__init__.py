@@ -1131,6 +1131,7 @@ class MarkovChainMonteCarlo(object):
         self.map_params = map
         # Evaluate log target
         map_log_target = self.evaluate_log_target(self.map_params)
+        map_log_likelihood = self.evaluate_log_likelihood(self.map_params)
         # Evaluate log target for true parameters
         if hasattr(self,'true_parameters'):
             true_log_likelihood = self.evaluate_log_likelihood(self.transform_parameters(self.true_parameters,False))
@@ -1147,6 +1148,7 @@ class MarkovChainMonteCarlo(object):
             # my_choice = [7,13,0.026]
             print(f'MAP parameters: {self.transform_parameters(self.map_params,True)}')
             print(f'MAP log target: {map_log_target}')
+            print(f'MAP log likelihood: {map_log_likelihood}')
             # print('My choice',my_choice)
             # print(f'My choice log target: {self.evaluate_log_target(self.transform_parameters(my_choice,False))}')
             if hasattr(self,'true_parameters'):

@@ -55,16 +55,19 @@ class DaganzosFD(FundamentalDiagram):
         FundamentalDiagram.parameter_names.fset(self, [r'$q_c$',r'$\rho_c$',r'$\rho_j$',r'$\sigma^2$'])
 
     def simulate(self,p):
-        return np.array([(p[0]/p[1])*r if r < p[1] else p[0]*(p[2]-r)/(p[2]-p[1]) for r in super().rho])
+        return (p[0]/p[1])*super().rho() * (super().rho < p[1])*1 + p[0]*(p[2]-r)/(p[2]-p[1]) * (super().rho >= p[1])*1
+        #np.array([(p[0]/p[1])*r if r < p[1] else p[0]*(p[2]-r)/(p[2]-p[1]) for r in super().rho])
 
     def log_simulate(self,p):
-        return np.array([np.log(p[0])-np.log(p[1])+np.log(r) if np.log(r) < np.log(p[1]) else np.log(p[0])+np.log(p[2]-r)-np.log(p[2]-p[1]) for r in super().rho])
+        return (np.log(p[0])-np.log(p[1])+np.log(super().rho)) * (super().rho < p[1])*1 + (np.log(p[0])+np.log(p[2]-super().rho)-np.log(p[2]-p[1])) * (super().rho >= p[1])*1
+        #np.array([np.log(p[0])-np.log(p[1])+np.log(r) if np.log(r) < np.log(p[1]) else np.log(p[0])+np.log(p[2]-r)-np.log(p[2]-p[1]) for r in super().rho])
 
     def log_simulate_with_x(self,p,rho):
-        return np.array([np.log(p[0])-np.log(p[1])+np.log(r) if np.log(r) < np.log(p[1]) else np.log(p[0])+np.log(p[2]-r)-np.log(p[2]-p[1]) for r in rho])
+        return (np.log(p[0])-np.log(p[1])+np.log(rho)) * (rho < p[1])*1 + (np.log(p[0])+np.log(p[2]-rho)-np.log(p[2]-p[1])) * (rho >= p[1])*1
+        #np.array([np.log(p[0])-np.log(p[1])+np.log(r) if np.log(r) < np.log(p[1]) else np.log(p[0])+np.log(p[2]-r)-np.log(p[2]-p[1]) for r in rho])
 
     def hessian(self,p):
-        return [0 for i in range(len(super().rho))]
+        return np.zeros(len(super().rho))
 
 class DelCastillosFD(FundamentalDiagram):
     pass
