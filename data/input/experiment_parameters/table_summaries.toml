@@ -1,4 +1,4 @@
-id = "diagonal_marginal_likelihood_experiments"
+id = "table_summaries"
 inference_ids = [
                   "grwmh_greenshields_model_greenshields_sim_learn_noise_n200",
                   "grwmh_daganzos_model_daganzos_sim_learn_noise_n200",

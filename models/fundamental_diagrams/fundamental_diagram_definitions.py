@@ -55,7 +55,7 @@ class DaganzosFD(FundamentalDiagram):
         FundamentalDiagram.parameter_names.fset(self, [r'$q_c$',r'$\rho_c$',r'$\rho_j$',r'$\sigma^2$'])
 
     def simulate(self,p):
-        return (p[0]/p[1])*super().rho() * (super().rho < p[1])*1 + p[0]*(p[2]-r)/(p[2]-p[1]) * (super().rho >= p[1])*1
+        return (p[0]/p[1])*super().rho * (super().rho < p[1])*1 + p[0]*(p[2]-super().rho)/(p[2]-p[1]) * (super().rho >= p[1])*1
         #np.array([(p[0]/p[1])*r if r < p[1] else p[0]*(p[2]-r)/(p[2]-p[1]) for r in super().rho])
 
     def log_simulate(self,p):

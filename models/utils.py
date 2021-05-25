@@ -200,18 +200,18 @@ def map_name_to_parameter_transformation(priors,num_learning_parameters,lower_bo
                 raise ValueError('Cannot apply log transformation to unconstrained variables in map_name_to_parameter_transformation.')
             elif np.isinf(upper_bounds[i]):
                 # print('Lower bound')
-                transformations.append([(lambda i: lambda x: np.log(x-lower_bounds[i]) )(i) , (lambda i: lambda x: (np.exp(x)+lower_bounds[i]) )(i) ])
+                transformations.append([(lambda i: lambda x: np.log(x-lower_bounds[i]) )(i) , (lambda i: lambda x: (np.exp(x)+lower_bounds[i]) )(i), 'log'])
 
             elif np.isinf(lower_bounds[i]):
                 # print('Upper bound')
-                transformations.append([(lambda i: lambda x: np.log(x/(upper_bounds[i]-x)) )(i) , (lambda i: lambda x: ((upper_bounds[i]*np.exp(x))/(1+np.exp(x))) )(i) ])
+                transformations.append([(lambda i: lambda x: np.log(x/(upper_bounds[i]-x)) )(i) , (lambda i: lambda x: ((upper_bounds[i]*np.exp(x))/(1+np.exp(x))) )(i), 'log'])
             else:
                 # print('Upper and lower bounds')
-                transformations.append([(lambda i: lambda x: np.log((x-lower_bounds[i])/(upper_bounds[i]-x)) )(i) , (lambda i: lambda x: ((upper_bounds[i]*np.exp(x)+lower_bounds[i])/(1+np.exp(x))) )(i) ])
+                transformations.append([(lambda i: lambda x: np.log((x-lower_bounds[i])/(upper_bounds[i]-x)) )(i) , (lambda i: lambda x: ((upper_bounds[i]*np.exp(x)+lower_bounds[i])/(1+np.exp(x))) )(i), 'log'])
         elif '1/' in priors[prior]['transformation'].lower():
-            transformations.append([myreciprocal, myreciprocal])
+            transformations.append([myreciprocal, myreciprocal, '1/'])
         else:
-            transformations.append([myidentity, myidentity])
+            transformations.append([myidentity, myidentity, ''])
     return transformations
 
 
@@ -249,6 +249,9 @@ def map_name_to_distribution_sampler(name,**kwargs):
     if name.lower() == 'beta':
         if print_statements: print(name.lower())
         return np.random.beta
+    elif name.lower() == 'uniform':
+        if print_statements: print(name.lower())
+        return np.random.uniform
     elif name.lower() == 'gamma':
         if print_statements: print(name.lower())
         return np.random.gamma
@@ -313,7 +316,13 @@ def prepare_input_simulation_filename(simulation_id):
 
 def prepare_input_inference_filename(model,inference_id):
     # Define input filepath
-    input_file = os.path.join(root,'data/input/inference_parameters',model,inference_id+('.toml'))
+    if '_prior' in inference_id:
+        # Get prior specification from inference id
+        prior = inference_id.split('_prior')[0].rsplit('_',1)[1] + '_prior'
+        # Construct inferece parameter input file
+        input_file = os.path.join(root,'data/input/inference_parameters',model,prior,inference_id+('.toml'))
+    else:
+        input_file = os.path.join(root,'data/input/inference_parameters',model,inference_id+('.toml'))
     # Ensure file exists
     if not os.path.exists(input_file):
         raise ValueError(f'Inference file {input_file} not found.')
@@ -368,7 +377,7 @@ def prepare_output_experiment_simulation_filename(experiment_id,**kwargs):
 
 def prepare_output_experiment_summary_filename(experiment_id):
     # Define output folder path
-    output_folder = os.path.join(root,'data/output/experiment_data',experiment_id+'/')
+    output_folder = os.path.join(root,'data/output/experiment_data/table_summaries/')
     # Create new folder if it doesn't exist
     ensure_dir(output_folder)
     # Return simulation filename
@@ -392,7 +401,7 @@ def import_simulation_metadata(data_id):
 def import_inference_metadata(model,inference_id):
 
     # Get data filename
-    metadata_filename = utils.prepare_input_inference_filename(model=model,inference_id=inference_id)
+    metadata_filename = prepare_input_inference_filename(model=model,inference_id=inference_id)
 
     # Import simulation metadata
     if os.path.exists(metadata_filename):
@@ -405,7 +414,7 @@ def import_inference_metadata(model,inference_id):
 def import_experiment_metadata(experiment_id):
 
     # Get data filename
-    metadata_filename = utils.prepare_input_experiment_filename(experiment_id)
+    metadata_filename = prepare_input_experiment_filename(experiment_id)
 
     # Import simulation metadata
     if os.path.exists(metadata_filename):

@@ -83,10 +83,12 @@ class Experiment(object):
                 self.run_inference(inference_id)
 
         if strtobool(self.experiment_metadata['routines']['compile_marginal_likelihood_matrix']):
-            self.compile_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
-                                                    prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
-                                                    export=strtobool(self.experiment_metadata['experiment_summary']['export']))
-
+            # self.compile_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
+            #                                         prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
+            #                                         export=strtobool(self.experiment_metadata['experiment_summary']['export']))
+            self.compile_r2_matrix(list(self.experiment_metadata['data_ids']),
+                                    prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
+                                    export=strtobool(self.experiment_metadata['experiment_summary']['export']))
 
         end = time.time()
         hours, rem = divmod(end-start, 3600)
@@ -281,6 +283,12 @@ class Experiment(object):
         elif not strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['compute']):
             print('Compute posterior predictive')
             inference_model.evaluate_posterior_predictive_moments(prints=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['print']))
+            print("\n")
+
+        # Compute R2 based on posterior predictive
+        if strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['compute']) and strtobool(self.experiment_metadata['vanilla_mcmc']['R2']['compute']):
+            print('Compute posterior predictive R2')
+            inference_model.evaluate_posterior_predictive_r_squared(prints=strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['print']))
             print("\n")
 
         # Expore/Store posterior predictive
@@ -498,6 +506,94 @@ class Experiment(object):
             ti_mcmc_lmls_df.to_csv(filename+f'thermodynamic_integral_marginal_likelihoood_estimator_{experiment_type}.csv')
             ti_mcmc_mean_lmls_df.to_csv(filename+f'thermodynamic_integral_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
             ti_mcmc_bayes_factors_df.to_csv(filename+f'thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
+
+    def compile_r2_matrix(self,data_ids,experiment_type:str='n200',inference_method='grwmh',prints:bool=False,export:bool=False):
+
+        # Initialise list of rows of log marginal likelihoods
+        # vanilla_mcmc_lmls = []
+        r2 = []
+
+        # Get data FDs
+        fds = [d.split('_fd')[0] for d in data_ids]
+
+        # Loop through data ids
+        for data_id in data_ids:#tqdm(data_ids):
+            # Get data FD
+            data_fd = data_id.split('_fd',1)[0]
+            # Create inference ids
+            inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(fds)]
+            # Loop through constructed inference ids
+            for i,inference_id in tqdm(enumerate(inference_ids)):
+
+                # Get inference model name
+                inference_fd = fds[i]
+                inference_id = inference_ids[i]
+
+                # Define experiment metadata filename
+                metadata_filename = utils.prepare_output_experiment_inference_filename(experiment_id=self.experiment_metadata['id'],inference_id=inference_id,dataset=data_id,method=inference_method)
+
+                # Make sure file exists
+                if not os.path.exists((metadata_filename+'metadata.json')):
+                    # if prints: print(f"Metadata file {metadata_filename}metadata.json not found")
+                    r2.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
+                    continue
+
+
+                #  Import metadata where acceptance is part of metadata
+                with open((metadata_filename+'metadata.json')) as json_file:
+                    inference_metadata = json.load(json_file)
+
+                if 'vanilla_mcmc' in list(inference_metadata['results'].keys()) and 'R2' in list(inference_metadata['results']['vanilla_mcmc'].keys()):
+                    # Get convergence flag and check that Gelman and Rubin-inferred burnin is lower than used burnin
+                    vanilla_mcmc_converged = all([bool(inference_metadata['results']['vanilla_mcmc']['converged']),
+                                            int(inference_metadata['results']['vanilla_mcmc']['burnin']) <= int(inference_metadata['inference']['vanilla_mcmc']['burnin']),
+                                            float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= min_acceptance,
+                                            float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= max_acceptance])
+
+                    if not vanilla_mcmc_converged:
+                        print('Thermodynamic Integration mcmc data fd:',data_fd,'inference fd:',inference_fd)
+                        print('acceptance rate:',json.dumps(inference_metadata['results']['vanilla_mcmc']['acceptance_rate'],indent=2))
+                        print('burnin:',json.dumps(inference_metadata['results']['vanilla_mcmc']['burnin'],indent=2))
+                        print('\n')
+                    # Add log marginal likelihood mean and var to records only if convergence was achieved
+                    if vanilla_mcmc_converged:
+                        # Get R2
+                        r2_entry = str(np.round(float(inference_metadata['results']['vanilla_mcmc']['R2']),2))
+                    else:
+                        r2_entry = 'tuning_problem'
+
+                    # Append entry to results
+                    r2.append([data_fd.capitalize(),inference_fd.capitalize(),r2_entry])
+                else:
+                    # print('data_id',data_id)
+                    # print('inference_id',inference_id)
+                    # print('\n')
+                    r2.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
+
+
+        # Convert to np array
+        # vanilla_mcmc_lmls = np.array(vanilla_mcmc_lmls)
+        r2 = np.array(r2)
+
+        # Get list of unique data models
+        data_fds = np.unique(r2[:,0])
+        inference_fds = np.unique(r2[:,1])
+
+        # DITTO for thermodynamic integration lmls
+        # Create empty dataframe
+        r2_df = pd.DataFrame(index=data_fds,columns=inference_fds)
+        # Add rows to pandas dataframe
+        for i in range(np.shape(r2)[0]):
+            r2_df.loc[r2[i,0], r2[i,1]] = r2[i,2]
+
+        # Prepare export file
+        filename = utils.prepare_output_experiment_summary_filename(self.experiment_metadata['id'])
+
+        # Export to file
+        if export:
+            print(filename+f'R2_{experiment_type}.csv')
+            # CAREFUL: experiment_type is based on the last inference id
+            r2_df.to_csv(filename+f'R2_{experiment_type}.csv')
 
 
     def tune_inference(self,inference_id):

@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from distutils.util import strtobool
 from inference import MarkovChainMonteCarlo
+from probability_distributions import *
 
 # matplotlib settings
 matplotlib.rc('font', **{'size' : 18})
@@ -67,6 +68,9 @@ class MetropolisHastings(MarkovChainMonteCarlo):
         # Define multivaraite prior log pdf
         def _log_multivariate_prior_pdf(p):
             return np.sum([prior(p[j])[0] for j,prior in enumerate(prior_distribution_log_pdfs)])
+
+        # Store raw hypeparameters of priors
+        self.prior_hyperparameters = [[x['loc'],x['scale']] for j,x in enumerate(hyperparams_list)]
 
         # Update super class attributes for univariate and joint priors
         MarkovChainMonteCarlo.log_joint_prior.fset(self, _log_multivariate_prior_pdf)
@@ -180,11 +184,31 @@ class MetropolisHastings(MarkovChainMonteCarlo):
         # Get kernel parameters
         kernel_params = self.inference_metadata['inference'][mcmc_type]['transition_kernel']
         kernel_type = str(self.inference_metadata['inference']['transition_kernel']['type'])
+        # If dynamic proposal specified
+        dynamic_proposal = False
+        if dynamic_proposal in list(self.inference_metadata['inference']['transition_kernel'].keys()):
+            dynamic_proposal = strtobool(self.inference_metadata['inference']['transition_kernel']['dynamic_proposal'])
+        # Get temperature_thrershold for changing between proposal distributions
+        temperature_thrershold = 0
+        if "temperature_thrershold" in list(self.inference_metadata['inference']['transition_kernel'].keys()):
+            temperature_thrershold = float(self.inference_metadata['inference']['transition_kernel']['temperature_thrershold'])
+        # Get number of temperature ladder steps
+        temp_nsteps = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_nsteps'])
+        # Constuct diagonal proposal distribution covariance
         K = np.diag([proposal_stds[i]**2 for i in range(len(proposal_stds))])
-        beta_step = float(kernel_params['beta_step'])
 
+        # Update flag for dynamic proposal
+        dynamic_proposal = ((temperature_thrershold > 0) and (dynamic_proposal))
+
+        # Read beta steps
+        beta_step = 1
+        if "beta_step" in kernel_params:
+            beta_step = float(kernel_params['beta_step'])
+
+        # print('Dynamic proposal',dynamic_proposal)
         if prints:
             print(mcmc_type)
+            print('Dynamic proposal',dynamic_proposal)
             print('Proposal covariance',K)
             print('Proposal standard deviations',[np.sqrt(v) for v in np.diagonal(K)])
             print('Proposal beta step',beta_step)
@@ -200,10 +224,43 @@ class MetropolisHastings(MarkovChainMonteCarlo):
         def _kernel(p):
             pnew = None
             if self.num_learning_parameters > 1:
-                pnew = p + beta_step*distribution_sampler(np.zeros(self.num_learning_parameters),K)
+                pnew = p + np.sqrt(beta_step)*distribution_sampler(np.zeros(self.num_learning_parameters),K)
             else:
-                pnew = p + beta_step*distribution_sampler(0,K[0,0])
+                pnew = p + np.sqrt(beta_step)*distribution_sampler(0,K[0,0])
             return pnew
+
+        # Define dynamic proposal mechanism only if necessary
+        if dynamic_proposal:
+            transformed_hyperparameters = self.prior_hyperparameters
+            # Get lower and upper bounds of Normal distribution
+            means = [taylor_expansion_of_moments(x[0],x[1],self.transformations[j][2])[0] for j,x in enumerate(self.prior_hyperparameters)]
+            vars = [taylor_expansion_of_moments(x[0],x[1],self.transformations[j][2])[1] for j,x in enumerate(self.prior_hyperparameters)]
+
+            # print('self.prior_hyperparameters',self.prior_hyperparameters)
+            # print('means',means)
+            # print('vars',vars)
+
+            def _dynamic_ti_kernel(p,t):
+                pnew = None
+                u = np.random.uniform()
+                if u >= self.temperature_schedule[t]:
+                    # Sample from a Normal distribution approximated from the taylor expansion of the prior's moments
+                    pnew = np.random.multivariate_normal(means,np.diag(vars))
+                else:
+                    # Sample from symmetric Gaussian kernel
+                    pnew = p + np.sqrt(beta_step)*distribution_sampler(np.zeros(self.num_learning_parameters),K)
+                return pnew
+        else:
+            def _ti_kernel(p,t):
+                pnew = None
+                # Sample from symmetric Gaussian kernel
+                if self.num_learning_parameters > 1:
+                    pnew = p + np.sqrt(beta_step)*distribution_sampler(np.zeros(self.num_learning_parameters),K)
+                else:
+                    pnew = p + np.sqrt(beta_step)*distribution_sampler(0,K[0,0])
+
+                return pnew
+
 
         def _log_kernel(pnew,pold):
             # TODO: define log_kernel
@@ -214,7 +271,10 @@ class MetropolisHastings(MarkovChainMonteCarlo):
             MarkovChainMonteCarlo.transition_kernel.fset(self, _kernel)
             MarkovChainMonteCarlo.log_kernel.fset(self, _log_kernel)
         elif mcmc_type == 'thermodynamic_integration_mcmc':
-            MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _kernel)
+            if dynamic_proposal:
+                MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _dynamic_ti_kernel)
+            else:
+                MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _ti_kernel)
             MarkovChainMonteCarlo.log_kernel.fset(self, _log_kernel)
 
 

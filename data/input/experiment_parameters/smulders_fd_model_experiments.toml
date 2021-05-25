@@ -1,5 +1,6 @@
 id = "smulders_fd_model_experiments"
 inference_ids = [
+                "grwmh_smulders_model_smulders_sim_learn_noise_n200",
                 "grwmh_smulders_model_daganzos_sim_learn_noise_n200",
                 "grwmh_smulders_model_delcastillos_sim_learn_noise_n200",
                 "grwmh_smulders_model_greenbergs_sim_learn_noise_n200",
@@ -11,6 +12,7 @@ inference_ids = [
                 "grwmh_smulders_model_deromphs_sim_learn_noise_n200"
                 ]
 data_ids = [
+            "smulders_fd_log_simulation_n200",
             "daganzos_fd_log_simulation_n200",
             "delcastillos_fd_log_simulation_n200",
             "greenbergs_fd_log_simulation_n200",
@@ -50,19 +52,19 @@ data_ids = [
   [vanilla_mcmc]
 
       [vanilla_mcmc.convergence_diagnostic]
-        compute = "False"# "True"
+        compute = "True"# "True"
         print = "True"
 
       [vanilla_mcmc.parameter_posterior]
-        compute = "False"# "True"
+        compute = "True"# "True"
         import = "False"# False
-        export = "False"
+        export = "True"
         show_plot = "False"
         show_title = "False"
         print = "True"
 
       [vanilla_mcmc.posterior_predictive]
-        compute = "False"
+        compute = "True"
         import = "False"
         export = "True"
         show_plot = "False"
@@ -70,17 +72,20 @@ data_ids = [
         print = "True"
 
       [vanilla_mcmc.marginal_likelihood]
-        compute = "False"# "True"
+        compute = "True"# "True"
         print = "True"
+
+      [vanilla_mcmc.R2]
+        compute = "True"
 
   [thermodynamic_integration_mcmc]
 
     [thermodynamic_integration_mcmc.convergence_diagnostic]
-      compute = "True"# True
+      compute = "False"# True
       print = "True"
 
     [thermodynamic_integration_mcmc.parameter_posterior]
-        compute = "True"# True
+        compute = "False"# True
         import = "False"
         export = "False"
         show_plot = "False"
@@ -88,5 +93,5 @@ data_ids = [
         print = "True"
 
     [thermodynamic_integration_mcmc.marginal_likelihood]
-        compute = "True"# True
+        compute = "False"# True
         print = "True"

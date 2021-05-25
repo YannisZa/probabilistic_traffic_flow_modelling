@@ -396,7 +396,7 @@ class MarkovChainMonteCarlo(object):
         self.update_temperature_schedule()
 
         # Update delta functions with parameter constraints
-        self.update_parameter_constraint_delta_functions()#prints=True
+        self.update_parameter_constraint_delta_functions()
 
         # Update model likelihood
         self.update_log_likelihood_log_pdf(fundamental_diagram)
@@ -541,9 +541,9 @@ class MarkovChainMonteCarlo(object):
         utils.validate_attribute_existence(self,['transition_kernel'])
         return self.__transition_kernel(p)
 
-    def propose_new_sample_thermodynamic_integration(self,p):
+    def propose_new_sample_thermodynamic_integration(self,p,t):
         utils.validate_attribute_existence(self,['thermodynamic_integration_transition_kernel'])
-        return self.__thermodynamic_integration_transition_kernel(p)
+        return self.__thermodynamic_integration_transition_kernel(p,t)
 
     def evaluate_parameter_delta_function(self,p):
         return self.__parameter_delta_function(p)
@@ -621,7 +621,6 @@ class MarkovChainMonteCarlo(object):
         # Compute parameter constraints
         delta_new = self.evaluate_parameter_delta_function(pnew[t,:])
 
-
         # If proposed move does not satisfy parameter constraints
         if delta_new == 0:
             return 0, -np.inf, np.inf
@@ -696,7 +695,7 @@ class MarkovChainMonteCarlo(object):
 
         # Make sure you have stored necessary attributes
         utils.validate_parameter_existence(['N'],self.inference_metadata['inference']['vanilla_mcmc'])
-        utils.validate_parameter_existence(['proposal_stds','beta_step'],self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel'])
+        # utils.validate_parameter_existence(['proposal_stds','beta_step'],self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel'])
 
         p0 = None
         # Read p0 or randomly initialise it from prior
@@ -946,7 +945,7 @@ class MarkovChainMonteCarlo(object):
             p_new = copy.deepcopy(p_prev)
 
             # Copy previously accepted sample
-            p_new[random_t_index,:] = self.propose_new_sample_thermodynamic_integration(p_prev[random_t_index,:])
+            p_new[random_t_index,:] = self.propose_new_sample_thermodynamic_integration(p_prev[random_t_index,:],random_t_index)
 
             # If rejection scheme for constrained theta applies
             if self.inference_metadata['inference']['transition_kernel']['action'] == 'reflect':
@@ -961,7 +960,6 @@ class MarkovChainMonteCarlo(object):
               lt_prev = self.evaluate_log_target_thermodynamic_integration(p_prev,random_t_index)
             else:
               acc_ratio,lt_new,lt_prev = self.thermodynamic_integration_acceptance_ratio(p_new,p_prev,random_t_index)
-
 
             # Sample from Uniform(0,1)
             u = np.random.random()
@@ -1502,6 +1500,36 @@ class MarkovChainMonteCarlo(object):
             toc = time.perf_counter()
             print(f"Computed posterior predictive in {toc - tic:0.4f} seconds")
 
+    def evaluate_posterior_predictive_r_squared(self,prints:bool=False):
+
+        # Make sure you have necessary attributes
+        utils.validate_attribute_existence(self,['posterior_predictive_mean','posterior_predictive_std','posterior_predictive_x'])
+
+        # Time execution
+        tic = time.perf_counter()
+
+        # Get number of posterior predictive samples to use and acf lags from plot metadata
+        posterior_predictive_samples = int(self.inference_metadata['inference']['vanilla_mcmc']['posterior_predictive_samples'])
+
+        if prints: print(f'Computing posterior predictive R squared')
+
+        # Compute mean
+        log_y_bar = np.mean(self.posterior_predictive_mean)
+        SS_res = np.sum((self.posterior_predictive_mean-self.log_y)**2)
+        SS_tot = np.sum((self.posterior_predictive_mean-log_y_bar)**2)
+        R2 = 1 - SS_res/SS_tot
+
+        # Update metadata
+        utils.update(self.__inference_metadata['results'],{"vanilla_mcmc":{"R2":R2}})
+
+        # Compute execution time
+        if prints:
+            toc = time.perf_counter()
+            print('R2 = ',R2)
+            print(f"Computed posterior predictive R squared in {toc - tic:0.4f} seconds")
+
+        return R2
+
     def generate_univariate_prior_plots(self,show_plot:bool=False,prints:bool=False,show_title:bool=True):
 
         # Make sure you have stored the necessary attributes
@@ -1511,6 +1539,7 @@ class MarkovChainMonteCarlo(object):
         prior_params = list(self.inference_metadata['inference']['priors'].values())
 
         figs = []
+        prior_limits = []
         # Loop through parameter number
         for i in range(self.num_learning_parameters):
 
@@ -1536,7 +1565,7 @@ class MarkovChainMonteCarlo(object):
             prior_mean = np.round(self.log_univariate_priors[i](xrange)[1],5)
             prior_std = np.round(self.log_univariate_priors[i](xrange)[2],5)
 
-            # Store distributio and parameter names
+            # Store distribution and parameter names
             distribution_name = prior_params[i]['distribution'].capitalize()
             parameter_name = self.parameter_names[i]
 
@@ -1553,6 +1582,9 @@ class MarkovChainMonteCarlo(object):
             else:
                 xmin = pmin
                 xmax = pmax
+
+            # Append x limits to list
+            prior_limits.append([xmin,xmax])
 
             ymin = lower_limit
             ymax = np.max(yrange[np.isfinite(yrange)])
@@ -1586,6 +1618,9 @@ class MarkovChainMonteCarlo(object):
             figs.append({"parameters":[(utils.remove_characters(transformation,latex_characters)+self.parameter_names[i])],"figure":fig})
             # Close plot
             plt.close(fig)
+
+            # Store prior limits to class attribute
+            self.prior_limits = prior_limits
 
 
         return figs

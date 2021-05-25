@@ -47,9 +47,9 @@ burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.005, 0.008, 0.002, 0.005, 0.04,]
+proposal_stds = [0.005 , 0.006 , 0.0025, 0.0085, 0.02]
 beta_step = 1
-adapt_proposal_during_burnin = "True"
+adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.8
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]

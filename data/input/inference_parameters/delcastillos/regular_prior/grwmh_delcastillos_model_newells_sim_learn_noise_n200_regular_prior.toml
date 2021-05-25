@@ -1,8 +1,8 @@
-id = "grwmh_smulders_model_deromphs_sim_learn_noise_n200"
+id = "grwmh_delcastillos_model_newells_sim_learn_noise_n200_regular_prior"
 inference_model = "grwmh"
-data_id = "deromphs_fd_log_simulation_n200"
-data_fundamental_diagram = "deromphs"
-fundamental_diagram = "smulders"
+data_id = "newells_fd_log_simulation_n200"
+data_fundamental_diagram = "newells"
+fundamental_diagram = "delcastillos"
 learn_noise = "True"
 
 [plot]
@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [1.8051351454535225, 20.150188431190163, 40.32782004249055, 5.920579051237549, 0.11564324390424502]
+p0 = [ 37.71267825477887, 1.6064377521401345, 44.780602615035335, 1.6861308521902882, 0.009591664383116559,]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -22,7 +22,7 @@ action = ""
 
 [inference.parameter_constraints]
 lower_bounds = [ "0", "0", "0", "0", "0",]
-upper_bounds = [ "inf", "inf", "inf", "inf", "inf",]
+upper_bounds = [ "inf", "inf", "inf", "100", "inf",]
 
 [inference.convergence_diagnostic]
 r_critical = 1.1
@@ -47,33 +47,33 @@ burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [0.00091667, 0.00183333, 0.00064167, 0.00183333, 0.00183333]
+proposal_stds = [ 0.008, 0.01, 0.002, 0.012, 0.04,]
 beta_step = 1
-adapt_proposal_during_burnin = "False"
-proposal_factor_adjustment = 0.8
+adapt_proposal_during_burnin = "True"
+proposal_factor_adjustment = 0.25
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.001, 0.002, 0.0007, 0.002, 0.002 ]
+proposal_stds = [ 0.025050507237454857, 0.017055178324218375, 0.0025548448454866383, 0.025066343136192194, 0.094731805316882,]
 beta_step = 1
 adapt_proposal_during_burnin = "False"
-proposal_factor_adjustment = 0.5
+proposal_factor_adjustment = 0.35
 
-[inference.priors.v_f]
+[inference.priors.Z]
 transformation = "$\\log$"
 distribution = "normal"
-min_log_prob = "-10"
-min = "0.1"
-max = "5.0"
-loc = "1.8"
-scale = "0.002"
+min_log_prob = "-20"
+min = "1"
+max = "100"
+loc = "38"
+scale = "2"
 
-[inference.priors.rho_c]
+[inference.priors.u]
 transformation = "$\\log$"
 distribution = "normal"
-min_log_prob = "-5"
+min_log_prob = "-20"
 min = "0.1"
-max = "30"
-loc = "20"
+max = "10"
+loc = "1.6"
 scale = "0.1"
 
 [inference.priors.rho_j]
@@ -81,18 +81,18 @@ transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
 min = "30"
-max = "60"
-loc = "40"
-scale = "0.05"
+max = "100"
+loc = "45"
+scale = "0.2"
 
-[inference.priors.gamma]
+[inference.priors.omega]
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
-max = "30"
-loc = "6"
-scale = "0.02"
+max = "10"
+loc = "1.7"
+scale = "0.1"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -100,13 +100,8 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
-loc = "0.12"
-scale = "0.0005"
-
-[inference.parameter_constraints.implicit.constraint1]
-lhs = "rho_j"
-operator = ">"
-rhs = "rho_c"
+loc = "0.01"
+scale = "0.003"
 
 [inference.parameter_constraints.implicit.constraint2]
 lhs = "rho_j"

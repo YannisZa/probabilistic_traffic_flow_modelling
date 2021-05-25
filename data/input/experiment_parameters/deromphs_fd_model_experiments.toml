@@ -75,6 +75,9 @@ data_ids = [
         compute = "False"# "True"
         print = "True"
 
+      [vanilla_mcmc.R2]
+        compute = "True"
+
   [thermodynamic_integration_mcmc]
 
     [thermodynamic_integration_mcmc.convergence_diagnostic]
