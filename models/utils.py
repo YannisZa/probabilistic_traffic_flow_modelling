@@ -193,6 +193,25 @@ def map_name_to_inference_method(name):
         raise Exception(f'No probability distribution found for {name.lower()}')
 
 def map_name_to_parameter_transformation(priors,num_learning_parameters,lower_bounds:list=[],upper_bounds:list=[]):
+    """Converts transformation name to transformation operator, inverse transformation operator, transformation operator 1st derivative, transformation operator 2nd derivative
+
+    Parameters
+    ----------
+    priors : dict
+        Dictionary of prior names and hypeparameters
+    num_learning_parameters : int
+        Number of parameters to be learned
+    lower_bounds : list
+        Lower boundary of transformed variable
+    upper_bounds : list
+        Upper boundary of transformed variable
+
+    Returns
+    -------
+    list of lambda functions and string
+        Transformation operator, inverse transformation operator, transformation operator 1st derivative, transformation operator 2nd derivative, transformation name
+
+    """
     transformations = []
     for i,prior in enumerate(list(priors.keys())[0:num_learning_parameters]):
         if 'log' in priors[prior]['transformation'].lower():
@@ -200,18 +219,39 @@ def map_name_to_parameter_transformation(priors,num_learning_parameters,lower_bo
                 raise ValueError('Cannot apply log transformation to unconstrained variables in map_name_to_parameter_transformation.')
             elif np.isinf(upper_bounds[i]):
                 # print('Lower bound')
-                transformations.append([(lambda i: lambda x: np.log(x-lower_bounds[i]) )(i) , (lambda i: lambda x: (np.exp(x)+lower_bounds[i]) )(i), 'log'])
+                transformations.append({"forward":(lambda i: lambda x: np.log(x-lower_bounds[i]) )(i) ,
+                                        "backward":(lambda i: lambda x: (np.exp(x)+lower_bounds[i]) )(i),
+                                        "jacobian":(lambda i: lambda x: 1/(x-lower_bounds[i]) )(i),
+                                        "hessian":(lambda i: lambda x: -1/((x-lower_bounds[i])**2) )(i),
+                                        "name":'log'})
 
             elif np.isinf(lower_bounds[i]):
                 # print('Upper bound')
-                transformations.append([(lambda i: lambda x: np.log(x/(upper_bounds[i]-x)) )(i) , (lambda i: lambda x: ((upper_bounds[i]*np.exp(x))/(1+np.exp(x))) )(i), 'log'])
+                transformations.append({"forward":(lambda i: lambda x: np.log(x/(upper_bounds[i]-x)) )(i) ,
+                                        "backward":(lambda i: lambda x: ((upper_bounds[i]*np.exp(x))/(1+np.exp(x))) )(i),
+                                        "jacobian":(lambda i: lambda x: -upper_bounds[i]/(x*(x-upper_bounds[i])) )(i),
+                                        "hessian":(lambda i: lambda x: (upper_bounds[i]*(2*x-upper_bounds[i]))/(x**2*(x-upper_bounds[i])**2) )(i),
+                                        "name":'log'})
             else:
                 # print('Upper and lower bounds')
-                transformations.append([(lambda i: lambda x: np.log((x-lower_bounds[i])/(upper_bounds[i]-x)) )(i) , (lambda i: lambda x: ((upper_bounds[i]*np.exp(x)+lower_bounds[i])/(1+np.exp(x))) )(i), 'log'])
+                transformations.append({"forward":(lambda i: lambda x: np.log((x-lower_bounds[i])/(upper_bounds[i]-x)) )(i) ,
+                                        "backward":(lambda i: lambda x: ((upper_bounds[i]*np.exp(x)+lower_bounds[i])/(1+np.exp(x))) )(i),
+                                        "jacobian":(lambda i: lambda x: -(upper_bounds[i]-lower_bounds[i])/((x-lower_bounds[i])*(x-upper_bounds[i])) )(i),
+                                        "hessian":(lambda i: lambda x: ((upper_bounds[i]-lower_bounds[i])*(2*x-upper_bounds[i]-lower_bounds[i]))/((x-lower_bounds[i])**2*(x-upper_bounds[i])**2) )(i),
+                                        "name":'log'})
         elif '1/' in priors[prior]['transformation'].lower():
-            transformations.append([myreciprocal, myreciprocal, '1/'])
+            print('Need to compute transformation first and second derivatives')
+            transformations.append({"forward":myreciprocal,
+                                    "backward":myreciprocal,
+                                    "jacobian":"",
+                                    "hessian":"",
+                                    "name":'1/'})
         else:
-            transformations.append([myidentity, myidentity, ''])
+            transformations.append({"forward":myidentity,
+                                    "backward":myidentity,
+                                    "jacobian":(lambda x: 0),
+                                    "hessian":(lambda x: 0),
+                                    "name":''})
     return transformations
 
 

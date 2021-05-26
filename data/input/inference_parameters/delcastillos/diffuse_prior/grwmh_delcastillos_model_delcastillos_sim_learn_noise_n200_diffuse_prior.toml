@@ -19,8 +19,6 @@ type = "mnormal"
 [inference.transition_kernel]
 type = "mnormal"
 action = ""
-dynamic_proposal = "True"
-temperature_thrershold = 0.017
 
 [inference.parameter_constraints]
 lower_bounds = [ "0", "0", "0", "0", "0",]
@@ -50,12 +48,13 @@ marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
 proposal_stds = [ 0.008, 0.01, 0.002, 0.012, 0.04,]
-beta_step = 1
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = "0.4"
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [0.0130986342590261632, 0.020139297523815023, 0.0025, 0.04039297523815023, 0.06095749361564907]
+proposal_stds = [0.0110986342590261632, 0.019139297523815023, 0.0025, 0.04039297523815023, 0.06095749361564907]
+alpha_step = 0.1
+dynamic_proposal = "True"
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = "0.4"
 

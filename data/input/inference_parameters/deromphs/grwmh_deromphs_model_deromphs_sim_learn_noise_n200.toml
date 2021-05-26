@@ -5,7 +5,6 @@ data_fundamental_diagram = "deromphs"
 fundamental_diagram = "deromphs"
 learn_noise = "True"
 
-#33% acceptance
 
 [inference]
     [inference.initialisation]
@@ -51,8 +50,8 @@ learn_noise = "True"
 
             [inference.vanilla_mcmc.transition_kernel]
                                 #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\alpha$',r'$\beta$',r'$\sigma^2$']
-                proposal_stds = [0.005, 0.0002, 0.001, 0.02, 0.005, 0.005, 0.03]
-                adapt_proposal_during_burnin = "True"
+                proposal_stds = [0.0043513 , 0.00055865, 0.00103403, 0.00317224, 0.00094273, 0.0010327 , 0.00633401]
+                adapt_proposal_during_burnin = "False"
                 proposal_factor_adjustment = "0.38"
                 beta_step = 1
 
@@ -129,7 +128,3 @@ learn_noise = "True"
           max = "1.0"
           loc = "0.01"
           scale = "0.0001"
-
-  [plot]
-    acf_lags = 100
-    hist_bins = 50

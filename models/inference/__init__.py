@@ -422,8 +422,8 @@ class MarkovChainMonteCarlo(object):
 
         transformed_params = []
         for i in range(len(p)):
-            if inverse: transformed_params.append(self.transformations[i][1](p[i]))
-            else: transformed_params.append(self.transformations[i][0](p[i]))
+            if inverse: transformed_params.append(self.transformations[i]['backward'](p[i]))
+            else: transformed_params.append(self.transformations[i]['forward'](p[i]))
 
         return transformed_params
 
@@ -479,17 +479,17 @@ class MarkovChainMonteCarlo(object):
                         if isinstance(lhs,int):
                             if isinstance(rhs,float):
                                 # print(f'comparing p[{lhs}] with rhs:', self.transformations[lhs][1](p[lhs]), 'with', rhs)
-                                return utils.map_operation_symbol_to_binary(symbol=operator,lhs=self.transformations[lhs][1](p[lhs]),rhs=rhs)
+                                return utils.map_operation_symbol_to_binary(symbol=operator,lhs=self.transformations[lhs]['backward'](p[lhs]),rhs=rhs)
                             elif isinstance(rhs,int):
                                 # print(f'comparing p[{lhs}] with p[{rhs}]:', self.transformations[lhs][1](p[lhs]), 'with', self.transformations[rhs][1](p[rhs]))
-                                return utils.map_operation_symbol_to_binary(symbol=operator,lhs=self.transformations[lhs][1](p[lhs]),rhs=self.transformations[rhs][1](p[rhs]))
+                                return utils.map_operation_symbol_to_binary(symbol=operator,lhs=self.transformations[lhs]['backward'](p[lhs]),rhs=self.transformations[rhs]['backward'](p[rhs]))
                         elif isinstance(lhs,float):
                             if isinstance(rhs,float):
                                 # print(f'comparing lhs with rhs:', lhs , 'with', rhs)
                                 return utils.map_operation_symbol_to_binary(symbol=operator,lhs=lhs,rhs=rhs)
                             elif isinstance(rhs,int):
                                 # print(f'comparing lhs with p[{rhs}]:', lhs , 'with', self.transformations[rhs][1](p[rhs]))
-                                return utils.map_operation_symbol_to_binary(symbol=operator,lhs=lhs,rhs=self.transformations[rhs][1](p[rhs]))
+                                return utils.map_operation_symbol_to_binary(symbol=operator,lhs=lhs,rhs=self.transformations[rhs]['backward'](p[rhs]))
                     return _delta_constraint
                 # Append function to list of delta functions
                 delta_functions.append(make_delta_function(i))
@@ -1130,6 +1130,7 @@ class MarkovChainMonteCarlo(object):
         # Evaluate log target
         map_log_target = self.evaluate_log_target(self.map_params)
         map_log_likelihood = self.evaluate_log_likelihood(self.map_params)
+        map_log_prior = self.evaluate_log_joint_prior(self.map_params)
         # Evaluate log target for true parameters
         if hasattr(self,'true_parameters'):
             true_log_likelihood = self.evaluate_log_likelihood(self.transform_parameters(self.true_parameters,False))
@@ -1147,12 +1148,13 @@ class MarkovChainMonteCarlo(object):
             print(f'MAP parameters: {self.transform_parameters(self.map_params,True)}')
             print(f'MAP log target: {map_log_target}')
             print(f'MAP log likelihood: {map_log_likelihood}')
+            print(f'MAP log prior: {map_log_prior}')
             # print('My choice',my_choice)
             # print(f'My choice log target: {self.evaluate_log_target(self.transform_parameters(my_choice,False))}')
             if hasattr(self,'true_parameters'):
-                print(f'True log prior: {true_log_prior}')
-                print(f'True log likelihood: {true_log_likelihood}')
                 print(f'True log target: {true_log_target}')
+                print(f'True log likelihood: {true_log_likelihood}')
+                print(f'True log prior: {true_log_prior}')
 
     def compute_log_posterior_harmonic_mean_estimator(self,theta_list,prints:bool=False):
 
@@ -1559,7 +1561,7 @@ class MarkovChainMonteCarlo(object):
             lower_limit = float(self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[i],latex_characters)]['min_log_prob'])
 
             # Transform x range
-            xrange = self.transformations[i][0](xrange)
+            xrange = self.transformations[i]['forward'](xrange)
             # Evaluate log probability
             yrange = self.log_univariate_priors[i](xrange)[0]
             prior_mean = np.round(self.log_univariate_priors[i](xrange)[1],5)

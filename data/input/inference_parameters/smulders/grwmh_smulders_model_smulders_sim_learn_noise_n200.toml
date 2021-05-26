@@ -45,7 +45,7 @@ learn_noise = "True"
 
             [inference.vanilla_mcmc.transition_kernel]
                                 #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\sigma^2$']
-                proposal_stds = [0.01  , 0.0125, 0.005 , 0.0075, 0.035 ]
+                proposal_stds = [0.006 , 0.0075, 0.003 , 0.0045, 0.021 ]
                 beta_step = 1
                 adapt_proposal_during_burnin = "False"
                 proposal_factor_adjustment = "0.4"

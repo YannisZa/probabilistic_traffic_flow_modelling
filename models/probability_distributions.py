@@ -11,11 +11,11 @@ from inference.mcmc_inference_models import *
 # Root directory
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]
 
-def taylor_expansion_of_moments(loc,scale,transformation):
-    if 'log' in transformation.lower():
-        return np.log(loc) - scale**2/(2*loc**2), scale**2/loc**2
-    elif '1/' in transformation.lower():
-        return 1/loc + scale**2/loc**3, scale**2 / loc**4
+def taylor_expansion_of_moments(loc,scale,transformation,jacobian,hessian,transformation_name):
+    if 'log' in transformation_name.lower():
+        return transformation(loc) + hessian(loc)*scale**2/2, (jacobian(loc))**2*scale**2
+    elif '1/' in transformation_name.lower():
+        return transformation(loc) + scale**2/loc**3, scale**2 / loc**4
     else:
         return loc, scale
 

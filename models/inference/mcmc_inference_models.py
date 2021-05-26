@@ -186,21 +186,19 @@ class MetropolisHastings(MarkovChainMonteCarlo):
         kernel_type = str(self.inference_metadata['inference']['transition_kernel']['type'])
         # If dynamic proposal specified
         dynamic_proposal = False
-        if dynamic_proposal in list(self.inference_metadata['inference']['transition_kernel'].keys()):
-            dynamic_proposal = strtobool(self.inference_metadata['inference']['transition_kernel']['dynamic_proposal'])
-        # Get temperature_thrershold for changing between proposal distributions
-        temperature_thrershold = 0
-        if "temperature_thrershold" in list(self.inference_metadata['inference']['transition_kernel'].keys()):
-            temperature_thrershold = float(self.inference_metadata['inference']['transition_kernel']['temperature_thrershold'])
+        if "dynamic_proposal" in list(kernel_params.keys()):
+            dynamic_proposal = bool(strtobool(kernel_params['dynamic_proposal']))
         # Get number of temperature ladder steps
         temp_nsteps = int(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temp_nsteps'])
         # Constuct diagonal proposal distribution covariance
         K = np.diag([proposal_stds[i]**2 for i in range(len(proposal_stds))])
 
-        # Update flag for dynamic proposal
-        dynamic_proposal = ((temperature_thrershold > 0) and (dynamic_proposal))
+        # Read alpha beta steps
+        alpha_step = 1#np.ones(self.num_learning_parameters)
+        if "alpha_step" in kernel_params:
+            alpha_step = float(kernel_params['alpha_step'])
+            #list(kernel_params['alpha_step'])
 
-        # Read beta steps
         beta_step = 1
         if "beta_step" in kernel_params:
             beta_step = float(kernel_params['beta_step'])
@@ -231,39 +229,37 @@ class MetropolisHastings(MarkovChainMonteCarlo):
 
         # Define dynamic proposal mechanism only if necessary
         if dynamic_proposal:
-            transformed_hyperparameters = self.prior_hyperparameters
             # Get lower and upper bounds of Normal distribution
-            means = [taylor_expansion_of_moments(x[0],x[1],self.transformations[j][2])[0] for j,x in enumerate(self.prior_hyperparameters)]
-            vars = [taylor_expansion_of_moments(x[0],x[1],self.transformations[j][2])[1] for j,x in enumerate(self.prior_hyperparameters)]
+            means = [taylor_expansion_of_moments(x[0],x[1],self.transformations[j]['forward'],self.transformations[j]['jacobian'],self.transformations[j]['hessian'],self.transformations[j]['name'])[0] for j,x in enumerate(self.prior_hyperparameters)]
+            vars = [taylor_expansion_of_moments(x[0],x[1],self.transformations[j]['forward'],self.transformations[j]['jacobian'],self.transformations[j]['hessian'],self.transformations[j]['name'])[1] for j,x in enumerate(self.prior_hyperparameters)]
 
             # print('self.prior_hyperparameters',self.prior_hyperparameters)
             # print('means',means)
-            # print('vars',vars)
+            # print('vars',np.multiply(alpha_step,np.diag(vars)))
 
             def _dynamic_ti_kernel(p,t):
                 pnew = None
                 u = np.random.uniform()
                 if u >= self.temperature_schedule[t]:
-                    # Sample from a Normal distribution approximated from the taylor expansion of the prior's moments
-                    pnew = np.random.multivariate_normal(means,np.diag(vars))
+                    # Sample from a symmetric Normal distribution approximated from the taylor expansion of the prior's moments
+                    pnew = np.random.multivariate_normal(means,alpha_step*np.diag(vars))
                 else:
                     # Sample from symmetric Gaussian kernel
-                    pnew = p + np.sqrt(beta_step)*distribution_sampler(np.zeros(self.num_learning_parameters),K)
+                    pnew = p + beta_step*distribution_sampler(np.zeros(self.num_learning_parameters),K)
                 return pnew
         else:
             def _ti_kernel(p,t):
                 pnew = None
                 # Sample from symmetric Gaussian kernel
                 if self.num_learning_parameters > 1:
-                    pnew = p + np.sqrt(beta_step)*distribution_sampler(np.zeros(self.num_learning_parameters),K)
+                    pnew = p + beta_step*distribution_sampler(np.zeros(self.num_learning_parameters),K)
                 else:
-                    pnew = p + np.sqrt(beta_step)*distribution_sampler(0,K[0,0])
+                    pnew = p + beta_step*distribution_sampler(0,K[0,0])
 
                 return pnew
 
-
         def _log_kernel(pnew,pold):
-            # TODO: define log_kernel
+            # TODO: define log_kernel when necessary
             return 0
 
         # Update super class transition kernel attribute
