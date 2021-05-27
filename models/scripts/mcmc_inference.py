@@ -39,6 +39,8 @@ inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 # Plot univariate prior distributions
 inf_model.export_univariate_prior_plots()
 
+# sys.exit(1)
+
 # if convergence_diagnostic:
 #     # Run Vanilla MCMC in parallel and get convergence diagnostic
 #     vanilla_thetas,vanilla_acceptances = inf_model.run_parallel_mcmc(n=3,type='vanilla_mcmc',prints=True)

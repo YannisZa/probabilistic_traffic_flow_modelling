@@ -48,13 +48,13 @@ marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
 proposal_stds = [ 0.008, 0.01, 0.002, 0.012, 0.04,]
-beta_step = 1
 adapt_proposal_during_burnin = "True"
 proposal_factor_adjustment = 0.25
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
 proposal_stds = [ 0.025050507237454857, 0.017055178324218375, 0.0025548448454866383, 0.025066343136192194, 0.094731805316882,]
-beta_step = 1
+alpha_step = 0.5
+dynamic_proposal = "True"
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.35
 
@@ -64,7 +64,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "1"
 max = "100"
-loc = "38"
+loc = "37.7"
 scale = "2"
 
 [inference.priors.u]
@@ -80,10 +80,10 @@ scale = "0.1"
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
-min = "30"
+min = "1"
 max = "100"
-loc = "45"
-scale = "0.2"
+loc = "44.8"
+scale = "2"
 
 [inference.priors.omega]
 transformation = "$\\log$"
@@ -101,7 +101,7 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.01"
-scale = "0.003"
+scale = "0.002"
 
 [inference.parameter_constraints.implicit.constraint2]
 lhs = "rho_j"

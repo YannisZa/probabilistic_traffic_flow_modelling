@@ -234,8 +234,8 @@ class MetropolisHastings(MarkovChainMonteCarlo):
             vars = [taylor_expansion_of_moments(x[0],x[1],self.transformations[j]['forward'],self.transformations[j]['jacobian'],self.transformations[j]['hessian'],self.transformations[j]['name'])[1] for j,x in enumerate(self.prior_hyperparameters)]
 
             # print('self.prior_hyperparameters',self.prior_hyperparameters)
-            # print('means',means)
-            # print('vars',np.multiply(alpha_step,np.diag(vars)))
+            print('means',means)
+            print('vars',np.multiply(alpha_step,np.diag(vars)))
 
             def _dynamic_ti_kernel(p,t):
                 pnew = None
@@ -243,6 +243,9 @@ class MetropolisHastings(MarkovChainMonteCarlo):
                 if u >= self.temperature_schedule[t]:
                     # Sample from a symmetric Normal distribution approximated from the taylor expansion of the prior's moments
                     pnew = np.random.multivariate_normal(means,alpha_step*np.diag(vars))
+                    # print('p',p)
+                    # print('pnew',pnew)
+                    # print('\n')
                 else:
                     # Sample from symmetric Gaussian kernel
                     pnew = p + beta_step*distribution_sampler(np.zeros(self.num_learning_parameters),K)

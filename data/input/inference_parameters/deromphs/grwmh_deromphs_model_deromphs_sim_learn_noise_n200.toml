@@ -128,3 +128,7 @@ learn_noise = "True"
           max = "1.0"
           loc = "0.01"
           scale = "0.0001"
+
+      [plot]
+        acf_lags = 100
+        hist_bins = 50
