@@ -16,7 +16,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probab
 inference_id = str(sys.argv[1])
 
 # Set flag for testing convergence
-convergence_diagnostic = True # True False
+convergence_diagnostic = False # True False
 
 # Instantiate objects
 inf_model = utils.instantiate_inference_method(inference_id)
@@ -34,7 +34,7 @@ inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 
 # print(inf_model.temperature_schedule)
 
-# sys.exit(1)
+sys.exit(1)
 
 # Plot univariate prior distributions
 inf_model.export_univariate_prior_plots()

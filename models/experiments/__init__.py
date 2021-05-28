@@ -82,11 +82,25 @@ class Experiment(object):
             for inference_id in list(self.experiment_metadata['inference_ids']):
                 self.run_inference(inference_id)
 
-        if strtobool(self.experiment_metadata['routines']['compile_marginal_likelihood_matrix']):
-            # self.compile_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
-            #                                         prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
-            #                                         export=strtobool(self.experiment_metadata['experiment_summary']['export']))
+        # Update relevant flag
+        compile_marginal_likelihood_matrix = False
+        if "compile_marginal_likelihood_matrix" in self.experiment_metadata['routines']:
+            compile_marginal_likelihood_matrix = strtobool(self.experiment_metadata['routines']['compile_marginal_likelihood_matrix'])
+        # Compute ML and R2 tables if instructed
+        if compile_marginal_likelihood_matrix:
+            self.compile_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
+                                                    prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
+                                                    export=strtobool(self.experiment_metadata['experiment_summary']['export']))
             self.compile_r2_matrix(list(self.experiment_metadata['data_ids']),
+                                    prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
+                                    export=strtobool(self.experiment_metadata['experiment_summary']['export']))
+        # Update relevant flag
+        compile_sensitivity_analysis_marginal_likelihood_matrix = False
+        if "compile_sensitivity_analysis_marginal_likelihood_matrix" in self.experiment_metadata['routines']:
+            compile_sensitivity_analysis_marginal_likelihood_matrix = strtobool(self.experiment_metadata['routines']['compile_sensitivity_analysis_marginal_likelihood_matrix'])
+        # Compute sensitivity ML table if instructed
+        if compile_sensitivity_analysis_marginal_likelihood_matrix:
+            self.compile_sensitivity_analysis_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
                                     prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
                                     export=strtobool(self.experiment_metadata['experiment_summary']['export']))
 
@@ -507,6 +521,126 @@ class Experiment(object):
             ti_mcmc_mean_lmls_df.to_csv(filename+f'thermodynamic_integral_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
             ti_mcmc_bayes_factors_df.to_csv(filename+f'thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
 
+    def compile_sensitivity_analysis_marginal_likelihood_matrix(self,data_ids,experiment_type:str='n200',inference_method='grwmh',prints:bool=False,export:bool=False):
+
+        # Initialise list of rows of log marginal likelihoods
+        sensitivities = ['diffuse','regular','informative']
+
+        # Get data FDs
+        fds = [d.split('_fd')[0] for d in data_ids]
+
+        # Initialise result array
+        ti_mcmc_lmls = []
+
+        # Loop through data ids
+        for data_id in data_ids:
+            # Get data FD
+            data_fd = data_id.split('_fd',1)[0]
+
+            # Create inference ids
+            inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(fds)]
+
+            # Loop through constructed inference ids
+            for i,inference_id in tqdm(enumerate(inference_ids)):
+
+                # Table entries
+                ti_mcmc_lml_entry = []
+
+                # Loop through sensitivity levels
+                for sensitivity in sensitivities:
+
+                    # Append sensitivity level to inference id
+                    inference_id = inference_ids[i] + '_' + sensitivity + '_prior'
+                    # Get inference model name
+                    inference_fd = fds[i]
+
+                    # Define experiment metadata filename
+                    metadata_filename = utils.prepare_output_experiment_inference_filename(experiment_id=self.experiment_metadata['id'],inference_id=inference_id,dataset=data_id,method=inference_method)
+
+                    # print('metadata_filename',metadata_filename)
+                    # sys.exit(1)
+
+                    # Make sure file exists
+                    if not os.path.exists((metadata_filename+'metadata.json')):
+                        # if prints: print(f"Metadata file {metadata_filename}metadata.json not found")
+                        # vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
+                        ti_mcmc_lml_entry.append('nan')
+                        continue
+
+
+                    #  Import metadata where acceptance is part of metadata
+                    with open((metadata_filename+'metadata.json')) as json_file:
+                        inference_metadata = json.load(json_file)
+
+                    if 'thermodynamic_integration_mcmc' in inference_metadata['results'].keys():
+
+                        # print('data_fd',data_fd)
+                        # print('inference_fd',inference_fd)
+                        # print('metadata_filename',metadata_filename)
+
+                        # Get convergence flag and check that Gelman and Rubin-inferred burnin is lower than used burnin
+                        ti_mcmc_converged = all([bool(inference_metadata['results']['thermodynamic_integration_mcmc']['converged']),
+                                                int(inference_metadata['results']['thermodynamic_integration_mcmc']['burnin']) <= int(inference_metadata['inference']['thermodynamic_integration_mcmc']['burnin']),
+                                                float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) >= min_acceptance,
+                                                float(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate']) <= max_acceptance])
+
+                        if not ti_mcmc_converged:
+                            print('Thermodynamic Integration mcmc inference fd:',inference_fd,'data fd:',data_fd,"sensitivity:",sensitivity)
+                            print('acceptance rate:',json.dumps(inference_metadata['results']['thermodynamic_integration_mcmc']['acceptance_rate'],indent=2))
+                            print('burnin:',json.dumps(inference_metadata['results']['thermodynamic_integration_mcmc']['burnin'],indent=2))
+                            print('\n')
+                        # Add log marginal likelihood mean and var to records only if convergence was achieved
+                        if ti_mcmc_converged:
+                            # Get log marginal likelihood mean variance for thermodynamic integration MCMC
+                            ti_lml_mean = np.round(float(inference_metadata['results']['thermodynamic_integration_mcmc']['log_marginal_likelihoods_mean']),2)
+                            ti_lml_var = np.round(float(inference_metadata['results']['thermodynamic_integration_mcmc']['log_marginal_likelihoods_var']),2)
+                            # Compute them into a string
+                            ti_mcmc_lml_entry.append((str(ti_lml_mean)+' +/- '+str(ti_lml_var)))
+                        else:
+                            ti_mcmc_lml_entry.append('tuning_problem')
+                    else:
+                        ti_mcmc_lml_entry.append('nan')
+
+                # Convert list entry to str
+                ti_mcmc_lml_entry_str = ','.join(ti_mcmc_lml_entry)
+                # print(ti_mcmc_lml_entry_str)
+                # print('\n')
+                # Append entry to results
+                ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),ti_mcmc_lml_entry_str])
+                # sys.exit(1)
+
+        # Convert to np array
+        # vanilla_mcmc_lmls = np.array(vanilla_mcmc_lmls)
+        ti_mcmc_lmls = np.array(ti_mcmc_lmls)
+
+        # Get list of unique data models
+        data_fds = np.unique(ti_mcmc_lmls[:,0])
+        inference_fds = np.unique(ti_mcmc_lmls[:,1])
+
+        # Create empty dataframe
+        ti_mcmc_lmls_df = pd.DataFrame(index=data_fds,columns=inference_fds)
+        # Add rows to pandas dataframe
+        for i in range(np.shape(ti_mcmc_lmls)[0]):
+            ti_mcmc_lmls_df.loc[ti_mcmc_lmls[i,0], ti_mcmc_lmls[i,1]] = ti_mcmc_lmls[i,2]
+
+        # # Compute Bayes factors
+        # ti_mcmc_bayes_factors_df = copy.deepcopy(ti_mcmc_lmls_df)
+        # ti_mcmc_diagonal_lmls = np.diag(ti_mcmc_bayes_factors_df)
+        # # Loop through rows
+        # for i in range(ti_mcmc_bayes_factors_df.shape[0]):
+        #     # Perform row-wise substraction of diagonal
+        #     ti_mcmc_bayes_factors_df.iloc[i,:] = ti_mcmc_bayes_factors_df.iloc[i,:].apply(lambda x: subtract_lmls(x,ti_mcmc_diagonal_lmls[i]))
+
+        # Prepare export file
+        filename = utils.prepare_output_experiment_summary_filename(self.experiment_metadata['id'])
+
+        # Export to file
+        if export:
+            # CAREFUL: experiment_type is based on the last inference id
+            ti_mcmc_lmls_df.to_csv(filename+f'sensitivity_analysis_thermodynamic_integral_marginal_likelihoood_estimator_{experiment_type}.csv')
+            # ti_mcmc_bayes_factors_df.to_csv(filename+f'sensitivity_analysis_thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
+
+
     def compile_r2_matrix(self,data_ids,experiment_type:str='n200',inference_method='grwmh',prints:bool=False,export:bool=False):
 
         # Initialise list of rows of log marginal likelihoods
@@ -579,7 +713,6 @@ class Experiment(object):
         data_fds = np.unique(r2[:,0])
         inference_fds = np.unique(r2[:,1])
 
-        # DITTO for thermodynamic integration lmls
         # Create empty dataframe
         r2_df = pd.DataFrame(index=data_fds,columns=inference_fds)
         # Add rows to pandas dataframe

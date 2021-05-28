@@ -1,8 +1,8 @@
-id = "grwmh_delcastillos_model_daganzos_sim_learn_noise_n200_diffuse_prior"
+id = "grwmh_wangs_model_newells_sim_learn_noise_n200_regular_prior"
 inference_model = "grwmh"
-data_id = "daganzos_fd_log_simulation_n200"
-data_fundamental_diagram = "daganzos"
-fundamental_diagram = "delcastillos"
+data_id = "newells_fd_log_simulation_n200"
+data_fundamental_diagram = "newells"
+fundamental_diagram = "wangs"
 learn_noise = "True"
 
 [plot]
@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [ 22.651584342507828, 1.189007776138926, 44.29840405633848, 44.37384413758525, 0.009520647118698551,]
+p0 = [ 1.4102696434876112, 22.107803924361086, 7.572099329265589, 0.011561289499722573,]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -21,8 +21,8 @@ type = "mnormal"
 action = ""
 
 [inference.parameter_constraints]
-lower_bounds = [ "0", "0", "0", "0", "0",]
-upper_bounds = [ "inf", "inf", "inf", "100", "inf",]
+lower_bounds = [ "0", "0", "0", "0",]
+upper_bounds = [ "inf", "inf", "inf", "inf",]
 
 [inference.convergence_diagnostic]
 r_critical = 1.1
@@ -47,53 +47,43 @@ burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.008, 0.01, 0.002, 0.012, 0.04,]
-adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.4
-
-[inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.012, 0.02, 0.002, 0.1, 0.055,]
-#[ 0.018, 0.024, 0.006, 0.48, 0.08,]
-alpha_step = 0.1
-dynamic_proposal = "True"
+proposal_stds = [ 0.00900620011909727, 0.013080505740992386, 0.010666456259197385, 0.08047986131212796,]
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.5
 
-[inference.priors.Z]
-transformation = "$\\log$"
-distribution = "normal"
-min_log_prob = "-20"
-min = "1"
-max = "50"
-loc = "22.6"
-scale = "4"
+[inference.thermodynamic_integration_mcmc.transition_kernel]
+proposal_stds = [ 0.00900620011909727, 0.013080505740992386, 0.010666456259197385, 0.08047986131212796,]
+adapt_proposal_during_burnin = "False"
+proposal_factor_adjustment = 0.5
+alpha_step = 0.5
+dynamic_proposal = "True"
 
-[inference.priors.u]
+[inference.priors.v_f]
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
-min = "0.1"
-max = "5"
-loc = "1.2"
+min = "0.01"
+max = "4.0"
+loc = "1.4"
+scale = "0.02"
+
+[inference.priors.rho_c]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "5"
+max = "40"
+loc = "22.1"
 scale = "0.4"
 
-[inference.priors.rho_j]
-transformation = "$\\log$"
-distribution = "normal"
-min_log_prob = "-20"
-min = "30"
-max = "60"
-loc = "44.3"
-scale = "4"
-
-[inference.priors.omega]
+[inference.priors.theta]
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
-max = "60"
-loc = "44.4"
-scale = "4"
+max = "10.0"
+loc = "7.6"
+scale = "0.1"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -102,9 +92,4 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.01"
-scale = "0.005"
-
-[inference.parameter_constraints.implicit.constraint2]
-lhs = "rho_j"
-operator = ">"
-rhs = "max_x"
+scale = "0.001"

@@ -1,40 +1,40 @@
 id = "delcastillos_fd_model_experiments"
 inference_ids = [
-                "grwmh_delcastillos_model_delcastillos_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_daganzos_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_greenbergs_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_underwoods_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_northwesterns_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_greenshields_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_newells_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_wangs_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_smulders_sim_learn_noise_n200",
-                "grwmh_delcastillos_model_deromphs_sim_learn_noise_n200"
+                # "grwmh_delcastillos_model_delcastillos_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_daganzos_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_greenbergs_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_underwoods_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_northwesterns_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_greenshields_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_newells_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_wangs_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_smulders_sim_learn_noise_n200",
+                # "grwmh_delcastillos_model_deromphs_sim_learn_noise_n200"
                 ######
                 # "grwmh_delcastillos_model_delcastillos_sim_learn_noise_n200_informative_prior",
                 # "grwmh_delcastillos_model_daganzos_sim_learn_noise_n200_informative_prior",
                 # "grwmh_delcastillos_model_greenbergs_sim_learn_noise_n200_informative_prior",
                 # "grwmh_delcastillos_model_underwoods_sim_learn_noise_n200_informative_prior",
-                # "grwmh_delcastillos_model_northwesterns_sim_learn_noise_n200_informative_prior",
+                "grwmh_delcastillos_model_northwesterns_sim_learn_noise_n200_informative_prior",
                 # "grwmh_delcastillos_model_greenshields_sim_learn_noise_n200_informative_prior",
                 # "grwmh_delcastillos_model_newells_sim_learn_noise_n200_informative_prior",
                 # "grwmh_delcastillos_model_wangs_sim_learn_noise_n200_informative_prior",
                 # "grwmh_delcastillos_model_smulders_sim_learn_noise_n200_informative_prior",
-                # "grwmh_delcastillos_model_deromphs_sim_learn_noise_n200_informative_prior"
-                # ######
+                # "grwmh_delcastillos_model_deromphs_sim_learn_noise_n200_informative_prior",
+                ######
                 # "grwmh_delcastillos_model_delcastillos_sim_learn_noise_n200_regular_prior",
                 # "grwmh_delcastillos_model_daganzos_sim_learn_noise_n200_regular_prior",
-                # "grwmh_delcastillos_model_greenbergs_sim_learn_noise_n200_regular_prior",
+                "grwmh_delcastillos_model_greenbergs_sim_learn_noise_n200_regular_prior",
                 # "grwmh_delcastillos_model_underwoods_sim_learn_noise_n200_regular_prior",
                 # "grwmh_delcastillos_model_northwesterns_sim_learn_noise_n200_regular_prior",
                 # "grwmh_delcastillos_model_greenshields_sim_learn_noise_n200_regular_prior",
                 # "grwmh_delcastillos_model_newells_sim_learn_noise_n200_regular_prior",
                 # "grwmh_delcastillos_model_wangs_sim_learn_noise_n200_regular_prior",
                 # "grwmh_delcastillos_model_smulders_sim_learn_noise_n200_regular_prior",
-                # "grwmh_delcastillos_model_deromphs_sim_learn_noise_n200_regular_prior"
-                # ######
+                # "grwmh_delcastillos_model_deromphs_sim_learn_noise_n200_regular_prior",
+                ######
                 # "grwmh_delcastillos_model_delcastillos_sim_learn_noise_n200_diffuse_prior",
-                # "grwmh_delcastillos_model_daganzos_sim_learn_noise_n200_diffuse_prior",
+                "grwmh_delcastillos_model_daganzos_sim_learn_noise_n200_diffuse_prior",
                 # "grwmh_delcastillos_model_greenbergs_sim_learn_noise_n200_diffuse_prior",
                 # "grwmh_delcastillos_model_underwoods_sim_learn_noise_n200_diffuse_prior",
                 # "grwmh_delcastillos_model_northwesterns_sim_learn_noise_n200_diffuse_prior",
@@ -45,16 +45,39 @@ inference_ids = [
                 # "grwmh_delcastillos_model_deromphs_sim_learn_noise_n200_diffuse_prior"
                 ]
 data_ids = [
-            "delcastillos_fd_log_simulation_n200",
-            "daganzos_fd_log_simulation_n200",
-            "greenbergs_fd_log_simulation_n200",
-            "underwoods_fd_log_simulation_n200",
+            # "delcastillos_fd_log_simulation_n200",
+            # "daganzos_fd_log_simulation_n200",
+            # "greenbergs_fd_log_simulation_n200",
+            # "underwoods_fd_log_simulation_n200",
             "northwesterns_fd_log_simulation_n200",
-            "greenshields_fd_log_simulation_n200",
-            "newells_fd_log_simulation_n200",
-            "wangs_fd_log_simulation_n200",
-            "smulders_fd_log_simulation_n200",
-            "deromphs_fd_log_simulation_n200"
+            # "greenshields_fd_log_simulation_n200",
+            # "newells_fd_log_simulation_n200",
+            # "wangs_fd_log_simulation_n200",
+            # "smulders_fd_log_simulation_n200",
+            # "deromphs_fd_log_simulation_n200",
+            ####
+            # "delcastillos_fd_log_simulation_n200",
+            # "daganzos_fd_log_simulation_n200",
+            "greenbergs_fd_log_simulation_n200",
+            # "underwoods_fd_log_simulation_n200",
+            # "northwesterns_fd_log_simulation_n200",
+            # "greenshields_fd_log_simulation_n200",
+            # "newells_fd_log_simulation_n200",
+            # "wangs_fd_log_simulation_n200",
+            # "smulders_fd_log_simulation_n200",
+            # "deromphs_fd_log_simulation_n200",
+            ####
+            # "delcastillos_fd_log_simulation_n200",
+            "daganzos_fd_log_simulation_n200",
+            # "greenbergs_fd_log_simulation_n200",
+            # "underwoods_fd_log_simulation_n200",
+            # "northwesterns_fd_log_simulation_n200",
+            # "greenshields_fd_log_simulation_n200",
+            # "newells_fd_log_simulation_n200",
+            # "wangs_fd_log_simulation_n200",
+            # "smulders_fd_log_simulation_n200",
+            # "deromphs_fd_log_simulation_n200",
+            ####
             ]
 
   [routines]
@@ -89,17 +112,17 @@ data_ids = [
         print = "True"
 
       [vanilla_mcmc.parameter_posterior]
-        compute = "True"# "True"
-        import = "True"# False
+        compute = "False"# "True"
+        import = "False"# False
         export = "False"
         show_plot = "False"
         show_title = "False"
         print = "True"
 
       [vanilla_mcmc.posterior_predictive]
-        compute = "True"
+        compute = "False"
         import = "False"
-        export = "True"
+        export = "False"
         show_plot = "False"
         show_title = "True"
         print = "True"
@@ -109,16 +132,16 @@ data_ids = [
         print = "True"
 
       [vanilla_mcmc.R2]
-        compute = "True"
+        compute = "False"
 
   [thermodynamic_integration_mcmc]
 
     [thermodynamic_integration_mcmc.convergence_diagnostic]
-      compute = "False"# True
+      compute = "True"# True
       print = "True"
 
     [thermodynamic_integration_mcmc.parameter_posterior]
-        compute = "False"# True
+        compute = "True"# True
         import = "False"
         export = "False"
         show_plot = "False"
@@ -126,5 +149,5 @@ data_ids = [
         print = "True"
 
     [thermodynamic_integration_mcmc.marginal_likelihood]
-        compute = "False"# True
+        compute = "True"# True
         print = "True"

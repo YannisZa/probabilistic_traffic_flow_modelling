@@ -1,15 +1,15 @@
 id = "table_summaries"
 inference_ids = [
-                  "grwmh_greenshields_model_greenshields_sim_learn_noise_n200",
-                  "grwmh_daganzos_model_daganzos_sim_learn_noise_n200",
+                  # "grwmh_greenshields_model_greenshields_sim_learn_noise_n200",
+                  # "grwmh_daganzos_model_daganzos_sim_learn_noise_n200",
                   "grwmh_delcastillos_model_delcastillos_sim_learn_noise_n200",
-                  "grwmh_greenbergs_model_greenbergs_sim_learn_noise_n200",
-                  "grwmh_underwoods_model_underwoods_sim_learn_noise_n200",
-                  "grwmh_northwesterns_model_northwesterns_sim_learn_noise_n200",
-                  "grwmh_newells_model_newells_sim_learn_noise_n200",
-                  "grwmh_wangs_model_wangs_sim_learn_noise_n200",
-                  "grwmh_smulders_model_smulders_sim_learn_noise_n200",
-                  "grwmh_deromphs_model_deromphs_sim_learn_noise_n200"
+                  # # "grwmh_greenbergs_model_greenbergs_sim_learn_noise_n200",
+                  # "grwmh_underwoods_model_underwoods_sim_learn_noise_n200",
+                  # "grwmh_northwesterns_model_northwesterns_sim_learn_noise_n200",
+                  # "grwmh_newells_model_newells_sim_learn_noise_n200",
+                  # "grwmh_wangs_model_wangs_sim_learn_noise_n200",
+                  # "grwmh_smulders_model_smulders_sim_learn_noise_n200",
+                  # "grwmh_deromphs_model_deromphs_sim_learn_noise_n200"
                   ]
 data_ids = [
             "greenshields_fd_log_simulation_n200",
@@ -28,7 +28,8 @@ data_ids = [
     generate_data = "False"
     run_inference = "False"
     tune_inference = "False"
-    compile_marginal_likelihood_matrix = "True"
+    compile_marginal_likelihood_matrix = "False"
+    compile_sensitivity_analysis_marginal_likelihood_matrix = "True"
 
   [experiment_summary]
     export = "True"
