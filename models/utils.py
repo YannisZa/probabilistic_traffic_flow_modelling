@@ -223,6 +223,7 @@ def map_name_to_parameter_transformation(priors,num_learning_parameters,lower_bo
                                         "backward":(lambda i: lambda x: (np.exp(x)+lower_bounds[i]) )(i),
                                         "jacobian":(lambda i: lambda x: 1/(x-lower_bounds[i]) )(i),
                                         "hessian":(lambda i: lambda x: -1/((x-lower_bounds[i])**2) )(i),
+                                        "third_derivative":(lambda i: lambda x: 2/((x-lower_bounds[i])**3) )(i),
                                         "name":'log'})
 
             elif np.isinf(lower_bounds[i]):
@@ -231,6 +232,7 @@ def map_name_to_parameter_transformation(priors,num_learning_parameters,lower_bo
                                         "backward":(lambda i: lambda x: ((upper_bounds[i]*np.exp(x))/(1+np.exp(x))) )(i),
                                         "jacobian":(lambda i: lambda x: -upper_bounds[i]/(x*(x-upper_bounds[i])) )(i),
                                         "hessian":(lambda i: lambda x: (upper_bounds[i]*(2*x-upper_bounds[i]))/(x**2*(x-upper_bounds[i])**2) )(i),
+                                        "third_derivative":(lambda i: lambda x: -(2*upper_bounds[i]*(3*x**2 - 3*upper_bounds[i]*x + upper_bounds[i]**2))/(x**3*(x-upper_bounds[i])**3) )(i),
                                         "name":'log'})
             else:
                 # print('Upper and lower bounds')
@@ -238,6 +240,7 @@ def map_name_to_parameter_transformation(priors,num_learning_parameters,lower_bo
                                         "backward":(lambda i: lambda x: ((upper_bounds[i]*np.exp(x)+lower_bounds[i])/(1+np.exp(x))) )(i),
                                         "jacobian":(lambda i: lambda x: -(upper_bounds[i]-lower_bounds[i])/((x-lower_bounds[i])*(x-upper_bounds[i])) )(i),
                                         "hessian":(lambda i: lambda x: ((upper_bounds[i]-lower_bounds[i])*(2*x-upper_bounds[i]-lower_bounds[i]))/((x-lower_bounds[i])**2*(x-upper_bounds[i])**2) )(i),
+                                        "third_derivative":(lambda i: lambda x: -(2*(upper_bounds[i]-lower_bounds[i])*( 3*x**2 -3*(upper_bounds[i]+lower_bounds[i])*x + upper_bounds[i]**2 + upper_bounds[i]*lower_bounds[i] + upper_bounds[i]**2 ) ) / ( (x-lower_bounds[i])**3 * (x-upper_bounds[i])**3 ) )(i),
                                         "name":'log'})
         elif '1/' in priors[prior]['transformation'].lower():
             print('Need to compute transformation first and second derivatives')
@@ -245,12 +248,14 @@ def map_name_to_parameter_transformation(priors,num_learning_parameters,lower_bo
                                     "backward":myreciprocal,
                                     "jacobian":"",
                                     "hessian":"",
+                                    "third_derivative":"",
                                     "name":'1/'})
         else:
             transformations.append({"forward":myidentity,
                                     "backward":myidentity,
                                     "jacobian":(lambda x: 0),
                                     "hessian":(lambda x: 0),
+                                    "third_derivative":(lambda x: 0),
                                     "name":''})
     return transformations
 
@@ -276,7 +281,7 @@ def map_name_to_univariate_logpdf(name,**kwargs):
 
     if 'gaussian' in name.lower() or 'normal' in name.lower():
         if print_statements: print(name.lower())
-        return gaussian
+        return univariate_gaussian
     else:
         raise Exception(f'No suitable likelihood probability distribution found for {name.lower()}')
 
