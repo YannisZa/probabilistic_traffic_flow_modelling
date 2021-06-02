@@ -53,10 +53,15 @@ proposal_factor_adjustment = 0.4
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
 proposal_stds = [ 0.01, 0.015, 0.0025, 0.035, 0.045,]
-alpha_step = 0.5
-dynamic_proposal = "True"
-adapt_proposal_during_burnin = "False"
+#[ 0.01, 0.015, 0.0025, 0.035, 0.045,]
 proposal_factor_adjustment = 0.5
+dynamic_proposal = "True"
+stochastic_proposal = "True"
+beta_dstr_a = "1"
+beta_dstr_b = "10"
+prior_sampling = "mc"
+temperature_threshold = 0.054644809
+#alpha_step = 0.5
 
 [inference.priors.Z]
 transformation = "$\\log$"
@@ -101,7 +106,7 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.01"
-scale = "0.0015"
+scale = "0.002"
 
 [inference.parameter_constraints.implicit.constraint2]
 lhs = "rho_j"
