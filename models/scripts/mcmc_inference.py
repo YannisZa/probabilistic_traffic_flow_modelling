@@ -16,7 +16,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probab
 inference_id = str(sys.argv[1])
 
 # Set flag for testing convergence
-convergence_diagnostic = False # True False
+convergence_diagnostic = True # True False
 
 # Instantiate objects
 inf_model = utils.instantiate_inference_method(inference_id)
@@ -32,12 +32,17 @@ inf_model.populate(fd)
 # Compute MLE estimate
 inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 
-# print(inf_model.temperature_schedule)
+# print(inf_model.temperature_schedule[9])
+# print(inf_model.temperature_schedule[10])
+# print(inf_model.temperature_schedule[11])
+# plt.scatter(range(1,len(inf_model.temperature_schedule)+1),inf_model.temperature_schedule)
+# plt.plot(range(1,len(inf_model.temperature_schedule)+1),inf_model.temperature_schedule)
+# plt.show()
+# sys.exit(1)
 
-sys.exit(1)
-
-# Plot univariate prior distributions
-inf_model.export_univariate_prior_plots()
+# if not convergence_diagnostic:
+#     # Plot univariate prior distributions
+#     inf_model.export_univariate_prior_plots()
 
 # sys.exit(1)
 
