@@ -48,15 +48,22 @@ marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
 proposal_stds = [ 0.007, 0.002, 0.005, 0.04,]
-adapt_proposal_during_burnin = "False"
-proposal_factor_adjustment = 0.3
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.02, 0.005, 0.015, 0.07,]
-adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.6
-alpha_step = 0.1
+proposal_stds = [ 0.0447, 0.0472, 0.0486, 0.05,]
+#[0.0447, 0.0472, 0.0486, 0.153]
+#[0.019, 0.015, 0.007, 0.05]
+
+#[ 0.0115, 0.014, 0.007, 0.05,]
+# proposal_factor_adjustment = 0.6
 dynamic_proposal = "True"
+stochastic_proposal = "True"
+beta_dstr_a = "1"
+beta_dstr_b = "10"
+prior_sampling = "mc"
+# temperature_threshold = 0.01
+# alpha_step = 2
+
 
 [inference.priors.v_f]
 transformation = "$\\log$"
@@ -71,7 +78,7 @@ scale = "0.2"
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
-min = "5"
+min = "1"
 max = "40"
 loc = "16.9"
 scale = "2"
@@ -81,7 +88,7 @@ transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
-max = "10.0"
+max = "30.0"
 loc = "7.5"
 scale = "1"
 
@@ -92,4 +99,4 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.01"
-scale = "0.004"
+scale = "0.003"
