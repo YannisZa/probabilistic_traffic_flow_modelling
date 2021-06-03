@@ -643,12 +643,13 @@ class MarkovChainMonteCarlo(object):
         log_pnew = self.evaluate_log_target_thermodynamic_integration(pnew,t) + self.evaluate_log_ti_kernel(pnew,pprev,t)
         log_pprev = self.evaluate_log_target_thermodynamic_integration(pprev,t) + self.evaluate_log_ti_kernel(pprev,pnew,t)
 
-        # print("i =",t,"t =",self.temperature_schedule[t])
-        # print('log_pnew',log_pnew)
-        # print('self.evaluate_log_ti_kernel(pnew,pprev,t)',self.evaluate_log_ti_kernel(pnew,pprev,t))
-        # print('log_pprev',log_pprev)
-        # print('self.evaluate_log_ti_kernel(pnew,pprev,t)',self.evaluate_log_ti_kernel(pprev,pnew,t))
-        # print('\n')
+        # if t == 29:
+        #     print("i =",t,"t =",self.temperature_schedule[t])
+        #     print('log_pnew',log_pnew)
+        #     print('self.evaluate_log_ti_kernel(pnew,pprev,t)',self.evaluate_log_ti_kernel(pnew,pprev,t))
+        #     print('log_pprev',log_pprev)
+        #     print('self.evaluate_log_ti_kernel(pnew,pprev,t)',self.evaluate_log_ti_kernel(pprev,pnew,t))
+        #     print('\n')
 
         if np.isnan(log_pnew) or np.isnan(log_pprev)\
             or np.isnan(pprev).any() or np.isinf(pprev).any():
@@ -766,7 +767,8 @@ class MarkovChainMonteCarlo(object):
         # Flag for adapting proposal stds during burnin
         adapt_proposal_during_burnin = False
         if "adapt_proposal_during_burnin" in self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']:
-            adapt_proposal_during_burnin = strtobool(self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['adapt_proposal_during_burnin'])
+            adapt_proposal_during_burnin = bool(strtobool(self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['adapt_proposal_during_burnin']))
+        # print("adapt_proposal_during_burnin",adapt_proposal_during_burnin)
 
         if prints: print(f'Running MCMC with {N} iterations')
 
@@ -920,6 +922,11 @@ class MarkovChainMonteCarlo(object):
         # Store length of temperature schedule
         t_len = self.temperature_schedule.shape[0]
 
+        # Define distribution over temperatures
+        # temperature_distribution = (self.temperature_schedule+1/t_len)
+        # temperature_distribution = temperature_distribution/np.sum(temperature_distribution)
+        temperature_distribution = np.ones(t_len) * 1/t_len
+
         p0 = None
         # Read p0 or randomly initialise it from prior
         if utils.has_parameters(['p0'],self.inference_metadata['inference']['initialisation']) and self.inference_metadata['inference']['initialisation']['param_initialisation'] == 'metadata':
@@ -974,12 +981,14 @@ class MarkovChainMonteCarlo(object):
         if prints: print(f'Running Thermodynamic Integration MCMC with {N} iterations')
 
         # sys.exit(1)
-
+        # print(temperature_distribution*100)
         # Loop through MCMC iterations
         for i in tqdm(range(N)):
 
             # Select random temperature from schedule
-            random_t_index = np.random.randint(0,t_len)
+            # random_t_index = np.random.randint(0,t_len)
+            random_t_index = np.random.choice(a=range(0,t_len),p=temperature_distribution)
+            # print('random_t_index',random_t_index)
 
             # Copy previously accepted sample
             p_new = copy.deepcopy(p_prev)
@@ -1812,8 +1821,11 @@ class MarkovChainMonteCarlo(object):
             temperature_threshold = float(self.inference_metadata['inference']["thermodynamic_integration_mcmc"]['transition_kernel']['temperature_threshold'])
             threshold_temperature = next(x[0] for x in enumerate(self.temperature_schedule) if x[1] > temperature_threshold)
 
-        if threshold_temperature == 0: temps = [0,29]
-        else: temps = [0,threshold_temperature-1,threshold_temperature,29]
+        # if threshold_temperature == 0: temps = [0,len(self.temperature_schedule)-1]
+        # else: temps = [0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+        temps = list(range(0,len(self.temperature_schedule)-1,5))
+        temps.append(len(self.temperature_schedule)-1)
+
         for ti in temps:
         # for ti in range(len(np.concatenate([self.temperature_schedule[0:2],self.temperature_schedule[(len(self.temperature_schedule)-3):len(self.temperature_schedule-1)]]))):
 
@@ -2105,8 +2117,10 @@ class MarkovChainMonteCarlo(object):
                 temperature_threshold = float(self.inference_metadata['inference']["thermodynamic_integration_mcmc"]['transition_kernel']['temperature_threshold'])
                 threshold_temperature = next(x[0] for x in enumerate(self.temperature_schedule) if x[1] > temperature_threshold)
 
-            if threshold_temperature == 0: temps = [0,29]
-            else: temps = [0,threshold_temperature-1,threshold_temperature,29]
+            # if threshold_temperature == 0: temps = [0,len(self.temperature_schedule)-1]
+            # else: temps = [0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+            temps = list(range(0,len(self.temperature_schedule)-1,5))
+            temps.append(len(self.temperature_schedule)-1)
 
             for tj in temps:
                 # Define parameter transformation
