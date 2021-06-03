@@ -55,10 +55,13 @@ proposal_factor_adjustment = 0.8
 proposal_stds = [0.055, 0.17, 0.003, 0.23, 0.065]
 #[0.055, 0.17, 0.001, 0.23, 0.065]
 #[0.03, 0.1, 0.001, 0.15, 0.055]
-alpha_step = 0.06
-dynamic_proposal = "True"
-adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.5
+dynamic_proposal = "True"
+stochastic_proposal = "True"
+beta_dstr_a = "1"
+beta_dstr_b = "10"
+prior_sampling = "mc"
+# alpha_step = 0.06
 
 [inference.priors.Z]
 transformation = "$\\log$"
