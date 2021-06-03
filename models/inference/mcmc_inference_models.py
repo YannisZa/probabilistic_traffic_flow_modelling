@@ -217,10 +217,9 @@ class MetropolisHastings(MarkovChainMonteCarlo):
             alpha_step = float(kernel_params['alpha_step'])
 
         # Read method of prior sampling in dynamic kernel
-        if dynamic_proposal:
-            prior_sampling = 'mc' # MC, Taylor
-            if "prior_sampling" in kernel_params:
-                prior_sampling = str(kernel_params['prior_sampling'])
+        prior_sampling = 'mc' # MC, Taylor
+        if dynamic_proposal and "prior_sampling" in kernel_params:
+            prior_sampling = str(kernel_params['prior_sampling'])
 
         # Read beta distribution parameters
         a = 1.
@@ -234,6 +233,7 @@ class MetropolisHastings(MarkovChainMonteCarlo):
         if prints:
             print(mcmc_type)
             print('Dynamic proposal',dynamic_proposal)
+            print('Stochastic proposal',stochastic_proposal)
             print('Prior sampling',prior_sampling.capitalize())
             print('Proposal covariance',K)
             print('Proposal standard deviations',[np.sqrt(v) for v in np.diagonal(K)])
@@ -246,16 +246,21 @@ class MetropolisHastings(MarkovChainMonteCarlo):
         distribution_sampler = utils.map_name_to_distribution_sampler(kernel_type)
 
         # Define proposal mechanism for Vanilla MCMC
-        def _kernel(p):
+        def _kernel(pprev):
             pnew = None
             if self.num_learning_parameters > 1:
-                pnew = p + distribution_sampler(np.zeros(self.num_learning_parameters),K)
+                pnew = pprev + distribution_sampler(np.zeros(self.num_learning_parameters),K)
             else:
-                pnew = p + distribution_sampler(0,K[0,0])
+                pnew = pprev + distribution_sampler(0,K[0,0])
             return pnew
 
         def _log_kernel(p1,p2):
             return 0
+
+        # Update Vanilla MCMC kernels
+        MarkovChainMonteCarlo.transition_kernel.fset(self, _kernel)
+        MarkovChainMonteCarlo.log_kernel.fset(self, _log_kernel)
+
         # Define proposal mechanism for Thermodynamic Integration MCMC
         # Define dynamic proposal mechanism only if necessary
         if dynamic_proposal:
@@ -275,7 +280,7 @@ class MetropolisHastings(MarkovChainMonteCarlo):
                 # print('means',means)
                 # print('vars',alpha_step*vars)
 
-                def _dynamic_ti_kernel(pprev,t):
+                def _dynamic_deterministic_ti_kernel(pprev,t):
                     pnew = None
                     if self.temperature_schedule[t] <= temperature_threshold:
                         if prior_sampling.lower() == 'taylor':
@@ -296,11 +301,16 @@ class MetropolisHastings(MarkovChainMonteCarlo):
                         pnew = pprev + distribution_sampler(np.zeros(self.num_learning_parameters),K)
                         return pnew
 
-                def _log_dynamic_ti_kernel(p1,p2,t):
+                def _log_dynamic_deterministic_ti_kernel(p1,p2,t):
                     if prior_sampling.lower() == 'taylor':
                         return (self.temperature_schedule[t] <= temperature_threshold)*1 * multivariate_gaussian(p2[t,:],means,alpha_step*np.diag(vars)) + (self.temperature_schedule[t] > temperature_threshold)*1 * multivariate_gaussian(p2[t,:],p1[t,:],K)
                     elif prior_sampling.lower() == 'mc':
                         return (self.temperature_schedule[t] <= temperature_threshold)*1 *  self.evaluate_log_joint_prior(p2[t,:]) + (self.temperature_schedule[t] > temperature_threshold)*1 * multivariate_gaussian(p2[t,:],p1[t,:],K)
+
+                # Update Thermodynamic Integration MCMC kernels
+                MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _dynamic_deterministic_ti_kernel)
+                MarkovChainMonteCarlo.log_ti_kernel.fset(self, _log_dynamic_deterministic_ti_kernel)
+
             # If proposal is stochastic/probabilistic
             else:
                 # Get second order Taylor expansion of moments of transformed prior
@@ -316,14 +326,16 @@ class MetropolisHastings(MarkovChainMonteCarlo):
                 # print('self.prior_hyperparameters',self.prior_hyperparameters)
                 # print('means',means)
                 # print('vars',alpha_step*vars)
+                # Compute CDF of Beta distribution for each temperature
                 beta_probabilities = ss.beta.cdf(self.temperature_schedule,a,b)
 
-                def _dynamic_ti_kernel(pprev,t):
+                def _dynamic_stochastic_ti_kernel(pprev,t):
                     pnew = None
                     # u = np.random.uniform()
                     # Sample from beta distribution
                     u = np.random.beta(a,b)
                     if self.temperature_schedule[t] <= u:
+                        # if self.temperature_schedule[t] == 1: print('Prior sampling')
                         if prior_sampling.lower() == 'taylor':
                             # Sample from a symmetric Normal distribution approximated from the taylor expansion of the prior's moments
                             pnew = np.random.multivariate_normal(means,alpha_step*np.diag(vars))
@@ -338,44 +350,54 @@ class MetropolisHastings(MarkovChainMonteCarlo):
                         #     print('\n')
                         return pnew
                     else:
+                        # if self.temperature_schedule[t] == 1: print('GRW')
                         # Sample from symmetric Gaussian kernel
                         pnew = pprev + distribution_sampler(np.zeros(self.num_learning_parameters),K)
                         return pnew
 
-                def _log_dynamic_ti_kernel(p1,p2,t):
+                def _log_dynamic_stochastic_ti_kernel(p1,p2,t):
                     # return np.log( (self.temperature_schedule[t] <= 0.01)*1 * np.exp(multivariate_gaussian(p2[t,:],means,alpha_step*np.diag(vars))) + ((self.temperature_schedule[t] > 0.01)*1) * np.exp(multivariate_gaussian(p2[t,:],p1[t,:],K)) )
                     if prior_sampling.lower() == 'taylor':
                         return np.log( (1-beta_probabilities[t]) * np.exp(multivariate_gaussian(p2[t,:],means,alpha_step*np.diag(vars))) + (beta_probabilities[t]) * np.exp(multivariate_gaussian(p2[t,:],p1[t,:],K)) )
                         #return np.log( (1 - self.temperature_schedule[t]) * np.exp(multivariate_gaussian(p2[t,:],means,alpha_step*np.diag(vars))) + self.temperature_schedule[t] * np.exp(multivariate_gaussian(p2[t,:],p1[t,:],K)) )
                     elif prior_sampling.lower() == 'mc':
+                        # if t == 29:
+                        #     print('current version',np.log( (1-beta_probabilities[t]) * np.exp(self.evaluate_log_joint_prior(p2[t,:])) + (beta_probabilities[t]) * np.exp(multivariate_gaussian(p2[t,:],p1[t,:],K)) ))
+                        #     print('truth',multivariate_gaussian(p2[t,:],p1[t,:],K) )
                         return np.log( (1-beta_probabilities[t]) * np.exp(self.evaluate_log_joint_prior(p2[t,:])) + (beta_probabilities[t]) * np.exp(multivariate_gaussian(p2[t,:],p1[t,:],K)) )
                         #return np.log( (1 - self.temperature_schedule[t]) * np.exp(self.evaluate_log_joint_prior(p2[t,:])) + self.temperature_schedule[t] * np.exp(multivariate_gaussian(p2[t,:],p1[t,:],K)) )
 
+                # Update Thermodynamic Integration MCMC kernels
+                MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _dynamic_stochastic_ti_kernel)
+                MarkovChainMonteCarlo.log_ti_kernel.fset(self, _log_dynamic_stochastic_ti_kernel)
         else:
-            def _ti_kernel(p,t):
+            def _ti_kernel(pprev,t):
                 pnew = None
                 # Sample from symmetric Gaussian kernel
                 if self.num_learning_parameters > 1:
-                    pnew = p + distribution_sampler(np.zeros(self.num_learning_parameters),K)
+                    pnew = pprev + distribution_sampler(np.zeros(self.num_learning_parameters),K)
                 else:
-                    pnew = p + distribution_sampler(np.zeros(self.num_learning_parameters),K[0,0])
+                    pnew = pprev + distribution_sampler(np.zeros(self.num_learning_parameters),K[0,0])
 
                 return pnew
 
             def _log_ti_kernel(p1,p2,t):
                 return 0
 
+            # Update thermodynamic integration kernels
+            MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _ti_kernel)
+            MarkovChainMonteCarlo.log_ti_kernel.fset(self, _log_ti_kernel)
         # Update super class transition kernel attribute
-        if mcmc_type == 'vanilla_mcmc':
-            MarkovChainMonteCarlo.transition_kernel.fset(self, _kernel)
-            MarkovChainMonteCarlo.log_kernel.fset(self, _log_kernel)
-        elif mcmc_type == 'thermodynamic_integration_mcmc':
-            if dynamic_proposal:
-                MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _dynamic_ti_kernel)
-                MarkovChainMonteCarlo.log_ti_kernel.fset(self, _log_dynamic_ti_kernel)
-            else:
-                MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _ti_kernel)
-                MarkovChainMonteCarlo.log_ti_kernel.fset(self, _log_ti_kernel)
+        # if mcmc_type == 'vanilla_mcmc':
+        #     MarkovChainMonteCarlo.transition_kernel.fset(self, _kernel)
+        #     MarkovChainMonteCarlo.log_kernel.fset(self, _log_kernel)
+        # elif mcmc_type == 'thermodynamic_integration_mcmc':
+        #     if dynamic_proposal:
+        #         MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _dynamic_ti_kernel)
+        #         MarkovChainMonteCarlo.log_ti_kernel.fset(self, _log_dynamic_ti_kernel)
+        #     else:
+                # MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _ti_kernel)
+                # MarkovChainMonteCarlo.log_ti_kernel.fset(self, _log_ti_kernel)
 
 
     def sample_from_univariate_priors(self,N):
