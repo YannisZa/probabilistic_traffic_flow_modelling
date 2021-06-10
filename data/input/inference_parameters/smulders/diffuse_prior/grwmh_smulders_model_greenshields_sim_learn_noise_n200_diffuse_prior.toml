@@ -1,0 +1,116 @@
+id = "grwmh_smulders_model_greenshields_sim_learn_noise_n200_diffuse_prior"
+inference_model = "grwmh"
+data_id = "greenshields_fd_log_simulation_n200"
+data_fundamental_diagram = "greenshields"
+fundamental_diagram = "smulders"
+learn_noise = "True"
+
+[plot]
+acf_lags = 100
+hist_bins = 50
+
+[inference.initialisation]
+p0 = [ 2.0263841638923656, 33.18290335567828, 45.07655477086392, 71.0596325158379, 0.009433238110196002,]
+param_initialisation = "metadata"
+
+[inference.likelihood]
+type = "mnormal"
+
+[inference.transition_kernel]
+type = "mnormal"
+action = ""
+
+[inference.parameter_constraints]
+lower_bounds = [ "0", "0", "0", "0", "0",]
+upper_bounds = [ "inf", "inf", "inf", "inf", "inf",]
+
+[inference.convergence_diagnostic]
+r_critical = 1.1
+parallel_chains = 10
+convergence_chains = 3
+burnin_step = 5000
+
+[inference.vanilla_mcmc]
+seed = "2021"
+N = 100000
+burnin = 10000
+posterior_predictive_samples = 10000
+marginal_likelihood_samples = 10000
+
+[inference.thermodynamic_integration_mcmc]
+seed = "2021"
+temp_schedule = "prior"
+temp_nsteps = 30
+temp_power = 5
+N = 300000
+burnin = 60000
+marginal_likelihood_samples = 10000
+
+[inference.vanilla_mcmc.transition_kernel]
+proposal_stds = [ 0.00407647, 0.00728146, 0.00136577, 0.00771708, 0.04547192,]
+adapt_proposal_during_burnin = "False"
+proposal_factor_adjustment = 0.8
+
+[inference.thermodynamic_integration_mcmc.transition_kernel]
+proposal_stds = [ 0.007, 0.007, 0.003, 0.011, 0.038,]
+adapt_proposal_during_burnin = "False"
+proposal_factor_adjustment = 0.5
+dynamic_proposal = "True"
+stochastic_proposal = "True"
+prior_sampling = "mc"
+beta_dstr_a = "10"
+
+[inference.priors.v_f]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-10"
+min = "0.1"
+max = "5.0"
+loc = "2.0"
+scale = "0.02"
+
+[inference.priors.rho_c]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-5"
+min = "0.1"
+max = "30"
+loc = "33.2"
+scale = "0.5"
+
+[inference.priors.rho_j]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "30"
+max = "60"
+loc = "45.1"
+scale = "0.1"
+
+[inference.priors.gamma]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.1"
+max = "30"
+loc = "71.1"
+scale = "1"
+
+[inference.priors.sigma2]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.001"
+max = "1.0"
+loc = "0.01"
+scale = "0.001"
+
+[inference.parameter_constraints.implicit.constraint1]
+lhs = "rho_j"
+operator = ">"
+rhs = "rho_c"
+
+[inference.parameter_constraints.implicit.constraint2]
+lhs = "rho_j"
+operator = ">"
+rhs = "max_x"
