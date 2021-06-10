@@ -48,7 +48,6 @@ marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
 proposal_stds = [ 0.027967566508922986, 0.014679989093163075, 0.008566251307676572, 0.08417681507194642,]
-adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.45
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
