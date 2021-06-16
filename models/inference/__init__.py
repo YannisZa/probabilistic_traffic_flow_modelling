@@ -1046,6 +1046,7 @@ class MarkovChainMonteCarlo(object):
                     print(f'Low temperature acceptance rate {low_temp_acceptance}%, High temperature acceptance rate {high_temp_acceptance}%')
                 # print(f'Temperature acceptance rate {int(100*acc[random_t_index] / prop[random_t_index])}%')
 
+
             # Update proposal stds after burnin
             if i == (burnin-1):
                 # Get proposal factor adjustment from metadata
@@ -1821,10 +1822,11 @@ class MarkovChainMonteCarlo(object):
             temperature_threshold = float(self.inference_metadata['inference']["thermodynamic_integration_mcmc"]['transition_kernel']['temperature_threshold'])
             threshold_temperature = next(x[0] for x in enumerate(self.temperature_schedule) if x[1] > temperature_threshold)
 
-        # if threshold_temperature == 0: temps = [0,len(self.temperature_schedule)-1]
-        # else: temps = [0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
-        temps = list(range(0,len(self.temperature_schedule)-1,5))
-        temps.append(len(self.temperature_schedule)-1)
+        if threshold_temperature == 0: temps = [0,len(self.temperature_schedule)-1]
+        else: temps = [0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+        # temps = list(range(0,len(self.temperature_schedule)-1,5))
+        # temps.append(len(self.temperature_schedule)-1)
+        # temps = [0,len(self.temperature_schedule)-1]
 
         for ti in temps:
         # for ti in range(len(np.concatenate([self.temperature_schedule[0:2],self.temperature_schedule[(len(self.temperature_schedule)-3):len(self.temperature_schedule-1)]]))):
@@ -2117,10 +2119,11 @@ class MarkovChainMonteCarlo(object):
                 temperature_threshold = float(self.inference_metadata['inference']["thermodynamic_integration_mcmc"]['transition_kernel']['temperature_threshold'])
                 threshold_temperature = next(x[0] for x in enumerate(self.temperature_schedule) if x[1] > temperature_threshold)
 
-            # if threshold_temperature == 0: temps = [0,len(self.temperature_schedule)-1]
-            # else: temps = [0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
-            temps = list(range(0,len(self.temperature_schedule)-1,5))
-            temps.append(len(self.temperature_schedule)-1)
+            if threshold_temperature == 0: temps = [0,len(self.temperature_schedule)-1]
+            else: temps = [0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+            # temps = list(range(0,len(self.temperature_schedule)-1,5))
+            # temps.append(len(self.temperature_schedule)-1)
+            # temps = [0,len(self.temperature_schedule)-1]
 
             for tj in temps:
                 # Define parameter transformation
