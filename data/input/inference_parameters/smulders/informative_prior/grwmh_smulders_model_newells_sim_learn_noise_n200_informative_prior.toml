@@ -52,10 +52,12 @@ adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.8
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.0015, 0.0025, 0.0007, 0.002, 0.005,]
-adapt_proposal_during_burnin = "False"
+proposal_stds = [ 0.02, 0.02, 0.005, 0.02, 0.03,]
 proposal_factor_adjustment = 0.5
-dynamic_proposal = "False"
+dynamic_proposal = "True"
+stochastic_proposal = "False"
+prior_sampling = "mc"
+temperature_threshold = "0.038"
 
 [inference.priors.v_f]
 transformation = "$\\log$"
@@ -64,7 +66,7 @@ min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
 loc = "1.4"
-scale = "0.005"
+scale = "0.1"
 
 [inference.priors.rho_c]
 transformation = "$\\log$"
@@ -73,7 +75,7 @@ min_log_prob = "-5"
 min = "0.1"
 max = "30"
 loc = "23.0"
-scale = "0.05"
+scale = "1"
 
 [inference.priors.rho_j]
 transformation = "$\\log$"
@@ -82,7 +84,7 @@ min_log_prob = "-20"
 min = "30"
 max = "60"
 loc = "45.7"
-scale = "0.05"
+scale = "1"
 
 [inference.priors.gamma]
 transformation = "$\\log$"
@@ -91,7 +93,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "30"
 loc = "33.1"
-scale = "0.1"
+scale = "1"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -100,7 +102,7 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.01"
-scale = "0.0001"
+scale = "0.001"
 
 [inference.parameter_constraints.implicit.constraint1]
 lhs = "rho_j"

@@ -52,13 +52,21 @@ adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.75
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.011, 0.02, 0.0064, 0.093,]
-# proposal_factor_adjustment = 0.35
+proposal_stds = [ 0.025, 0.021, 0.01, 0.096]
+# proposal_factor_adjustment = 0.5
 dynamic_proposal = "True"
 stochastic_proposal = "True"
 beta_dstr_a = "1"
 beta_dstr_b = "10"
 prior_sampling = "mc"
+# [inference.thermodynamic_integration_mcmc.transition_kernel]
+# proposal_stds = [ 0.011, 0.02, 0.0064, 0.093,]
+# # proposal_factor_adjustment = 0.35
+# dynamic_proposal = "True"
+# stochastic_proposal = "True"
+# beta_dstr_a = "1"
+# beta_dstr_b = "10"
+# prior_sampling = "mc"
 # alpha_step = 0.1
 
 [inference.priors.v_f]

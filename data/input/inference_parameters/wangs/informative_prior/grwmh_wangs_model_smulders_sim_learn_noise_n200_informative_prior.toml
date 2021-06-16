@@ -52,7 +52,8 @@ adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.2
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.011, 0.02, 0.006, 0.06,]
+proposal_stds = [ 0.015, 0.01, 0.01, 0.06,]
+#[ 0.011, 0.02, 0.006, 0.06,]
 # proposal_factor_adjustment = 0.52
 dynamic_proposal = "False"
 

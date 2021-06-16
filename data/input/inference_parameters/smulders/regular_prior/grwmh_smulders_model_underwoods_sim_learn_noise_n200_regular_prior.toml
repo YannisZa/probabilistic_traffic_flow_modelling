@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [ 4.114222294722458, 4.511049803671519, 42.13768142482278, 15.869793807398485, 0.03414954425506516,]
+p0 = [4.114222294722458, 4.511049803671519, 42.13768142482278, 15.869793807398485, 0.03414954425506516]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -47,18 +47,19 @@ burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.00366667, 0.00641667, 0.00091667, 0.00366667, 0.02108333,]
+proposal_stds = [0.00366667, 0.00641667, 0.00091667, 0.00366667, 0.02108333]
+beta_step = 1
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.8
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.004, 0.007, 0.001, 0.004, 0.023,]
-adapt_proposal_during_burnin = "False"
+proposal_stds = [ 0.03, 0.05, 0.005, 0.01, 0.04,]
 proposal_factor_adjustment = 0.6
 dynamic_proposal = "True"
 stochastic_proposal = "True"
 prior_sampling = "mc"
-beta_dstr_a = "10"
+beta_dstr_a = "1"
+beta_dstr_b = "30"
 
 [inference.priors.v_f]
 transformation = "$\\log$"
@@ -67,7 +68,7 @@ min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
 loc = "4.1"
-scale = "0.02"
+scale = "0.5"
 
 [inference.priors.rho_c]
 transformation = "$\\log$"
@@ -76,7 +77,7 @@ min_log_prob = "-5"
 min = "0.1"
 max = "30"
 loc = "4.5"
-scale = "0.05"
+scale = "0.5"
 
 [inference.priors.rho_j]
 transformation = "$\\log$"
@@ -85,7 +86,7 @@ min_log_prob = "-20"
 min = "30"
 max = "60"
 loc = "42.1"
-scale = "0.1"
+scale = "2"
 
 [inference.priors.gamma]
 transformation = "$\\log$"
@@ -94,7 +95,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "30"
 loc = "15.9"
-scale = "0.1"
+scale = "2"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -103,7 +104,7 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.03"
-scale = "0.001"
+scale = "0.002"
 
 [inference.parameter_constraints.implicit.constraint1]
 lhs = "rho_j"

@@ -42,7 +42,7 @@ seed = "2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
-N = 300000
+N = 200000
 burnin = 60000
 marginal_likelihood_samples = 10000
 
@@ -52,10 +52,12 @@ adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.8
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.004, 0.007, 0.001, 0.004, 0.023,]
-adapt_proposal_during_burnin = "False"
+proposal_stds = [ 0.02, 0.02, 0.005, 0.02, 0.03,]
 proposal_factor_adjustment = 0.6
-dynamic_proposal = "False"
+dynamic_proposal = "True"
+stochastic_proposal = "False"
+prior_sampling = "mc"
+temperature_threshold = "0.038"
 
 [inference.priors.v_f]
 transformation = "$\\log$"
@@ -64,7 +66,7 @@ min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
 loc = "4.1"
-scale = "0.02"
+scale = "0.1"
 
 [inference.priors.rho_c]
 transformation = "$\\log$"
@@ -73,7 +75,7 @@ min_log_prob = "-5"
 min = "0.1"
 max = "30"
 loc = "4.5"
-scale = "0.05"
+scale = "0.1"
 
 [inference.priors.rho_j]
 transformation = "$\\log$"
@@ -82,7 +84,7 @@ min_log_prob = "-20"
 min = "30"
 max = "60"
 loc = "42.1"
-scale = "0.1"
+scale = "1"
 
 [inference.priors.gamma]
 transformation = "$\\log$"
@@ -91,7 +93,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "30"
 loc = "15.9"
-scale = "0.1"
+scale = "1"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"

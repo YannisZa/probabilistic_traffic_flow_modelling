@@ -42,20 +42,22 @@ seed = "2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
-N = 300000
+N = 200000
 burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
 proposal_stds = [ 0.006, 0.0075, 0.003, 0.0045, 0.021,]
-adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = "0.4"
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.02, 0.025, 0.01, 0.015, 0.07,]
-adapt_proposal_during_burnin = "False"
+proposal_stds = [ 0.017, 0.025, 0.008, 0.02, 0.015]
 proposal_factor_adjustment = "0.4"
-dynamic_proposal = "False"
+dynamic_proposal = "True"
+stochastic_proposal = "True"
+prior_sampling = "mc"
+beta_dstr_a = "1"
+beta_dstr_b = "50"
 
 [inference.priors.v_f]
 transformation = "$\\log$"
