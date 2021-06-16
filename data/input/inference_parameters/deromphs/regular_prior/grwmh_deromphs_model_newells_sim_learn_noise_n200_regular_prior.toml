@@ -1,0 +1,140 @@
+id = "grwmh_deromphs_model_newells_sim_learn_noise_n200_regular_prior"
+inference_model = "grwmh"
+data_id = "newells_fd_log_simulation_n200"
+data_fundamental_diagram = "newells"
+fundamental_diagram = "deromphs"
+learn_noise = "True"
+
+[plot]
+acf_lags = 100
+hist_bins = 50
+
+[inference.initialisation]
+p0 = [ 1.5001902920101202, 33.000092947772856, 49.999410334828916, 539.9999724832068, 40.001119607016534, 1.6203819533449042, 0.01000058642447999,]
+param_initialisation = "map"
+
+[inference.likelihood]
+type = "mnormal"
+
+[inference.transition_kernel]
+type = "mnormal"
+action = ""
+
+[inference.parameter_constraints]
+lower_bounds = [ "0", "0", "0", "0", "0", "0", "0",]
+upper_bounds = [ "inf", "inf", "inf", "inf", "inf", "inf", "inf",]
+
+[inference.convergence_diagnostic]
+r_critical = 1.1
+parallel_chains = 10
+convergence_chains = 3
+burnin_step = 5000
+
+[inference.vanilla_mcmc]
+seed = "2021"
+N = 100000
+burnin = 10000
+posterior_predictive_samples = 10000
+marginal_likelihood_samples = 10000
+
+[inference.thermodynamic_integration_mcmc]
+seed = "2021"
+temp_schedule = "prior"
+temp_nsteps = 30
+temp_power = 5
+N = 300000
+burnin = 100000
+marginal_likelihood_samples = 10000
+
+[inference.vanilla_mcmc.transition_kernel]
+proposal_stds = [ 0.0003900157083214219, 0.00016015604939583766, 0.00013111318143937118, 2.7052025528658334e-5, 0.00020083536139625552, 0.0002904471418862104, 0.0009900264503586178,]
+adapt_proposal_during_burnin = "False"
+proposal_factor_adjustment = 0.8
+
+[inference.thermodynamic_integration_mcmc.transition_kernel]
+proposal_stds = [ 0.0003900157083214219, 0.00016015604939583766, 0.00013111318143937118, 2.7052025528658334e-5, 0.00020083536139625552, 0.0002904471418862104, 0.0009900264503586178,]
+adapt_proposal_during_burnin = "False"
+proposal_factor_adjustment = 0.4
+dynamic_proposal = "True"
+stochastic_proposal = "True"
+prior_sampling = "mc"
+beta_dstr_a = "1"
+beta_dstr_b = "10"
+
+[inference.priors.v_f]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-10"
+min = "0.1"
+max = "5.0"
+loc = "1.5"
+scale = "0.001"
+
+[inference.priors.rho_c]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-5"
+min = "0.1"
+max = "40"
+loc = "33.0"
+scale = "0.01"
+
+[inference.priors.rho_j]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "30"
+max = "60"
+loc = "50.0"
+scale = "0.01"
+
+[inference.priors.gamma]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.1"
+max = "1000"
+loc = "540.0"
+scale = "0.02"
+
+[inference.priors.alpha]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.1"
+max = "50"
+loc = "40.0"
+scale = "0.01"
+
+[inference.priors.beta]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.1"
+max = "5"
+loc = "1.6"
+scale = "0.0005"
+
+[inference.priors.sigma2]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.001"
+max = "1.0"
+loc = "0.01"
+scale = "0.00003"
+
+[inference.parameter_constraints.implicit.constraint1]
+lhs = "rho_j"
+operator = ">"
+rhs = "rho_c"
+
+[inference.parameter_constraints.implicit.constraint2]
+lhs = "rho_j"
+operator = ">"
+rhs = "max_x"
+
+[inference.parameter_constraints.implicit.constraint3]
+lhs = "alpha"
+operator = ">"
+rhs = "rho_c"
