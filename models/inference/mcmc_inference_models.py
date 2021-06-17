@@ -211,6 +211,26 @@ class MetropolisHastings(MarkovChainMonteCarlo):
         if dynamic_proposal and stochastic_proposal:
             temperature_threshold = 0
 
+        # Read adaptive proposal steps for large parameter models with diffuse priors (see DeRomphs model sensitivity analysis)
+        adaptive_proposal_covariances = np.array([])
+        adaptive_proposal_steps_flag = temperature_threshold > 0\
+            and "proposal_stds_max" in self.inference_metadata['inference']["thermodynamic_integration_mcmc"]['transition_kernel']\
+            and "proposal_stds_min" in self.inference_metadata['inference']["thermodynamic_integration_mcmc"]['transition_kernel']
+        if adaptive_proposal_steps_flag:
+            max_proposal_stds = np.array(self.inference_metadata['inference']["thermodynamic_integration_mcmc"]['transition_kernel']["proposal_stds_max"])
+            min_proposal_stds = np.array(self.inference_metadata['inference']["thermodynamic_integration_mcmc"]['transition_kernel']["proposal_stds_min"])
+            # Get number of temperatures above threshold
+            num_temperatures = sum(self.temperature_schedule > temperature_threshold)
+
+            # Get proposal steps for each parameter and temperature
+            adaptive_proposal_steps = np.flip(np.array([np.linspace(min_proposal_stds[i],max_proposal_stds[i],num_temperatures) for i in range(self.num_learning_parameters)]),axis=1)
+            # Constuct adaptive covariance - we initialise to one so that a nan does not appear in the log density
+            adaptive_proposal_covariances = np.ones((len(self.temperature_schedule),self.num_learning_parameters))
+            # Get threshold temperature
+            threshold_temperature = next(x[0] for x in enumerate(self.temperature_schedule) if x[1] > temperature_threshold)
+            # Update higher temperature proposals
+            adaptive_proposal_covariances[threshold_temperature:len(self.temperature_schedule),:] = adaptive_proposal_steps.T
+
         # Read alpha step
         alpha_step = 1
         if "alpha_step" in kernel_params:
@@ -297,15 +317,23 @@ class MetropolisHastings(MarkovChainMonteCarlo):
                         #     print('\n')
                         return pnew
                     else:
-                        # Sample from symmetric Gaussian kernel
-                        pnew = pprev + distribution_sampler(np.zeros(self.num_learning_parameters),K)
+                        if adaptive_proposal_steps_flag:
+                            # Sample from symmetric Gaussian kernel with adaptive proposal steps
+                            pnew = pprev + distribution_sampler(np.zeros(self.num_learning_parameters),np.diag(adaptive_proposal_covariances[t,:]**2))
+                        else:
+                            # Sample from symmetric Gaussian kernel with fixed proposal steps
+                            pnew = pprev + distribution_sampler(np.zeros(self.num_learning_parameters),K)
                         return pnew
 
                 def _log_dynamic_deterministic_ti_kernel(p1,p2,t):
                     if prior_sampling.lower() == 'taylor':
-                        return (self.temperature_schedule[t] <= temperature_threshold)*1 * multivariate_gaussian(p2[t,:],means,alpha_step*np.diag(vars)) + (self.temperature_schedule[t] > temperature_threshold)*1 * multivariate_gaussian(p2[t,:],p1[t,:],K)
+                        return (self.temperature_schedule[t] <= temperature_threshold)*1 * multivariate_gaussian(p2[t,:],means,alpha_step*np.diag(vars)) + \
+                                (self.temperature_schedule[t] > temperature_threshold)*1 * ( (1-int(adaptive_proposal_steps_flag)) * multivariate_gaussian(p2[t,:],p1[t,:],K) +\
+                                                                                        (int(adaptive_proposal_steps_flag)) * multivariate_gaussian(p2[t,:],p1[t,:],np.diag(adaptive_proposal_covariances[t,:]**2)) )
                     elif prior_sampling.lower() == 'mc':
-                        return (self.temperature_schedule[t] <= temperature_threshold)*1 *  self.evaluate_log_joint_prior(p2[t,:]) + (self.temperature_schedule[t] > temperature_threshold)*1 * multivariate_gaussian(p2[t,:],p1[t,:],K)
+                        return (self.temperature_schedule[t] <= temperature_threshold)*1 * self.evaluate_log_joint_prior(p2[t,:]) + \
+                                (self.temperature_schedule[t] > temperature_threshold)*1 * ( (1-int(adaptive_proposal_steps_flag)) * multivariate_gaussian(p2[t,:],p1[t,:],K) +\
+                                                                                        (int(adaptive_proposal_steps_flag)) * multivariate_gaussian(p2[t,:],p1[t,:],np.diag(adaptive_proposal_covariances[t,:]**2)) )
 
                 # Update Thermodynamic Integration MCMC kernels
                 MarkovChainMonteCarlo.thermodynamic_integration_transition_kernel.fset(self, _dynamic_deterministic_ti_kernel)
