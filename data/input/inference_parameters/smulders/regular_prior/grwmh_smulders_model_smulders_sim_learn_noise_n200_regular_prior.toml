@@ -61,7 +61,7 @@ learn_noise = "True"
 
             [inference.thermodynamic_integration_mcmc.transition_kernel]
                                 #[r'$v_f$',r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\sigma^2$']
-                proposal_stds = [ 0.011, 0.02, 0.006, 0.015, 0.02]
+                proposal_stds = [ 0.011, 0.025, 0.006, 0.015, 0.045]
                 #[ 0.03, 0.07, 0.01, 0.05, 0.05,]
                 # proposal_factor_adjustment = "0.4"
                 dynamic_proposal = "True"
