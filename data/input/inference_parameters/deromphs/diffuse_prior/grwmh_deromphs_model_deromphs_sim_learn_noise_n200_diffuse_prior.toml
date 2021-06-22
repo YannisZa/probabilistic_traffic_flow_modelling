@@ -10,8 +10,9 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [ 2.528693438857054, 20.000296364041027, 44.59239765974328, 367.40612359916753, 24.014197771379873, 1.988841986357991, 0.009895758624272638,]
-param_initialisation = "map"
+p0 = [ 2.5, 20.0, 44.6, 367.4, 24.0, 2.0, 0.01 ]
+#[ 2.528693438857054, 20.000296364041027, 44.59239765974328, 367.40612359916753, 24.014197771379873, 1.988841986357991, 0.009895758624272638,]
+param_initialisation = "metadata"#"map"
 
 [inference.likelihood]
 type = "mnormal"
@@ -42,22 +43,24 @@ seed = "2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
-N = 300000
-burnin = 100000
+N = 400000
+burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.0043513, 0.00055865, 0.00103403, 0.00317224, 0.00094273, 0.0010327, 0.00633401,]
+proposal_stds = [0.005, 0.001, 0.001, 0.003, 0.002, 0.0015, 0.03]
+#[0.002, 0.0002, 0.0006, 0.0025, 0.001, 0.003, 0.018]
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = "0.38"
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.011 , 0.005, 0.003, 0.02, 0.009, 0.004, 0.055,]
-proposal_factor_adjustment = "0.29"
+proposal_stds = [ 0.012 , 0.01, 0.003, 0.006, 0.01, 0.006, 0.065,]
+proposal_stds_min = [0.005, 0.002, 0.001, 0.003, 0.002, 0.0015, 0.03]
+proposal_stds_max = [ 0.015, 0.008, 0.006, 0.007, 0.009, 0.009, 0.06,]
 dynamic_proposal = "True"
 stochastic_proposal = "False"
 prior_sampling = "mc"
-temperature_threshold = "0.02"
+temperature_threshold = "0.009"
 # beta_dstr_a = "1"
 # beta_dstr_b = "50"
 
