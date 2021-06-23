@@ -32,7 +32,7 @@ burnin_step = 5000
 
 [inference.vanilla_mcmc]
 seed = "2021"
-N = 20000
+N = 100000
 burnin = 1000
 posterior_predictive_samples = 10000
 marginal_likelihood_samples = 10000

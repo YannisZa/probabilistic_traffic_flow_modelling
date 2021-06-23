@@ -28,14 +28,14 @@ upper_bounds = [ "inf", "inf", "inf", "inf", "inf", "inf", "inf",]
 r_critical = 1.1
 parallel_chains = 10
 convergence_chains = 3
-burnin_step = 1000
+burnin_step = 5000
 
 [inference.vanilla_mcmc]
 seed = "2021"
-N = 20000#100000
+N = 100000
 burnin = 1000
-posterior_predictive_samples = 1000
-marginal_likelihood_samples = 1000
+posterior_predictive_samples = 10000
+marginal_likelihood_samples = 10000
 
 [inference.thermodynamic_integration_mcmc]
 seed = "2021"
@@ -44,7 +44,7 @@ temp_nsteps = 30
 temp_power = 5
 N = 600000
 burnin = 30000
-marginal_likelihood_samples = 1000
+marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
 proposal_stds = [0.003, 0.012, 0.005, 0.01, 0.005, 0.005, 0.022]
