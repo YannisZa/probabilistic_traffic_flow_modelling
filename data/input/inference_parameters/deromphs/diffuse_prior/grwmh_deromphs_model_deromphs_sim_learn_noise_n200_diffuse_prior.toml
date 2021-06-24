@@ -43,7 +43,8 @@ seed = "2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
-N = 400000
+temperature_choice_distribution = "skewed" #"uniform" 30000 for high temps, 10000 for low temps
+N = 700000
 burnin = 60000
 marginal_likelihood_samples = 10000
 
@@ -55,14 +56,13 @@ proposal_factor_adjustment = "0.38"
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
 proposal_stds = [ 0.012 , 0.01, 0.003, 0.006, 0.01, 0.006, 0.065,]
-proposal_stds_min = [0.005, 0.002, 0.001, 0.003, 0.002, 0.0015, 0.03]
+proposal_stds_min = [ 0.005, 0.002, 0.001, 0.003, 0.002, 0.0015, 0.03]
 proposal_stds_max = [ 0.015, 0.008, 0.006, 0.007, 0.009, 0.009, 0.06,]
 dynamic_proposal = "True"
 stochastic_proposal = "False"
 prior_sampling = "mc"
 temperature_threshold = "0.009"
-# beta_dstr_a = "1"
-# beta_dstr_b = "50"
+
 
 [inference.priors.v_f]
 transformation = "$\\log$"
