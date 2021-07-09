@@ -32,30 +32,40 @@ burnin_step = 5000
 
 [inference.vanilla_mcmc]
 seed = "2021"
-N = 100000
-burnin = 10000
-posterior_predictive_samples = 10000
-marginal_likelihood_samples = 10000
+N = 30000
+burnin = 2000
+posterior_predictive_samples = 1000
+marginal_likelihood_samples = 1000
 
 [inference.thermodynamic_integration_mcmc]
 seed = "2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
-N = 300000
-burnin = 100000
+temperature_choice_distribution = "skewed" #"uniform" "skewed" 30000 for high temps - 10000 for low temps
+N = 900000
+burnin = 30000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.000312012567, 0.00012812484, 0.000104890545, 2.16416204e-5, 0.000192668289, 0.000232357714, 0.00079202116,]
+proposal_stds = [0.0037951824445360037, 0.006847837660864144, 0.0016555938425000583, 0.0001710014323931152, 0.0015600758282541627, 0.0009183490687546111, 0.009729614323131807]
+                #[0.003541739253825121, 0.0100898747799327421, 0.0014882698575609395, 0.0006749254333547876, 0.002281601735854401, 0.0007331738900998181, 0.018669151023204003]
+                #[0.004241739253825121, 0.009898747799327421, 0.0014882698575609395, 0.0008749254333547876, 0.002581601735854401, 0.0009331738900998181, 0.018669151023204003]
+                #[0.007278562201624679, 0.014695253354606579, 0.003060110096923665, 0.0023035629551865947, 0.006492325427003346, 0.0030175725878938477, 0.02401000379391]
 adapt_proposal_during_burnin = "False"
-proposal_factor_adjustment = 0.8
+proposal_factor_adjustment = 0.2
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.0003900157083214219, 0.00016015604939583766, 0.00013111318143937118, 2.7052025528658334e-5, 0.0002408353613962555, 0.0002904471418862104, 0.0009900264503586178,]
-adapt_proposal_during_burnin = "False"
-proposal_factor_adjustment = 0.4
-dynamic_proposal = "False"
+proposal_stds = [ 0.0003900157083214219, 0.00016015604939583766, 0.00026111318143937118, 2.7052025528658334e-5, 0.0002408353613962555, 0.0002904471418862104, 0.0009900264503586178,]
+proposal_stds_min = [0.0037951824445360037, 0.006847837660864144, 0.0016555938425000583, 0.0001710014323931152, 0.0015600758282541627, 0.0009183490687546111, 0.009729614323131807]
+proposal_stds_max = [0.013222273206536522, 0.009488729169944813, 0.0033164759876322023, 0.00014574258324376633, 0.0014534285258958985, 0.004726976169159373, 0.010403456052305603]
+#[0.0037951824445360037, 0.006847837660864144, 0.0016555938425000583, 0.0001710014323931152, 0.0015600758282541627, 0.0009183490687546111, 0.009729614323131807]
+#[0.05245452, 0.06946392, 0.01583065, 0.01073815, 0.01596444, 0.0155318 , 0.03463949]
+proposal_factor_adjustment = 2
+dynamic_proposal = "True"
+stochastic_proposal = "False"
+prior_sampling = "mc"
+temperature_threshold = "0.003"
 
 [inference.priors.v_f]
 transformation = "$\\log$"
@@ -64,7 +74,7 @@ min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
 loc = "2.4"
-scale = "0.001"
+scale = "0.1"#"0.5"
 
 [inference.priors.rho_c]
 transformation = "$\\log$"
@@ -73,7 +83,7 @@ min_log_prob = "-5"
 min = "0.1"
 max = "40"
 loc = "20.6"
-scale = "0.005"
+scale = "0.5"#"3"
 
 [inference.priors.rho_j]
 transformation = "$\\log$"
@@ -82,7 +92,7 @@ min_log_prob = "-20"
 min = "30"
 max = "60"
 loc = "47.5"
-scale = "0.01"
+scale = "0.5"
 
 [inference.priors.gamma]
 transformation = "$\\log$"
@@ -91,7 +101,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "3500"
 loc = "2479.8"
-scale = "0.1"
+scale = "1"
 
 [inference.priors.alpha]
 transformation = "$\\log$"
@@ -100,7 +110,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "50"
 loc = "25.1"
-scale = "0.01"
+scale = "0.1"#"3"
 
 [inference.priors.beta]
 transformation = "$\\log$"
@@ -109,7 +119,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "5"
 loc = "2.4"
-scale = "0.001"
+scale = "0.01"#"0.5"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -118,7 +128,7 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.01"
-scale = "0.00003"
+scale = "0.00025"
 
 [inference.parameter_constraints.implicit.constraint1]
 lhs = "rho_j"

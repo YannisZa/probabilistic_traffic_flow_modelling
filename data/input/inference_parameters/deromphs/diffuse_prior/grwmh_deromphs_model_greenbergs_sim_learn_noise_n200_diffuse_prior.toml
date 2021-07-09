@@ -33,14 +33,14 @@ convergence_chains = 3
 burnin_step = 5000
 
 [inference.vanilla_mcmc]
-seed = "None"#"2021"
+seed = "2021"#"2021"
 N = 40000
 burnin = 1000
 posterior_predictive_samples = 1000
 marginal_likelihood_samples = 1000
 
 [inference.thermodynamic_integration_mcmc]
-seed = "None"#"2021"
+seed = "2021"#"2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5

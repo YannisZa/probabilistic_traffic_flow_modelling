@@ -42,24 +42,26 @@ seed = "2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
-N = 300000
-burnin = 100000
+N = 700000
+burnin = 30000
 marginal_likelihood_samples = 10000
+temperature_choice_distribution = "skewed" #"uniform" "skewed" 40000 high temps - 10000 low temps
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.0003900157083214219, 0.00016015604939583766, 0.00013111318143937118, 2.7052025528658334e-5, 0.00018083536139625552, 0.0002904471418862104, 0.0009900264503586178,]
-adapt_proposal_during_burnin = "False"
+proposal_stds = [0.00500158739388906, 0.004641691234244272, 0.002871622821557838, 0.00106630984976345, 0.006725986296559472, 0.0013912676246753423, 0.025362223486903087]
 proposal_factor_adjustment = 0.8
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.0003900157083214219, 0.00016015604939583766, 0.00013111318143937118, 2.7052025528658334e-5, 0.00018083536139625552, 0.0002904471418862104, 0.0009900264503586178,]
-adapt_proposal_during_burnin = "False"
-proposal_factor_adjustment = 0.4
+proposal_stds = [0.09671761946389384, 0.03616280135943483, 0.02324371477618539, 0.001370140574414684, 0.012535732022376844, 0.01136537155185102, 0.14679988925567425]
+proposal_stds_min = [0.00500158739388906, 0.004641691234244272, 0.002871622821557838, 0.00106630984976345, 0.006725986296559472, 0.0013912676246753423, 0.025362223486903087]
+proposal_stds_max = [0.09671761946389384, 0.03616280135943483, 0.02324371477618539, 0.001370140574414684, 0.012535732022376844, 0.01136537155185102, 0.14679988925567425]
+#[0.09671761946389384, 0.03616280135943483, 0.02324371477618539, 0.001370140574414684, 0.012535732022376844, 0.01136537155185102, 0.14679988925567425]
+proposal_factor_adjustment = 3
 dynamic_proposal = "True"
-stochastic_proposal = "True"
+stochastic_proposal = "False"
 prior_sampling = "mc"
-beta_dstr_a = "1"
-beta_dstr_b = "10"
+temperature_threshold = "0.002"
+
 
 [inference.priors.v_f]
 transformation = "$\\log$"
@@ -68,7 +70,7 @@ min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
 loc = "1.2"
-scale = "0.001"
+scale = "0.2"
 
 [inference.priors.rho_c]
 transformation = "$\\log$"
@@ -77,7 +79,7 @@ min_log_prob = "-5"
 min = "0.1"
 max = "40"
 loc = "21.0"
-scale = "0.005"
+scale = "2"
 
 [inference.priors.rho_j]
 transformation = "$\\log$"
@@ -86,7 +88,7 @@ min_log_prob = "-20"
 min = "30"
 max = "60"
 loc = "47.0"
-scale = "0.01"
+scale = "3"
 
 [inference.priors.gamma]
 transformation = "$\\log$"
@@ -95,7 +97,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "4000"
 loc = "2005.0"
-scale = "0.1"
+scale = "3"
 
 [inference.priors.alpha]
 transformation = "$\\log$"
@@ -104,7 +106,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "100"
 loc = "63.0"
-scale = "0.01"
+scale = "1"
 
 [inference.priors.beta]
 transformation = "$\\log$"
@@ -113,7 +115,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "5"
 loc = "2.2"
-scale = "0.0025"
+scale = "0.25"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -122,7 +124,7 @@ min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
 loc = "0.01"
-scale = "0.00003"
+scale = "0.002"
 
 [inference.parameter_constraints.implicit.constraint1]
 lhs = "rho_j"
