@@ -1,0 +1,97 @@
+id = "m25_data_experiments"
+inference_ids = [
+                "grwmh_greenshields_model_m25_data_learn_noise_n392",
+                "gggggggg"
+                "gggggggg",
+                "grwmh_greenbergs_model_m25_data_learn_noise_n392",
+                "grwmh_underwoods_model_m25_data_learn_noise_n392",
+                "grwmh_northwesterns_model_m25_data_learn_noise_n392",
+                "gggggggg",
+                "gggggggg",
+                "gggggggg",
+                "gggggggg"
+                ]
+data_ids = [
+            "greenshields_fd_log_simulation_n200",
+            "daganzos_fd_log_simulation_n200",
+            "delcastillos_fd_log_simulation_n200",
+            "greenbergs_fd_log_simulation_n200",
+            "underwoods_fd_log_simulation_n200",
+            "northwesterns_fd_log_simulation_n200",
+            "newells_fd_log_simulation_n200",
+            "wangs_fd_log_simulation_n200",
+            "smulders_fd_log_simulation_n200",
+            "deromphs_fd_log_simulation_n200"
+            ]
+
+  [routines]
+    generate_data = "False"
+    run_inference = "True"
+    tune_inference = "False"
+    compile_marginal_likelihood_matrix = "False"
+
+  [experiment_summary]
+    export = "False"
+    print = "True"
+
+  [data_simulation]
+    plot_log_data = "False"
+    show_plot = "False"
+    show_sim_param = "False"
+    print = "False"
+
+  [priors]
+    export = "True"
+    show_plot = "False"
+    show_title = "True"
+
+  [mle]
+    compute = "True"
+    print = "True"
+
+  [vanilla_mcmc]
+
+      [vanilla_mcmc.convergence_diagnostic]
+        compute = "False"# "True"
+        print = "True"
+
+      [vanilla_mcmc.parameter_posterior]
+        compute = "True"# "True"
+        import = "False"
+        export = "False"
+        show_plot = "False"
+        show_title = "False"
+        print = "True"
+
+      [vanilla_mcmc.posterior_predictive]
+        compute = "True"
+        import = "False"
+        export = "True"
+        show_plot = "False"
+        show_title = "False"
+        print = "True"
+
+      [vanilla_mcmc.marginal_likelihood]
+        compute = "False"# "True"
+        print = "True"
+
+      [vanilla_mcmc.R2]
+        compute = "True"
+
+  [thermodynamic_integration_mcmc]
+
+    [thermodynamic_integration_mcmc.convergence_diagnostic]
+      compute = "True"#True
+      print = "True"
+
+    [thermodynamic_integration_mcmc.parameter_posterior]
+        compute = "True"#True
+        import = "False"
+        export = "False"
+        show_plot = "False"
+        show_title = "False"
+        print = "True"
+
+    [thermodynamic_integration_mcmc.marginal_likelihood]
+        compute = "True"#True
+        print = "True"

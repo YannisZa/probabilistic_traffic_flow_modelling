@@ -1,0 +1,12 @@
+id = "m25_data_n392"
+fundamental_diagram = ""
+simulation_flag = "False"
+seed = "2021"
+
+[ols]
+  p0 = [3.0,55.0,10.0]
+  method = ''
+
+[error]
+  iid = "True"
+  multiplicative = "True"
