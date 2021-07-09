@@ -222,12 +222,12 @@ class FundamentalDiagram(object):
             constrained_ls = so.minimize(self.squared_error, p0, constraints=[positivity_constraint,concavity_constraint])
         else:
             constrained_ls = so.minimize(self.squared_error, p0, constraints=[positivity_constraint,concavity_constraint],method=self.simulation_metadata['ols']['method'])
-        constrained_ls_params = constrained_ls.x
-        constrained_ls_q_hat = self.simulate(constrained_ls_params)
+        # constrained_ls_params = constrained_ls.x
+        # constrained_ls_q_hat = self.simulate(constrained_ls_params)
 
         # Update class variables
-        self.ols_q = constrained_ls_q_hat
-        self.ols_params = constrained_ls_params
+        self.ols_params = constrained_ls.x
+        self.ols_q = self.simulate(constrained_ls.x)
 
     def import_raw_data(self,experiment_id:str=''):
 
