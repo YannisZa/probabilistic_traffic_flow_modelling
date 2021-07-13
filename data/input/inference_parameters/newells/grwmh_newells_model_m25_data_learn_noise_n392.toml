@@ -1,8 +1,8 @@
-id = "grwmh_northwesterns_model_greenbergs_sim_learn_noise_n200"
+id = "grwmh_newells_model_m25_data_learn_noise_n392"
 inference_model = "grwmh"
 data_id = "m25_data_fd_n392"
 data_fundamental_diagram = ""
-fundamental_diagram = "northwesterns"
+fundamental_diagram = "newells"
 learn_noise = "True"
 
 [plot]
@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [1.2209344808919103, 177.63319968818934, 0.01556698733073866]
+p0 = [1.4870457112672903, 250.30200435146386, 505.40231354342865, 0.010173481631221799]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -21,8 +21,13 @@ type = "mnormal"
 action = ""
 
 [inference.parameter_constraints]
-lower_bounds = [ "0", "0", "0",]
-upper_bounds = [ "inf", "inf", "inf",]
+lower_bounds = [ "0", "0", "0", "0",]
+upper_bounds = [ "inf", "inf", "inf", "inf",]
+[inference.parameter_constraints.implicit.constraint1]
+lhs = "rho_j"
+operator = ">"
+rhs = "max_x"
+
 
 [inference.convergence_diagnostic]
 r_critical = 1.1
@@ -33,8 +38,8 @@ burnin_step = 5000
 [inference.vanilla_mcmc]
 seed = "2021"
 N = 100000
-burnin = 10000
-posterior_predictive_samples = 10000
+burnin = 5000
+posterior_predictive_samples = 20000
 marginal_likelihood_samples = 10000
 
 [inference.thermodynamic_integration_mcmc]
@@ -47,41 +52,46 @@ burnin = 10000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [0.007452657700498929, 0.004110877331052902, 0.04134458729022764]
-beta_step = 1
-adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.9
+proposal_stds = [0.011250567734239604, 0.00828603091978524, 0.0040171914232458427, 0.018705063605672448]
+proposal_factor_adjustment = 0.55
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [0.08662577862861312, 0.06806858155442665, 0.1737523926561061]
-proposal_factor_adjustment = 4
-proposal_stds_min = [0.007452657700498929, 0.004110877331052902, 0.04134458729022764]
-proposal_stds_max = [0.08662577862861312, 0.06806858155442665, 0.1737523926561061]
+proposal_stds = [0.10778334356074286, 0.06430250506749404, 0.061085175440241185, 0.15671668909652917]
+#[ 0.008, 0.003, 0.06]
+proposal_factor_adjustment = 3
+proposal_stds_min = [0.011250567734239604, 0.00828603091978524, 0.0040171914232458427, 0.018705063605672448]
+proposal_stds_max = [0.10778334356074286, 0.06430250506749404, 0.061085175440241185, 0.15671668909652917]
 dynamic_proposal = "True"
 stochastic_proposal = "False"
 prior_sampling = "mc"
 temperature_threshold = "0.003"
-# beta_dstr_a = "1"
-# beta_dstr_b = "10"
-
 
 [inference.priors.v_f]
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
-min = "0.1"
-max = "5.0"
-loc = "1.22"
+min = "0.01"
+max = "4.0"
+loc = "1.5"
 scale = "0.5"
 
-[inference.priors.rho_c]
+[inference.priors.lambda]
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
-min = "0.001"
-max = "20.0"
-loc = "178"
-scale = "40"
+min = "20"
+max = "600"
+loc = "250"
+scale = "20"
+
+[inference.priors.rho_j]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "30.0"
+max = "1000"
+loc = "505"
+scale = "50"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -89,5 +99,5 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
-loc = "0.015"
-scale = "0.005"
+loc = "0.01"
+scale = "0.003"

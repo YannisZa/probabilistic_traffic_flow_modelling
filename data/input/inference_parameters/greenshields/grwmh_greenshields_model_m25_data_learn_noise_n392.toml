@@ -1,6 +1,6 @@
 id = "grwmh_greenshields_model_m25_data_learn_noise_n392"
 inference_model = "grwmh"
-data_id = "m25_data_n392"
+data_id = "m25_data_fd_n392"
 data_fundamental_diagram = ""
 fundamental_diagram = "greenshields"
 learn_noise = "True"

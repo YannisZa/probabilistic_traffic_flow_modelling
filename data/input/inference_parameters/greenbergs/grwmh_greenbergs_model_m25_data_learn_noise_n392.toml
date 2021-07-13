@@ -1,6 +1,6 @@
 id = "grwmh_greenbergs_model_m25_data_learn_noise_n392"
 inference_model = "grwmh"
-data_id = "m25_data_n392"
+data_id = "m25_data_fd_n392"
 data_fundamental_diagram = ""
 fundamental_diagram = "greenbergs"
 learn_noise = "True"
@@ -52,7 +52,7 @@ burnin = 10000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds =  [0.006219851518316563, 0.0041352175719466654, 0.03492915691203993]
+proposal_stds = [0.006219851518316563, 0.0041352175719466654, 0.03492915691203993]
 #[ 0.008, 0.003, 0.06]
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
