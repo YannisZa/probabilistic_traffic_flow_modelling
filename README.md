@@ -1,2 +1,2 @@
-# probabilistic_traffic_flow_modelling
-Repository for work on probabilistic traffic flow modelling through fundamental diagram estimation on road and network levels
+# Robust model assessment of constitutive laws embedded in traffic flow partial differential equations
+Repository for work on probabilistic traffic flow modelling of link-level fundamental diagrams (constitutive laws) of traffic PDEs
