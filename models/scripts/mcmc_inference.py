@@ -17,21 +17,34 @@ inference_id = str(sys.argv[1])
 
 # Set flag for testing convergence
 convergence_diagnostic = True # True False
+# Set flag for exporting prior distribution plots
+export_priors = False # True False
 
 # Instantiate objects
 inf_model = utils.instantiate_inference_method(inference_id)
 fd = utils.instantiate_fundamental_diagram(data_id=inf_model.inference_metadata['data_id'],model=inf_model.inference_metadata['fundamental_diagram'])
 
+seed = str(inf_model.inference_metadata['inference']['thermodynamic_integration_mcmc']['seed'])
+if seed.lower() == "none": seed = None
+else: seed = int(seed)
+
 print("Inference id:",inference_id)
 print("Data id:",inf_model.inference_metadata['data_id'])
+print('seed',seed)
+# print(inf_model.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['proposal_stds'])
 
 # Populate them with data
 fd.populate()
 inf_model.populate(fd)
 
+# OLS estimation
+# fd.ols_estimation()
+# print('fd.ols_params',fd.ols_params)
+
 # Compute MLE estimate
 inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 
+# print()
 # print(inf_model.temperature_schedule[9])
 # print(inf_model.temperature_schedule[10])
 # print(inf_model.temperature_schedule[11])
@@ -40,9 +53,9 @@ inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 # plt.show()
 # sys.exit(1)
 
-# if not convergence_diagnostic:
-#     # Plot univariate prior distributions
-#     inf_model.export_univariate_prior_plots()
+if export_priors:
+    # Plot univariate prior distributions
+    inf_model.export_univariate_prior_plots()
 
 # sys.exit(1)
 
@@ -50,8 +63,8 @@ inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 #     # Run Vanilla MCMC in parallel and get convergence diagnostic
 #     vanilla_thetas,vanilla_acceptances = inf_model.run_parallel_mcmc(n=3,type='vanilla_mcmc',prints=True)
 #     inf_model.compute_gelman_rubin_statistic_for_vanilla_mcmc(vanilla_thetas,prints=True)
-#
-#     sys.exit(1)
+
+    # sys.exit(1)
 
 # Compute posterior harmonic mean marginal likelihood estimator
 # inf_model.compute_log_posterior_harmonic_mean_estimator(vanilla_thetas,prints=True)
@@ -59,7 +72,7 @@ inf_model.compute_maximum_a_posteriori_estimate(prints=True)
 # sys.exit(1)
 
 if convergence_diagnostic:
-    # Run Thermodynamic Integration MCMC in parallel and get convergence diagnostic
+    # # Run Thermodynamic Integration MCMC in parallel and get convergence diagnostic
     ti_thetas,ti_acceptances = inf_model.run_parallel_mcmc(n=3,type='thermodynamic_integration_mcmc',prints=True)
     r_stat,ti_converged,ti_burnin = inf_model.compute_gelman_rubin_statistic_for_thermodynamic_integration_mcmc(ti_thetas,prints=True)
 
@@ -77,7 +90,7 @@ if convergence_diagnostic:
 # inf_model.export_mcmc_samples()
 
 # Run thermodynamic integration MCMC
-ti_theta_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(i=0,prints=True,seed=None)
+ti_theta_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(i=0,prints=True,seed=seed)
 # Import MCMC samples
 # inf_model.import_thermodynamic_integration_mcmc_samples()
 
@@ -85,14 +98,14 @@ ti_theta_accepted,ti_proposed = inf_model.thermodynamic_integration_mcmc(i=0,pri
 # inf_model.export_mcmc_samples()
 
 # Export MCMC data
-# inf_model.export_mcmc_mixing_plots(show_plot=True,show_sim_param=True)
-# inf_model.export_vanilla_mcmc_space_exploration_plots(show_plot=True,show_sim_param=True)
+# inf_model.export_mcmc_mixing_plots(show_plot=False,show_sim_param=False)
+# inf_model.export_vanilla_mcmc_space_exploration_plots(show_plot=False,show_sim_param=False)
 # inf_model.export_mcmc_acf_plots(show_plot=True)
 # inf_model.export_mcmc_parameter_posterior_plots(num_stds=2,show_plot=True,show_sim_param=True)
 
 # Export thermodynamic integration MCMC
-inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(show_plot=False,show_sim_param=True)
 inf_model.export_thermodynamic_integration_mcmc_mixing_plots(show_plot=False,show_sim_param=True)
+inf_model.export_thermodynamic_integration_mcmc_space_exploration_plots(show_plot=False,show_sim_param=True)
 # inf_model.export_thermodynamic_integration_mcmc_parameter_posterior_plots(num_stds=2,show_plot=False,show_sim_param=True)
 
 # Compute posterior predictive
