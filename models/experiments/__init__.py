@@ -48,6 +48,7 @@ class Experiment(object):
     def __init__(self,experiment_id):
         # Import metadata / experiment parameters
         self.experiment_metadata = utils.import_experiment_metadata(experiment_id)
+        self.experiment_id = experiment_id
 
     def valid_input(self):
 
@@ -89,9 +90,12 @@ class Experiment(object):
         # Compute ML and R2 tables if instructed
         if compile_marginal_likelihood_matrix:
             self.compile_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
+                                                    list(self.experiment_metadata['inference_ids']),
+                                                    experiment_id=self.experiment_id,
                                                     prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
                                                     export=strtobool(self.experiment_metadata['experiment_summary']['export']))
             self.compile_r2_matrix(list(self.experiment_metadata['data_ids']),
+                                    experiment_id=self.experiment_id,
                                     prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
                                     export=strtobool(self.experiment_metadata['experiment_summary']['export']))
         # Update relevant flag
@@ -101,6 +105,7 @@ class Experiment(object):
         # Compute sensitivity ML table if instructed
         if compile_sensitivity_analysis_marginal_likelihood_matrix:
             self.compile_sensitivity_analysis_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
+                                    experiment_id=self.experiment_id,
                                     prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
                                     export=strtobool(self.experiment_metadata['experiment_summary']['export']))
 
@@ -333,7 +338,7 @@ class Experiment(object):
         print("\n")
         print("\n")
 
-    def compile_marginal_likelihood_matrix(self,data_ids,experiment_type:str='n200',inference_method='grwmh',prints:bool=False,export:bool=False):
+    def compile_marginal_likelihood_matrix(self,data_ids,inference_ids,experiment_id,inference_method='grwmh',prints:bool=False,export:bool=False):
 
         # Initialise list of rows of log marginal likelihoods
         # vanilla_mcmc_lmls = []
@@ -341,19 +346,33 @@ class Experiment(object):
         ti_mcmc_mean_lmls = []
 
         # Get data FDs
-        fds = [d.split('_fd')[0] for d in data_ids]
+        data_fds = np.array([d.split('_fd')[0] for d in data_ids])
+        # Get unique data FDs
+        data_fds = np.unique(data_fds)
+        # Get model FDs
+        model_fds = [i.split('_model')[0].split('_')[1] for i in inference_ids]
 
         # Loop through data ids
-        for data_id in data_ids:#tqdm(data_ids):
+        for data_id in np.unique(data_ids):#tqdm(data_ids):
             # Get data FD
             data_fd = data_id.split('_fd',1)[0]
+            # Import data simulation parameter
+            data_params = utils.import_simulation_metadata(data_id)
+
+            # Get flag for whether data is simulation
+            simulation_data = bool(strtobool(data_params['simulation_flag']))
+            experiment_type = "n" + str(data_params['id'].split("_n")[1])
+
             # Create inference ids
-            inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(fds)]
+            if simulation_data:
+                inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(model_fds)]
+            else:
+                inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_learn_noise_'+experiment_type) for i,m in enumerate(model_fds)]
             # Loop through constructed inference ids
             for i,inference_id in tqdm(enumerate(inference_ids)):
 
                 # Get inference model name
-                inference_fd = fds[i]
+                inference_fd = model_fds[i]
                 inference_id = inference_ids[i]
 
                 # print('inference_id',inference_id)
@@ -362,13 +381,12 @@ class Experiment(object):
                 # print('\n')
                 # sys.exit(1)
 
-
                 # Define experiment metadata filename
                 metadata_filename = utils.prepare_output_experiment_inference_filename(experiment_id=self.experiment_metadata['id'],inference_id=inference_id,dataset=data_id,method=inference_method)
 
                 # Make sure file exists
                 if not os.path.exists((metadata_filename+'metadata.json')):
-                    # if prints: print(f"Metadata file {metadata_filename}metadata.json not found")
+                    if prints: print(f"Metadata file {metadata_filename}metadata.json not found")
                     # vanilla_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
                     ti_mcmc_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
                     ti_mcmc_mean_lmls.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
@@ -508,20 +526,20 @@ class Experiment(object):
         #     print(ti_mcmc_bayes_factors_df)
         #     print("\n")
 
-
         # Prepare export file
         filename = utils.prepare_output_experiment_summary_filename(self.experiment_metadata['id'])
 
         # Export to file
-        if export:
-            # CAREFUL: experiment_type is based on the last inference id
-            # vanilla_mcmc_lmls_df.to_csv(filename+f'posterior_harmonic_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
-            # vanilla_mcmc_bayes_factors_df.to_csv(filename+f'posterior_harmonic_mean_estimated_bayes_factors_{experiment_type}.csv')
-            ti_mcmc_lmls_df.to_csv(filename+f'thermodynamic_integral_marginal_likelihoood_estimator_{experiment_type}.csv')
-            ti_mcmc_mean_lmls_df.to_csv(filename+f'thermodynamic_integral_mean_marginal_likelihoood_estimator_{experiment_type}.csv')
-            ti_mcmc_bayes_factors_df.to_csv(filename+f'thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
+        if bool(export):
+            # CAREFUL: experiment_id is based on the last inference id
+            # vanilla_mcmc_lmls_df.to_csv(filename+f'posterior_harmonic_mean_marginal_likelihoood_estimator_{experiment_id}.csv')
+            # vanilla_mcmc_bayes_factors_df.to_csv(filename+f'posterior_harmonic_mean_estimated_bayes_factors_{experiment_id}.csv')
+            ti_mcmc_lmls_df.to_csv(filename+f'thermodynamic_integral_marginal_likelihoood_estimator_{experiment_id}.csv')
+            ti_mcmc_mean_lmls_df.to_csv(filename+f'thermodynamic_integral_mean_marginal_likelihoood_estimator_{experiment_id}.csv')
+            ti_mcmc_bayes_factors_df.to_csv(filename+f'thermodynamic_integral_estimated_bayes_factors_{experiment_id}.csv')
 
-    def compile_sensitivity_analysis_marginal_likelihood_matrix(self,data_ids,experiment_type:str='n200',inference_method='grwmh',prints:bool=False,export:bool=False):
+
+    def compile_sensitivity_analysis_marginal_likelihood_matrix(self,data_ids,experiment_id,inference_method='grwmh',prints:bool=False,export:bool=False):
 
         # Initialise list of rows of log marginal likelihoods
         sensitivities = ['diffuse','regular','informative']
@@ -536,7 +554,7 @@ class Experiment(object):
         for data_id in data_ids:
             # Get data FD
             data_fd = data_id.split('_fd',1)[0]
-
+            experiment_type = "n200"
             # Create inference ids
             inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(fds)]
 
@@ -639,11 +657,11 @@ class Experiment(object):
         # Export to file
         if export:
             # CAREFUL: experiment_type is based on the last inference id
-            ti_mcmc_lmls_df.to_csv(filename+f'sensitivity_analysis_thermodynamic_integral_marginal_likelihoood_estimator_{experiment_type}.csv')
+            ti_mcmc_lmls_df.to_csv(filename+f'sensitivity_analysis_thermodynamic_integral_marginal_likelihoood_estimator_{experiment_id}.csv')
             # ti_mcmc_bayes_factors_df.to_csv(filename+f'sensitivity_analysis_thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
 
 
-    def compile_r2_matrix(self,data_ids,experiment_type:str='n200',inference_method='grwmh',prints:bool=False,export:bool=False):
+    def compile_r2_matrix(self,data_ids,experiment_id,inference_method='grwmh',prints:bool=False,export:bool=False):
 
         # Initialise list of rows of log marginal likelihoods
         # vanilla_mcmc_lmls = []
@@ -656,6 +674,7 @@ class Experiment(object):
         for data_id in data_ids:#tqdm(data_ids):
             # Get data FD
             data_fd = data_id.split('_fd',1)[0]
+            experiment_type = "n200"
             # Create inference ids
             inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(fds)]
             # Loop through constructed inference ids
@@ -726,9 +745,9 @@ class Experiment(object):
 
         # Export to file
         if export:
-            print(filename+f'R2_{experiment_type}.csv')
+            print(filename+f'R2_{experiment_id}.csv')
             # CAREFUL: experiment_type is based on the last inference id
-            r2_df.to_csv(filename+f'R2_{experiment_type}.csv')
+            r2_df.to_csv(filename+f'R2_{experiment_id}.csv')
 
 
     def tune_inference(self,inference_id):
