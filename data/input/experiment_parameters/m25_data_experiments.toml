@@ -1,37 +1,37 @@
 id = "m25_data_experiments"
 inference_ids = [
                 "grwmh_greenshields_model_m25_data_learn_noise_n392",
-                "gggggggg"
-                "gggggggg",
                 "grwmh_greenbergs_model_m25_data_learn_noise_n392",
                 "grwmh_underwoods_model_m25_data_learn_noise_n392",
                 "grwmh_northwesterns_model_m25_data_learn_noise_n392",
-                "gggggggg",
-                "gggggggg",
-                "gggggggg",
-                "gggggggg"
+                "grwmh_newells_model_m25_data_learn_noise_n392",
+                "grwmh_wangs_model_m25_data_learn_noise_n392",
+                "grwmh_delcastillos_model_m25_data_learn_noise_n392",
+                "grwmh_daganzos_model_m25_data_learn_noise_n392",
+                "grwmh_smulders_model_m25_data_learn_noise_n392",
+                "grwmh_deromphs_model_m25_data_learn_noise_n392"
                 ]
 data_ids = [
-            "greenshields_fd_log_simulation_n200",
-            "daganzos_fd_log_simulation_n200",
-            "delcastillos_fd_log_simulation_n200",
-            "greenbergs_fd_log_simulation_n200",
-            "underwoods_fd_log_simulation_n200",
-            "northwesterns_fd_log_simulation_n200",
-            "newells_fd_log_simulation_n200",
-            "wangs_fd_log_simulation_n200",
-            "smulders_fd_log_simulation_n200",
-            "deromphs_fd_log_simulation_n200"
+            "m25_data_fd_n392",
+            "m25_data_fd_n392",
+            "m25_data_fd_n392",
+            "m25_data_fd_n392",
+            "m25_data_fd_n392",
+            "m25_data_fd_n392",
+            "m25_data_fd_n392",
+            "m25_data_fd_n392",
+            "m25_data_fd_n392",
+            "m25_data_fd_n392"
             ]
 
   [routines]
     generate_data = "False"
-    run_inference = "True"
+    run_inference = "False"# True
     tune_inference = "False"
-    compile_marginal_likelihood_matrix = "False"
+    compile_marginal_likelihood_matrix = "True"
 
   [experiment_summary]
-    export = "False"
+    export = "True"
     print = "True"
 
   [data_simulation]
