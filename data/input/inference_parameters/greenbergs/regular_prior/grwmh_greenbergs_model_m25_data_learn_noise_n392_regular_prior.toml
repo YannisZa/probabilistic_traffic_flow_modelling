@@ -1,0 +1,96 @@
+id = "grwmh_greenbergs_model_m25_data_learn_noise_n392_regular_prior"
+inference_model = "grwmh"
+data_id = "m25_data_fd_n392"
+data_fundamental_diagram = ""
+fundamental_diagram = "greenbergs"
+learn_noise = "True"
+
+[plot]
+acf_lags = 100
+hist_bins = 50
+
+[inference.initialisation]
+p0 = [0.7006156846531892, 473.5861296230718, 0.011058310963035924]
+param_initialisation = "metadata"
+
+[inference.likelihood]
+type = "mnormal"
+
+[inference.transition_kernel]
+type = "mnormal"
+action = ""
+
+[inference.parameter_constraints]
+lower_bounds = [ "0", "0", "0"]
+upper_bounds = [ "inf", "inf", "inf"]
+[inference.parameter_constraints.implicit]
+    [inference.parameter_constraints.implicit.constraint2]
+      lhs = 'rho_j'
+      operator = '>'
+      rhs = 'max_x'
+
+[inference.convergence_diagnostic]
+r_critical = 1.1
+parallel_chains = 10
+convergence_chains = 3
+burnin_step = 5000
+
+[inference.vanilla_mcmc]
+seed = "2021"
+N = 100000
+burnin = 10000
+posterior_predictive_samples = 10000
+marginal_likelihood_samples = 10000
+
+[inference.thermodynamic_integration_mcmc]
+seed = "2021"
+temp_schedule = "prior"
+temp_nsteps = 30
+temp_power = 5
+N = 300000 # 30000 for high temperatures - 10000 for low temperatures
+burnin = 10000
+marginal_likelihood_samples = 10000
+
+[inference.vanilla_mcmc.transition_kernel]
+proposal_stds = [0.006219851518316563, 0.0041352175719466654, 0.03492915691203993]
+#[ 0.008, 0.003, 0.06]
+
+[inference.thermodynamic_integration_mcmc.transition_kernel]
+proposal_stds = [0.0698745336235993, 0.021295940460851103, 0.2198122093487929]
+#[ 0.008, 0.003, 0.06]
+proposal_factor_adjustment = 4
+proposal_stds_min = [0.006219851518316563, 0.0041352175719466654, 0.03492915691203993]
+proposal_stds_max = [0.0698745336235993, 0.021295940460851103, 0.2198122093487929]
+dynamic_proposal = "True"
+stochastic_proposal = "False"
+prior_sampling = "mc"
+temperature_threshold = "0.003"
+# beta_dstr_a = "1"
+# beta_dstr_b = "10"
+
+[inference.priors.v_f]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-10"
+min = "0.1"
+max = "5.0"
+loc = "0.7"
+scale = "0.2"
+
+[inference.priors.rho_j]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "30"
+max = "60"
+loc = "473"
+scale = "50"
+
+[inference.priors.sigma2]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.001"
+max = "1.0"
+loc = "0.011"
+scale = "0.003"
