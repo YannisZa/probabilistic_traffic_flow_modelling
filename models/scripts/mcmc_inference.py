@@ -16,7 +16,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probab
 inference_id = str(sys.argv[1])
 
 # Set flag for testing convergence
-convergence_diagnostic = True # True False
+convergence_diagnostic = False # True False
 # Set flag for exporting prior distribution plots
 export_priors = False # True False
 

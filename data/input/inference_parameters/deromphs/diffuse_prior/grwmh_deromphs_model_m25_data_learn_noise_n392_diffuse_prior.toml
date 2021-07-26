@@ -1,4 +1,4 @@
-id = "grwmh_deromphs_model_m25_data_learn_noise_n392_informative_prior"
+id = "grwmh_deromphs_model_m25_data_learn_noise_n392_diffuse_prior"
 inference_model = "grwmh"
 data_id = "m25_data_fd_n392"
 data_fundamental_diagram = ""
@@ -10,7 +10,15 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [616226.1824789848, 46.538855799711676, 438.27168535532286, 20.86023886920835, 0.6037550709002776, 0.012690538147361003]
+p0 = [
+        616226.1824789848,
+        46.538855799711676,
+        438.27168535532286,
+        20.86023886920835,
+        5385.594270646892,
+        0.6037550709002776,
+        0.012690538147361003
+      ]
 param_initialisation = "map"
 
 [inference.likelihood]
@@ -53,11 +61,12 @@ adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.8
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [0.027566389661240554, 0.01915721784286611, 0.0020659780258305465, 0.01072525757473112, 0.002646755802450833, 0.010578136694864324]
+proposal_stds = [0.060582330332725795, 0.04368649289145923, 0.031923020077756534, 0.04535603797081557, 0.018867881383054962, 0.36085502065040326]
                     #[r'$v_f$',           r'$\rho_c$',          r'$\rho_j$',          r'$\gamma$',          r'$\beta$',         r'$\sigma^2$']
-proposal_stds_min = [0.01613146839636863, 0.008896267772593811, 0.0020659780258305465, 0.01072525757473112, 0.002646755802450833, 0.010578136694864324]
-proposal_stds_max = [0.01613146839636863, 0.008896267772593811, 0.007991386770877816, 0.020014355842858593, 0.009552511165602883, 0.20851818167755617]
-proposal_factor_adjustment = 1.5
+proposal_stds_min = [0.027566389661240554, 0.01915721784286611, 0.0020659780258305465, 0.01072525757473112, 0.002646755802450833, 0.010578136694864324]
+# [0.029566389661240554, 0.02115721784286611, 0.0017659780258305465, 0.009072525757473112, 0.047279038525801384, 0.0029646755802450833, 0.010578136694864324]
+proposal_stds_max = [0.060582330332725795, 0.04368649289145923, 0.031923020077756534, 0.04535603797081557, 0.018867881383054962, 0.36085502065040326]
+proposal_factor_adjustment = 2
 dynamic_proposal = "True"
 stochastic_proposal = "False"
 prior_sampling = "mc"
@@ -68,9 +77,9 @@ transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-10"
 min = "0.1"
-max = "6000000"
-loc = "600000"
-scale = "25000"#"0.3"
+max = "60"
+loc = "2.54"
+scale = "0.5"
 
 [inference.priors.rho_c]
 transformation = "$\\log$"
@@ -78,8 +87,8 @@ distribution = "normal"
 min_log_prob = "-5"
 min = "0.1"
 max = "100"
-loc = "46"
-scale = "1"#"3"
+loc = "39.0"
+scale = "5"#"3"
 
 [inference.priors.rho_j]
 transformation = "$\\log$"
@@ -88,7 +97,7 @@ min_log_prob = "-20"
 min = "30"
 max = "1000"
 loc = "438"
-scale = "10"#"5"
+scale = "50"#"5"
 
 [inference.priors.gamma]
 transformation = "$\\log$"
@@ -96,8 +105,8 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
 max = "100"
-loc = "21"
-scale = "1"#"8"
+loc = "20.8"
+scale = "3"#"8"
 
 [inference.priors.alpha]
 transformation = "$\\log$"
@@ -106,7 +115,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "30000"
 loc = "5600"
-scale = "100"#"8"
+scale = "1000"#"8"
 
 [inference.priors.beta]
 transformation = "$\\log$"
@@ -115,7 +124,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "5"
 loc = "0.6"
-scale = "0.03"#"0.3"
+scale = "0.1"#"0.3"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -123,8 +132,8 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
-loc = "0.013"
-scale = "0.01"#"0.001"
+loc = "0.0127"
+scale = "0.003"#"0.001"
 
 [inference.parameter_constraints.implicit.constraint1]
 lhs = "rho_j"
@@ -135,3 +144,8 @@ rhs = "rho_c"
 lhs = "rho_j"
 operator = ">"
 rhs = "max_x"
+
+[inference.parameter_constraints.implicit.constraint3]
+lhs = "alpha"
+operator = ">"
+rhs = "rho_c"
