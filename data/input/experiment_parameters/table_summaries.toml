@@ -28,8 +28,9 @@ data_ids = [
     generate_data = "False"
     run_inference = "False"
     tune_inference = "False"
-    compile_marginal_likelihood_matrix = "True"
-    compile_sensitivity_analysis_marginal_likelihood_matrix = "True"
+    compile_marginal_likelihood_matrix = "False"
+    compile_r2_matrix = "True"
+    compile_sensitivity_analysis_marginal_likelihood_matrix = "False"
 
   [experiment_summary]
     export = "True"
@@ -42,12 +43,12 @@ data_ids = [
     print = "False"
 
   [priors]
-    export = "True"
+    export = "False"# True
     show_plot = "False"
     show_title = "True"
 
   [mle]
-    compute = "True"
+    compute = "False"#True
     print = "False"
 
   [vanilla_mcmc]
@@ -76,14 +77,18 @@ data_ids = [
         compute = "False"
         print = "True"
 
-  [thermodynamic_integration_mcmc]
+      [vanilla_mcmc.R2]
+        compute = "True"
+
+
+[thermodynamic_integration_mcmc]
 
     [thermodynamic_integration_mcmc.convergence_diagnostic]
-      compute = "True"
+      compute = "True"#
       print = "True"
 
     [thermodynamic_integration_mcmc.parameter_posterior]
-        compute = "True"
+        compute = "True"#
         import = "False"
         export = "False"
         show_plot = "False"
@@ -91,5 +96,5 @@ data_ids = [
         print = "False"
 
     [thermodynamic_integration_mcmc.marginal_likelihood]
-        compute = "True"
+        compute = "True"#
         print = "True"
