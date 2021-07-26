@@ -1,38 +1,99 @@
 id = "m25_data_experiments"
 inference_ids = [
-                "grwmh_greenshields_model_m25_data_learn_noise_n392",
-                "grwmh_greenbergs_model_m25_data_learn_noise_n392",
-                "grwmh_underwoods_model_m25_data_learn_noise_n392",
-                "grwmh_northwesterns_model_m25_data_learn_noise_n392",
-                "grwmh_newells_model_m25_data_learn_noise_n392",
-                "grwmh_wangs_model_m25_data_learn_noise_n392",
-                "grwmh_delcastillos_model_m25_data_learn_noise_n392",
-                "grwmh_daganzos_model_m25_data_learn_noise_n392",
-                "grwmh_smulders_model_m25_data_learn_noise_n392",
-                "grwmh_deromphs_model_m25_data_learn_noise_n392"
+                # "grwmh_greenshields_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_greenshields_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_greenshields_model_m25_data_learn_noise_n392_informative_prior",
+                ###
+                # "grwmh_greenbergs_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_greenbergs_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_greenbergs_model_m25_data_learn_noise_n392_informative_prior",
+                # ##
+                # "grwmh_underwoods_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_underwoods_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_underwoods_model_m25_data_learn_noise_n392_informative_prior",
+                # # ###
+                # "grwmh_northwesterns_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_northwesterns_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_northwesterns_model_m25_data_learn_noise_n392_informative_prior",
+                # # ###
+                # "grwmh_newells_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_newells_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_newells_model_m25_data_learn_noise_n392_informative_prior",
+                # # ###
+                # "grwmh_wangs_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_wangs_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_wangs_model_m25_data_learn_noise_n392_informative_prior",
+                # # ###
+                # "grwmh_delcastillos_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_delcastillos_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_delcastillos_model_m25_data_learn_noise_n392_informative_prior",
+                # # ###
+                # "grwmh_daganzos_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_daganzos_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_daganzos_model_m25_data_learn_noise_n392_informative_prior",
+                # # ###
+                # "grwmh_smulders_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_smulders_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_smulders_model_m25_data_learn_noise_n392_informative_prior",
+                # # ###
+                # "grwmh_deromphs_model_m25_data_learn_noise_n392_diffuse_prior",
+                "grwmh_deromphs_model_m25_data_learn_noise_n392_regular_prior",
+                # "grwmh_deromphs_model_m25_data_learn_noise_n392_informative_prior"
                 ]
 data_ids = [
             "m25_data_fd_n392",
             "m25_data_fd_n392",
             "m25_data_fd_n392",
+            ###
             "m25_data_fd_n392",
             "m25_data_fd_n392",
             "m25_data_fd_n392",
+            ###
             "m25_data_fd_n392",
             "m25_data_fd_n392",
             "m25_data_fd_n392",
-            "m25_data_fd_n392"
+            ###
+            "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # # ###
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # # ###
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # # ###
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # # ###
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # # ###
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # # ###
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            # "m25_data_fd_n392",
+            ###
             ]
 
   [routines]
     generate_data = "False"
     run_inference = "False"# True
     tune_inference = "False"
-    compile_marginal_likelihood_matrix = "True"
+    compile_marginal_likelihood_matrix = "False"
+    compile_r2_matrix = "True"
+    compile_sensitivity_analysis_marginal_likelihood_matrix = "False"
 
   [experiment_summary]
     export = "True"
-    print = "True"
+    print = "False"#True
 
   [data_simulation]
     plot_log_data = "False"
@@ -41,39 +102,39 @@ data_ids = [
     print = "False"
 
   [priors]
-    export = "True"
+    export = "False" # True
     show_plot = "False"
-    show_title = "True"
+    show_title = "True"#False
 
   [mle]
-    compute = "True"
-    print = "True"
+    compute = "False"# True
+    print = "False"#False
 
   [vanilla_mcmc]
 
       [vanilla_mcmc.convergence_diagnostic]
         compute = "False"# "True"
-        print = "True"
+        print = "True"#False
 
       [vanilla_mcmc.parameter_posterior]
-        compute = "True"# "True"
+        compute = "False"# "True"
         import = "False"
         export = "False"
         show_plot = "False"
         show_title = "False"
-        print = "True"
+        print = "False"#True
 
       [vanilla_mcmc.posterior_predictive]
         compute = "True"
-        import = "False"
-        export = "True"
+        import = "True"#False
+        export = "False"# True
         show_plot = "False"
         show_title = "False"
-        print = "True"
+        print = "False"#False
 
       [vanilla_mcmc.marginal_likelihood]
-        compute = "False"# "True"
-        print = "True"
+        compute = "False"
+        print = "False"#True
 
       [vanilla_mcmc.R2]
         compute = "True"
@@ -81,17 +142,17 @@ data_ids = [
   [thermodynamic_integration_mcmc]
 
     [thermodynamic_integration_mcmc.convergence_diagnostic]
-      compute = "True"#True
-      print = "True"
+      compute = "False"#True
+      print = "False"#True
 
     [thermodynamic_integration_mcmc.parameter_posterior]
-        compute = "True"#True
+        compute = "False"#True
         import = "False"
-        export = "False"
+        export = "False"# True
         show_plot = "False"
         show_title = "False"
-        print = "True"
+        print = "False"#True
 
     [thermodynamic_integration_mcmc.marginal_likelihood]
-        compute = "True"#True
-        print = "True"
+        compute = "False"#True
+        print = "False"#True
