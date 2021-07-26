@@ -7,7 +7,8 @@ learn_noise = "True"
 
 [inference]
     [inference.initialisation]
-      p0 = [1.5,15.0,45.0,16.0,0.1]
+      p0 = [1.5162416555090081, 15.096019966124185, 44.32062456014145, 16.729413705331027, 0.009477629355346746]
+      #[1.5,15.0,45.0,16.0,0.1]
       param_initialisation = "metadata"
 
     [inference.likelihood]

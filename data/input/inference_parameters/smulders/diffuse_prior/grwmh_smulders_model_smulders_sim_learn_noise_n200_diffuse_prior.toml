@@ -10,7 +10,8 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [ 1.5, 15.0, 45.0, 16.0, 0.1,]
+p0 = [1.5162416555090081, 15.096019966124185, 44.32062456014145, 16.729413705331027, 0.009477629355346746]
+#[ 1.5, 15.0, 45.0, 16.0, 0.1,]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -42,23 +43,27 @@ seed = "2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
-N = 300000
+N = 700000 # 30000 for high temperatures - 10000 for low temperatures
 burnin = 60000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [ 0.006, 0.0075, 0.003, 0.0045, 0.021,]
+proposal_stds = [ 0.005, 0.015, 0.002, 0.01, 0.02]
+#[ 0.03, 0.07, 0.01, 0.05, 0.05,]
+#[ 0.006, 0.0075, 0.003, 0.0045, 0.021,]
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = "0.4"
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [ 0.03, 0.07, 0.01, 0.05, 0.05,]
-# proposal_factor_adjustment = "0.4"
+proposal_stds = [ 0.04, 0.05, 0.01, 0.03, 0.05,]
+proposal_stds_min = [ 0.005, 0.015, 0.002, 0.01, 0.02]
+proposal_stds_max = [ 0.04, 0.05, 0.01, 0.03, 0.05,]
+proposal_factor_adjustment = 0.5
 dynamic_proposal = "True"
-stochastic_proposal = "True"
+stochastic_proposal = "False"
 prior_sampling = "mc"
-beta_dstr_a = "1"
-beta_dstr_b = "10"
+temperature_threshold = "0.003" #"0.038"
+
 
 [inference.priors.v_f]
 transformation = "$\\log$"
@@ -66,7 +71,7 @@ distribution = "normal"
 min_log_prob = "-10"
 min = "0.1"
 max = "5.0"
-loc = "1.5"
+loc = "1.52"
 scale = "0.5"
 
 [inference.priors.rho_c]
@@ -75,7 +80,7 @@ distribution = "normal"
 min_log_prob = "-5"
 min = "0.1"
 max = "30"
-loc = "15.0"
+loc = "15.1"
 scale = "3"
 
 [inference.priors.rho_j]
@@ -84,7 +89,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "30"
 max = "60"
-loc = "45.0"
+loc = "44.3"
 scale = "5"
 
 [inference.priors.gamma]
@@ -93,7 +98,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.1"
 max = "30"
-loc = "16.0"
+loc = "16.7"
 scale = "3"
 
 [inference.priors.sigma2]
@@ -102,7 +107,7 @@ distribution = "normal"
 min_log_prob = "-20"
 min = "0.001"
 max = "1.0"
-loc = "0.1"
+loc = "0.01"
 scale = "0.003"
 
 [inference.parameter_constraints.implicit.constraint1]

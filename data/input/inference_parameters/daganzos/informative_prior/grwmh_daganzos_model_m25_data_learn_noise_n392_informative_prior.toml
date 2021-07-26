@@ -1,8 +1,8 @@
-id = "grwmh_northwesterns_model_greenbergs_sim_learn_noise_n200"
+id = "grwmh_daganzos_model_m25_data_learn_noise_n392_informative_prior"
 inference_model = "grwmh"
 data_id = "m25_data_fd_n392"
 data_fundamental_diagram = ""
-fundamental_diagram = "northwesterns"
+fundamental_diagram = "daganzos"
 learn_noise = "True"
 
 [plot]
@@ -10,7 +10,7 @@ acf_lags = 100
 hist_bins = 50
 
 [inference.initialisation]
-p0 = [1.2209344808919103, 177.63319968818934, 0.01556698733073866]
+p0 = [127.28199330023001, 5.578350786344639, 1193.7884198622746, 0.0259356648797186]
 param_initialisation = "metadata"
 
 [inference.likelihood]
@@ -21,8 +21,18 @@ type = "mnormal"
 action = ""
 
 [inference.parameter_constraints]
-lower_bounds = [ "0", "0", "0",]
-upper_bounds = [ "inf", "inf", "inf",]
+lower_bounds = [ "0", "0", "0", "0",]
+upper_bounds = [ "inf", "inf", "inf", "inf",]
+  [inference.parameter_constraints.implicit.constraint1]
+  lhs = "rho_j"
+  operator = ">"
+  rhs = "rho_c"
+
+  [inference.parameter_constraints.implicit.constraint2]
+  lhs = "rho_j"
+  operator = ">"
+  rhs = "max_x"
+
 
 [inference.convergence_diagnostic]
 r_critical = 1.1
@@ -42,52 +52,56 @@ seed = "2021"
 temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
-N = 300000
+N = 400000
 burnin = 10000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [0.007452657700498929, 0.004110877331052902, 0.04134458729022764]
-beta_step = 1
-adapt_proposal_during_burnin = "True"
-proposal_factor_adjustment = 0.9
+proposal_stds = [0.010778349882716965, 0.11534105372795064, 0.06148348997719663, 0.05112154933910904]
+proposal_factor_adjustment = 0.6
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [0.08662577862861312, 0.06806858155442665, 0.1737523926561061]
+proposal_stds = [0.10645295915327785, 0.11540077788156425, 0.2744926969767604, 0.2270837824420414]
 proposal_factor_adjustment = 4
-proposal_stds_min = [0.007452657700498929, 0.004110877331052902, 0.04134458729022764]
-proposal_stds_max = [0.08662577862861312, 0.06806858155442665, 0.1737523926561061]
+proposal_stds_min = [0.010778349882716965, 0.11534105372795064, 0.06148348997719663, 0.05112154933910904]
+proposal_stds_max = [0.10645295915327785, 0.11540077788156425, 0.2744926969767604, 0.2270837824420414]
 dynamic_proposal = "True"
 stochastic_proposal = "False"
 prior_sampling = "mc"
 temperature_threshold = "0.003"
-# beta_dstr_a = "1"
-# beta_dstr_b = "10"
 
-
-[inference.priors.v_f]
+[inference.priors.q_c]
 transformation = "$\\log$"
 distribution = "normal"
-min_log_prob = "-20"
+min_log_prob = "-10"
 min = "0.1"
-max = "5.0"
-loc = "1.22"
-scale = "0.5"
+max = "500"
+loc = "127"
+scale = "10"
 
 [inference.priors.rho_c]
 transformation = "$\\log$"
 distribution = "normal"
+min_log_prob = "-5"
+min = "0.1"
+max = "20"
+loc = "5.6"
+scale = "0.2"
+
+[inference.priors.rho_j]
+transformation = "$\\log$"
+distribution = "normal"
 min_log_prob = "-20"
-min = "0.001"
-max = "20.0"
-loc = "178"
-scale = "40"
+min = "30"
+max = "6000"
+loc = "1194"
+scale = "100"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
 distribution = "normal"
 min_log_prob = "-20"
 min = "0.001"
-max = "1.0"
-loc = "0.015"
-scale = "0.005"
+max = "10"
+loc = "0.026"
+scale = "0.003"

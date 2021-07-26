@@ -1,0 +1,111 @@
+id = "grwmh_delcastillos_model_m25_data_learn_noise_n392_informative_prior"
+inference_model = "grwmh"
+data_id = "m25_data_fd_n392"
+data_fundamental_diagram = ""
+fundamental_diagram = "delcastillos"
+learn_noise = "True"
+
+[plot]
+acf_lags = 100
+hist_bins = 50
+
+[inference.initialisation]
+p0 = [198.48081946292476, 3.9235382608587397, 544.4530798626513, 2.1927769696422703, 0.010059646896198276]
+param_initialisation = "metadata"
+
+[inference.likelihood]
+type = "mnormal"
+
+[inference.transition_kernel]
+type = "mnormal"
+action = ""
+
+[inference.parameter_constraints]
+lower_bounds = [ "0", "0", "0", "0", "0",]
+upper_bounds = [ "inf", "inf", "inf", "100", "inf",]
+[inference.parameter_constraints.implicit.constraint2]
+lhs = "rho_j"
+operator = ">"
+rhs = "max_x"
+
+
+[inference.convergence_diagnostic]
+r_critical = 1.1
+parallel_chains = 10
+convergence_chains = 3
+burnin_step = 5000
+
+[inference.vanilla_mcmc]
+seed = "2021"
+N = 100000
+burnin = 10000
+posterior_predictive_samples = 10000
+marginal_likelihood_samples = 10000
+
+[inference.thermodynamic_integration_mcmc]
+seed = "2021"
+temp_schedule = "prior"
+temp_nsteps = 30
+temp_power = 5
+N = 900000 # 30000 for high temperatures - 10000 for low temperatures
+burnin = 30000
+marginal_likelihood_samples = 10000
+
+[inference.vanilla_mcmc.transition_kernel]
+proposal_stds = [0.008245916984001365, 0.01360961844622089, 0.0050746123547929485, 0.02245765073719867, 0.018268311515377888]
+proposal_factor_adjustment = 0.8
+
+[inference.thermodynamic_integration_mcmc.transition_kernel]
+proposal_stds = [0.03205983820401586, 0.14097927928247553, 0.038187004014675716, 0.1607963938393994, 0.20561269003069096]
+proposal_factor_adjustment = 4
+proposal_stds_min = [0.008245916984001365, 0.01360961844622089, 0.0050746123547929485, 0.02245765073719867, 0.018268311515377888]
+proposal_stds_max = [0.03205983820401586, 0.14097927928247553, 0.038187004014675716, 0.1607963938393994, 0.20561269003069096]
+dynamic_proposal = "True"
+stochastic_proposal = "False"
+prior_sampling = "mc"
+temperature_threshold = "0.003"
+
+[inference.priors.Z]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "1"
+max = "500"
+loc = "198"
+scale = "2"
+
+[inference.priors.u]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.1"
+max = "20"
+loc = "4.0"
+scale = "0.2"
+
+[inference.priors.rho_j]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "30"
+max = "1000"
+loc = "544"
+scale = "10"
+
+[inference.priors.omega]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.1"
+max = "5"
+loc = "2.2"
+scale = "0.1"
+
+[inference.priors.sigma2]
+transformation = "$\\log$"
+distribution = "normal"
+min_log_prob = "-20"
+min = "0.001"
+max = "1.0"
+loc = "0.01"
+scale = "0.001"
