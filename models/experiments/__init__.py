@@ -24,8 +24,8 @@ matplotlib.rc('font', **{'size': 18})
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('probabilistic_traffic_flow_modelling/')[0]
 
 # Define min and max acceptance rate that all experiments should have
-min_acceptance = 39.0#35.0
-max_acceptance = 51.0
+min_acceptance = 10.0#33.0#9.0#35.0
+max_acceptance = 60.0#51.0#51.0
 
 # Function that substracts strings expressed with uncertainties
 def subtract_lmls(a,b):
@@ -94,10 +94,17 @@ class Experiment(object):
                                                     experiment_id=self.experiment_id,
                                                     prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
                                                     export=strtobool(self.experiment_metadata['experiment_summary']['export']))
+        # Update relevant flag
+        compile_r2_matrix = False
+        if "compile_r2_matrix" in self.experiment_metadata['routines']:
+            compile_r2_matrix = strtobool(self.experiment_metadata['routines']['compile_r2_matrix'])
+        if compile_r2_matrix:
             self.compile_r2_matrix(list(self.experiment_metadata['data_ids']),
+                                    list(self.experiment_metadata['inference_ids']),
                                     experiment_id=self.experiment_id,
                                     prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
                                     export=strtobool(self.experiment_metadata['experiment_summary']['export']))
+
         # Update relevant flag
         compile_sensitivity_analysis_marginal_likelihood_matrix = False
         if "compile_sensitivity_analysis_marginal_likelihood_matrix" in self.experiment_metadata['routines']:
@@ -105,6 +112,7 @@ class Experiment(object):
         # Compute sensitivity ML table if instructed
         if compile_sensitivity_analysis_marginal_likelihood_matrix:
             self.compile_sensitivity_analysis_marginal_likelihood_matrix(list(self.experiment_metadata['data_ids']),
+                                    list(self.experiment_metadata['inference_ids']),
                                     experiment_id=self.experiment_id,
                                     prints=strtobool(self.experiment_metadata['experiment_summary']['print']),
                                     export=strtobool(self.experiment_metadata['experiment_summary']['export']))
@@ -297,7 +305,7 @@ class Experiment(object):
         # Import/Compute posterior predictive
         if strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['compute']):
             print('Import posterior predictive')
-            inference_model.import_posterior_predictive()
+            inference_model.import_posterior_predictive(experiment=str(self.experiment_metadata['id']))
             print("\n")
         elif not strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['import']) and strtobool(self.experiment_metadata['vanilla_mcmc']['posterior_predictive']['compute']):
             print('Compute posterior predictive')
@@ -539,24 +547,38 @@ class Experiment(object):
             ti_mcmc_bayes_factors_df.to_csv(filename+f'thermodynamic_integral_estimated_bayes_factors_{experiment_id}.csv')
 
 
-    def compile_sensitivity_analysis_marginal_likelihood_matrix(self,data_ids,experiment_id,inference_method='grwmh',prints:bool=False,export:bool=False):
+    def compile_sensitivity_analysis_marginal_likelihood_matrix(self,data_ids,inference_ids,experiment_id,inference_method='grwmh',prints:bool=False,export:bool=False):
 
         # Initialise list of rows of log marginal likelihoods
         sensitivities = ['diffuse','regular','informative']
 
-        # Get data FDs
-        fds = [d.split('_fd')[0] for d in data_ids]
-
         # Initialise result array
         ti_mcmc_lmls = []
 
+        # Get data FDs
+        data_fds = np.array([d.split('_fd')[0] for d in data_ids])
+        # Get unique data FDs
+        data_fds = np.unique(data_fds)
+        # Get model FDs
+        model_fds = [i.split('_model')[0].split('_')[1] for i in inference_ids]
+
         # Loop through data ids
-        for data_id in data_ids:
+        for data_id in np.unique(data_ids):#tqdm(data_ids):
             # Get data FD
             data_fd = data_id.split('_fd',1)[0]
-            experiment_type = "n200"
+            # Import data simulation parameter
+            data_params = utils.import_simulation_metadata(data_id)
+
+            # Get flag for whether data is simulation
+            simulation_data = bool(strtobool(data_params['simulation_flag']))
+            experiment_type = "n" + str(data_params['id'].split("_n")[1])
+
             # Create inference ids
-            inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(fds)]
+            if simulation_data:
+                inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(model_fds)]
+            else:
+                inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_learn_noise_'+experiment_type) for i,m in enumerate(model_fds)]
+
 
             # Loop through constructed inference ids
             for i,inference_id in tqdm(enumerate(inference_ids)):
@@ -570,7 +592,7 @@ class Experiment(object):
                     # Append sensitivity level to inference id
                     inference_id = inference_ids[i] + '_' + sensitivity + '_prior'
                     # Get inference model name
-                    inference_fd = fds[i]
+                    inference_fd = model_fds[i]
 
                     # Define experiment metadata filename
                     metadata_filename = utils.prepare_output_experiment_inference_filename(experiment_id=self.experiment_metadata['id'],inference_id=inference_id,dataset=data_id,method=inference_method)
@@ -589,6 +611,10 @@ class Experiment(object):
                     #  Import metadata where acceptance is part of metadata
                     with open((metadata_filename+'metadata.json')) as json_file:
                         inference_metadata = json.load(json_file)
+
+                    # print(inference_metadata)
+                    # sys.exit(1)
+
 
                     if 'thermodynamic_integration_mcmc' in inference_metadata['results'].keys():
 
@@ -654,34 +680,54 @@ class Experiment(object):
         # Prepare export file
         filename = utils.prepare_output_experiment_summary_filename(self.experiment_metadata['id'])
 
+        # print(ti_mcmc_lmls_df)
         # Export to file
         if export:
             # CAREFUL: experiment_type is based on the last inference id
             ti_mcmc_lmls_df.to_csv(filename+f'sensitivity_analysis_thermodynamic_integral_marginal_likelihoood_estimator_{experiment_id}.csv')
+
             # ti_mcmc_bayes_factors_df.to_csv(filename+f'sensitivity_analysis_thermodynamic_integral_estimated_bayes_factors_{experiment_type}.csv')
 
 
-    def compile_r2_matrix(self,data_ids,experiment_id,inference_method='grwmh',prints:bool=False,export:bool=False):
+    def compile_r2_matrix(self,data_ids,inference_ids,experiment_id,inference_method='grwmh',prints:bool=False,export:bool=False):
 
         # Initialise list of rows of log marginal likelihoods
         # vanilla_mcmc_lmls = []
         r2 = []
 
         # Get data FDs
-        fds = [d.split('_fd')[0] for d in data_ids]
+        data_fds = np.array([d.split('_fd')[0] for d in data_ids])
+        # Get unique data FDs
+        data_fds = np.unique(data_fds)
+        # Get model FDs
+        model_fds = [i.split('_model')[0].split('_')[1] for i in inference_ids]
 
         # Loop through data ids
-        for data_id in data_ids:#tqdm(data_ids):
+        for data_id in np.unique(data_ids):#tqdm(data_ids):
             # Get data FD
             data_fd = data_id.split('_fd',1)[0]
-            experiment_type = "n200"
+            # Import data simulation parameter
+            data_params = utils.import_simulation_metadata(data_id)
+
+            # Get flag for whether data is simulation
+            simulation_data = bool(strtobool(data_params['simulation_flag']))
+            experiment_type = "n" + str(data_params['id'].split("_n")[1])
+
             # Create inference ids
-            inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(fds)]
+            if simulation_data:
+                inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_sim_learn_noise_'+experiment_type) for i,m in enumerate(model_fds)]
+            else:
+                # REMOVE WHEN CLEANING CODE
+                if data_fd == 'm25_data':
+                    inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_learn_noise_'+experiment_type+'_regular_prior') for i,m in enumerate(model_fds)]
+                else:
+                    inference_ids = [(inference_method+'_'+m+'_model_'+data_fd+'_learn_noise_'+experiment_type) for i,m in enumerate(model_fds)]
+
             # Loop through constructed inference ids
             for i,inference_id in tqdm(enumerate(inference_ids)):
 
                 # Get inference model name
-                inference_fd = fds[i]
+                inference_fd = model_fds[i]
                 inference_id = inference_ids[i]
 
                 # Define experiment metadata filename
@@ -693,22 +739,28 @@ class Experiment(object):
                     r2.append([data_fd.capitalize(),inference_fd.capitalize(),'nan'])
                     continue
 
-
                 #  Import metadata where acceptance is part of metadata
                 with open((metadata_filename+'metadata.json')) as json_file:
                     inference_metadata = json.load(json_file)
 
-                if 'vanilla_mcmc' in list(inference_metadata['results'].keys()) and 'R2' in list(inference_metadata['results']['vanilla_mcmc'].keys()):
+                # print('inference_id',inference_id)
+                # print(json.dumps(inference_metadata['results']['vanilla_mcmc'],indent=2))
+
+                if 'vanilla_mcmc' in list(inference_metadata['results'].keys())\
+                    and 'R2' in list(inference_metadata['results']['vanilla_mcmc'].keys())\
+                    and 'converged' in list(inference_metadata['results']['vanilla_mcmc'].keys()):
+
                     # Get convergence flag and check that Gelman and Rubin-inferred burnin is lower than used burnin
-                    vanilla_mcmc_converged = all([bool(inference_metadata['results']['vanilla_mcmc']['converged']),
+                    # vanilla_mcmc_converged = True
+                    vanilla_mcmc_converged = all([float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= min_acceptance,
+                                            float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= max_acceptance,
                                             int(inference_metadata['results']['vanilla_mcmc']['burnin']) <= int(inference_metadata['inference']['vanilla_mcmc']['burnin']),
-                                            float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) >= min_acceptance,
-                                            float(inference_metadata['results']['vanilla_mcmc']['acceptance_rate']) <= max_acceptance])
+                                            bool(inference_metadata['results']['vanilla_mcmc']['converged'])])
 
                     if not vanilla_mcmc_converged:
-                        print('Thermodynamic Integration mcmc data fd:',data_fd,'inference fd:',inference_fd)
-                        print('acceptance rate:',json.dumps(inference_metadata['results']['vanilla_mcmc']['acceptance_rate'],indent=2))
-                        print('burnin:',json.dumps(inference_metadata['results']['vanilla_mcmc']['burnin'],indent=2))
+                        print('Vanilla mcmc data fd:',data_fd,'inference fd:',inference_fd)
+                        print('acceptance rate:',inference_metadata['results']['vanilla_mcmc']['acceptance_rate'])
+                        print('burnin:',inference_metadata['results']['vanilla_mcmc']['burnin'])
                         print('\n')
                     # Add log marginal likelihood mean and var to records only if convergence was achieved
                     if vanilla_mcmc_converged:
@@ -743,6 +795,8 @@ class Experiment(object):
         # Prepare export file
         filename = utils.prepare_output_experiment_summary_filename(self.experiment_metadata['id'])
 
+        # print(r2_df)
+        # sys.exit(1)
         # Export to file
         if export:
             print(filename+f'R2_{experiment_id}.csv')
