@@ -246,5 +246,57 @@ class DeRomphsFD(FundamentalDiagram):
     def log_simulate_with_x(self,p,rho):
         return (np.log(p[0])+np.log(rho)+np.nan_to_num(np.log(1-rho/p[4]))) *  ((rho < p[1])*1) + (np.log(p[3])+np.log(rho)+p[5]*np.log(1./rho-1./p[2])) * ((rho >= p[1])*1)
 
+    def capacity_drop_constraint(self,p):
+        return int(p[4] >= (p[0]*p[1]) / (p[0] - p[3]*((p[2]-p[1])/(p[1]*p[2]))**p[5]))
+
     def hessian(self,p):
         return -2*(p[0]/p[4]) * (super().rho < p[1])*1 + ( (p[5]-1)*p[5]*p[3]*(p[2])**2*(1./super().rho-1./p[2])**p[5] )/ ( super().rho*(super().rho-p[2])**2 ) * (super().rho >= p[1])*1
+
+
+class DeRomphsContinuousFD(FundamentalDiagram):
+    pass
+
+    def __init__(self,data_id):
+        super().__init__(data_id)
+        FundamentalDiagram.name.fset(self, 'deromphs_continuous')
+        FundamentalDiagram.num_learning_parameters.fset(self, 5)
+        FundamentalDiagram.parameter_names.fset(self, [r'$\rho_c$',r'$\rho_j$',r'$\gamma$',r'$\beta$',r'$\sigma^2$'])
+
+    def simulate(self,p):
+        u_f = p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]
+        alpha = (u_f*p[0]) / (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3])
+        return u_f*super().rho*(1-super().rho/alpha) * (super().rho < p[0])*1 + p[2]*super().rho*(1./super().rho-1./p[1])**p[3] * (super().rho >= p[0])*1
+        # alpha = (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]) / (u_f*p[0])
+        # return u_f*super().rho*(1-super().rho*alpha) * (super().rho < p[0])*1 + p[2]*super().rho*(1./super().rho-1./p[1])**p[3] * (super().rho >= p[0])*1
+
+    def log_simulate(self,p):
+        u_f = p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]
+        alpha = (u_f*p[0]) / (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3])
+        return np.array([ np.log(u_f)+np.log(r)+np.log(1-r/alpha) if r < p[0] else np.log(p[2])+np.log(r)+p[3]*np.log(1./r-1./p[1]) for r in super().rho])
+        # alpha = (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]) / (u_f*p[0])
+        # return np.array([ np.log(u_f)+np.log(r)+np.log(1-r*alpha) if r < p[0] else np.log(p[2])+np.log(r)+p[3]*np.log(1./r-1./p[1]) for r in super().rho])
+
+    def log_simulate2(self,p):
+        u_f = p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]
+        alpha = (u_f*p[0]) / (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3])
+        return (np.log(u_f)+np.log(super().rho)+np.nan_to_num(np.log(1-super().rho/alpha))) * ((super().rho < p[0])*1) + (np.log(p[2])+np.log(super().rho)+p[3]*np.log(1./super().rho-1./p[1])) * ((super().rho >= p[0])*1)
+        # alpha = (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]) / (u_f*p[0])
+        # return (np.log(u_f)+np.log(super().rho)+np.nan_to_num(np.log(1-super().rho*alpha))) * ((super().rho < p[0])*1) + (np.log(p[2])+np.log(super().rho)+p[3]*np.log(1./super().rho-1./p[1])) * ((super().rho >= p[0])*1)
+
+    def log_simulate_with_x(self,p,rho):
+        u_f = p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]
+        alpha = (u_f*p[0]) / (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3])
+        return (np.log(u_f)+np.log(rho)+np.nan_to_num(np.log(1-rho/alpha))) *  ((rho < p[0])*1) + (np.log(p[2])+np.log(rho)+p[3]*np.log(1./rho-1./p[1])) * ((rho >= p[0])*1)
+        # alpha = (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]) / (u_f*p[0])
+        # return (np.log(u_f)+np.log(rho)+np.nan_to_num(np.log(1-rho*alpha))) *  ((rho < p[0])*1) + (np.log(p[2])+np.log(rho)+p[3]*np.log(1./rho-1./p[1])) * ((rho >= p[0])*1)
+
+    def positive_alpha_constraint(self,p):
+        u_f = p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]
+        return int(u_f >= p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3])
+
+    def hessian(self,p):
+        u_f = p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]
+        alpha = (u_f*p[0]) / (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3])
+        return -2*(u_f/alpha) * (super().rho < p[0])*1 + ( (p[3]-1)*p[3]*p[2]*(p[1])**2*(1./super().rho-1./p[1])**p[3] )/ ( super().rho*(super().rho-p[1])**2 ) * (super().rho >= p[0])*1
+        # alpha = (u_f - p[2]*((p[1]-p[0])/(p[0]*p[1]))**p[3]) / (u_f*p[0])
+        # return -2*(u_f*alpha) * (super().rho < p[0])*1 + ( (p[3]-1)*p[3]*p[2]*(p[1])**2*(1./super().rho-1./p[1])**p[3] )/ ( super().rho*(super().rho-p[1])**2 ) * (super().rho >= p[0])*1
