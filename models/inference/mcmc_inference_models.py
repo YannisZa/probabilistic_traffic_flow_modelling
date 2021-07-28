@@ -230,7 +230,7 @@ class MetropolisHastings(MarkovChainMonteCarlo):
             threshold_temperature = next(x[0] for x in enumerate(self.temperature_schedule) if x[1] > temperature_threshold)
             # Update higher temperature proposals
             adaptive_proposal_covariances[threshold_temperature:len(self.temperature_schedule),:] = adaptive_proposal_steps.T
-        # print('adaptive_proposal_covariances',adaptive_proposal_covariances[10,:])
+        # print('adaptive_proposal_covariances',adaptive_proposal_covariances[10:,:])
 
         # Read alpha step
         alpha_step = 1
