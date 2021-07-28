@@ -5,6 +5,7 @@ import json
 import collections.abc
 import scipy.stats as ss
 
+from functools import partial
 from fundamental_diagrams.fundamental_diagram_definitions import *
 from inference.mcmc_inference_models import *
 from probability_distributions import *
@@ -182,6 +183,8 @@ def map_name_to_fundamental_diagram(name):
         return SmuldersFD
     elif name == 'deromphs':
         return DeRomphsFD
+    elif name == 'deromphs_continuous':
+        return DeRomphsContinuousFD
     else:
         raise Exception(f'No fundamental diagram model found for {name.lower()}')
 
@@ -347,6 +350,17 @@ def map_name_to_variable_or_variable_index(self,variable_name,latex_characters):
         return int(np.where(param_names==variable_name)[0][0])
     else:
         raise ValueError(f"Variable {variable_name} not found. Available choices are parameter names or",", ".join(['max_x','min_x','min_y','max_y']))
+
+def map_constraint_name_to_function(fundamental_diagram,constraint_name:str='',**kwargs):
+    # IF x or y are in the variable name
+    if constraint_name.lower() == 'capacity_drop':
+        # print('Added DeRomphs capacity drop constraint')
+        return fundamental_diagram.capacity_drop_constraint
+    elif constraint_name.lower() == 'positive_alpha':
+        # print('Added DeRomphs positive alpha constraint')
+        return fundamental_diagram.positive_alpha_constraint
+    else:
+        raise ValueError(f"Constaint {constraint_name} not found.")
 
 """ ---------------------------------------------------------------------------Prepare filenames for imports/exports-----------------------------------------------------------------------------"""
 
