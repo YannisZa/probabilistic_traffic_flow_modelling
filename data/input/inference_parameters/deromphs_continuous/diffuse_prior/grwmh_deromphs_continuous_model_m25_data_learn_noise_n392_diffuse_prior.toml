@@ -11,7 +11,7 @@ hist_bins = 50
 
 [inference.initialisation]
 p0 = [40.81268672929799, 438.2312737434052, 20.83970477256196, 0.6035656724750469, 0.012691018662263508]
-param_initialisation = "map"
+param_initialisation = "metadata"#map
 
 [inference.likelihood]
 type = "mnormal"
@@ -43,22 +43,24 @@ temp_schedule = "prior"
 temp_nsteps = 30
 temp_power = 5
 temperature_choice_distribution = "skewed" #"uniform" "skewed"
-N = 30000#900000
-burnin = 1000#30000
+N = 900000
+burnin = 30000
 marginal_likelihood_samples = 10000
 
 [inference.vanilla_mcmc.transition_kernel]
-proposal_stds = [0.01915721784286611, 0.0020659780258305465, 0.01072525757473112, 0.002646755802450833, 0.010578136694864324]
+proposal_stds = [0.03114235138697693, 0.0009783355222222135, 0.006534981921860846, 0.0018040395444528458, 0.009413943790882357]
 adapt_proposal_during_burnin = "False"
 proposal_factor_adjustment = 0.8
 
 [inference.thermodynamic_integration_mcmc.transition_kernel]
-proposal_stds = [0.05368649289145923, 0.031923020077756534, 0.055603797081557, 0.02, 0.15085502065040326]
+proposal_stds = [0.06759693629406002, 0.011662066669159855, 0.03315727121466699, 0.015193920156350712, 0.19511377375005162]
                     #[r'$\rho_c$',          r'$\rho_j$',          r'$\gamma$',          r'$\beta$',         r'$\sigma^2$']
-proposal_stds_min = [0.041680050486998084, 0.0006866224339112311, 0.006339272880695128, 0.00163251985737466, 0.013974823460160626]
+proposal_stds_min = [0.03114235138697693, 0.0009783355222222135, 0.006534981921860846, 0.0018040395444528458, 0.009413943790882357]
+#[0.035680050486998084, 0.0011866224339112311, 0.02339272880695128, 0.00133251985737466, 0.013974823460160626]
+#[0.031680050486998084, 0.0009866224339112311, 0.010339272880695128, 0.00233251985737466, 0.013974823460160626]
                     #[r'$\rho_c$',          r'$\rho_j$',          r'$\gamma$',          r'$\beta$',         r'$\sigma^2$']
-proposal_stds_max = [0.05368649289145923, 0.031923020077756534, 0.055603797081557,      0.02,             0.15085502065040326]
-proposal_factor_adjustment = 4
+proposal_stds_max = [0.06759693629406002, 0.011662066669159855, 0.03315727121466699, 0.015193920156350712, 0.19511377375005162]
+proposal_factor_adjustment = 1
 dynamic_proposal = "True"
 stochastic_proposal = "False"
 prior_sampling = "mc"
@@ -80,7 +82,7 @@ min_log_prob = "-20"
 min = "30"
 max = "1000"
 loc = "438"
-scale = "50"#"5"
+scale = "10"#"5"
 
 [inference.priors.gamma]
 transformation = "$\\log$"
@@ -89,7 +91,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "100"
 loc = "20.8"
-scale = "3"#"8"
+scale = "1"#"8"
 
 [inference.priors.beta]
 transformation = "$\\log$"
@@ -98,7 +100,7 @@ min_log_prob = "-20"
 min = "0.1"
 max = "5"
 loc = "0.6"
-scale = "0.1"#"0.3"
+scale = "0.05"#"0.3"
 
 [inference.priors.sigma2]
 transformation = "$\\log$"
@@ -119,5 +121,5 @@ lhs = "rho_j"
 operator = ">"
 rhs = "max_x"
 
-[inference.parameter_constraints.explicit.constraint1]
-name = "positive_alpha"
+# [inference.parameter_constraints.explicit.constraint1]
+# name = "positive_alpha"
