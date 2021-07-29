@@ -13,6 +13,7 @@ import itertools
 import collections.abc
 import numpy as np
 import pandas as pd
+import scipy.optimize
 import matplotlib
 import matplotlib.pyplot as plt
 import multiprocessing as mp
@@ -32,6 +33,8 @@ matplotlib.rc('font', **{'size' : 16})
 
 # Define list of latex characters present in parameter names
 latex_characters = ["$","\\","^","}","{"]
+UNCOMMENT = False
+temperature_of_interest = 10
 
 class MarkovChainMonteCarlo(object):
 
@@ -291,7 +294,6 @@ class MarkovChainMonteCarlo(object):
         p0 = list(self.inference_metadata['inference']['initialisation']['p0'])
         burnin_step = int(self.inference_metadata['inference']['convergence_diagnostic']['burnin_step'])
         priors = list(self.inference_metadata['inference']['priors'].keys())
-        # assert parallel_chains == 10
 
         # Sanity checks
         if len(lower_bounds) != len(upper_bounds):
@@ -302,7 +304,7 @@ class MarkovChainMonteCarlo(object):
             proceed = False
             print(f'Upper bounds >= lower bounds in transition kernel')
 
-        if strtobool(self.inference_metadata['learn_noise']) and not strtobool(self.simulation_metadata['simulation_flag']):
+        if not bool(strtobool(self.inference_metadata['learn_noise'])) and not bool(strtobool(self.simulation_metadata['simulation_flag'])):
             proceed = False
             print(f"Sigma cannot be known if the data is not a simulation")
 
@@ -405,7 +407,7 @@ class MarkovChainMonteCarlo(object):
         self.update_temperature_schedule()
 
         # Update delta functions with parameter constraints
-        self.update_parameter_constraint_delta_functions()
+        self.update_parameter_constraint_delta_functions(fundamental_diagram)
 
         # Update model likelihood
         self.update_log_likelihood_log_pdf(fundamental_diagram)
@@ -457,34 +459,37 @@ class MarkovChainMonteCarlo(object):
         # Update class attribute
         self.temperature_schedule = temperature_schedule_fn(nsteps,power)
 
-    def update_parameter_constraint_delta_functions(self,prints:bool=False):
+    def update_parameter_constraint_delta_functions(self,fundamental_diagram,prints:bool=False):
 
         # Create list of delta functions
         delta_functions = []
+        # Flag for whether constraints exist or not
+        constraints_exist = False
+        # Count number of constraints
+        num_constraints = 0
 
         if 'implicit' in self.inference_metadata['inference']['parameter_constraints'].keys():
+            # Implicit constraints exist
+            constraints_exist = True
 
             # Number of constraints
             C = len(list(self.inference_metadata['inference']['parameter_constraints']['implicit']))
 
-            if prints: print(f'C = {C} constraints')
+            if prints: print(f'C = {C} implicity constraints')
 
             # Loop through number of parameters
             for i,k in enumerate(list(self.inference_metadata['inference']['parameter_constraints']['implicit'])):
                 # Get constraint
                 constraint = self.inference_metadata['inference']['parameter_constraints']['implicit'][k]
-                if prints: print('constraint',constraint)
-                #
-                # # Get LHS and RHS of constraint
-                # lhs = utils.map_name_to_variable_or_variable_index(self,constraint['lhs'],latex_characters)
-                # rhs = utils.map_name_to_variable_or_variable_index(self,constraint['rhs'],latex_characters)
-                # Define log pdf of prior distribution
-                def make_delta_function(index):
+                if prints: print('implicit constraint',constraint)
+
+                # Define implicit delta function
+                def make_implicit_delta_function(index):
                     # Get LHS and RHS of constraint
                     lhs = utils.map_name_to_variable_or_variable_index(self,constraint['lhs'],latex_characters)
                     rhs = utils.map_name_to_variable_or_variable_index(self,constraint['rhs'],latex_characters)
                     operator = constraint['operator']
-                    def _delta_constraint(p):
+                    def _implicit_delta_constraint(p):
                         if isinstance(lhs,int):
                             if isinstance(rhs,float):
                                 # print(f'comparing p[{lhs}] with rhs:', self.transformations[lhs][1](p[lhs]), 'with', rhs)
@@ -499,10 +504,43 @@ class MarkovChainMonteCarlo(object):
                             elif isinstance(rhs,int):
                                 # print(f'comparing lhs with p[{rhs}]:', lhs , 'with', self.transformations[rhs][1](p[rhs]))
                                 return utils.map_operation_symbol_to_binary(symbol=operator,lhs=lhs,rhs=self.transformations[rhs]['backward'](p[rhs]))
-                    return _delta_constraint
+                    return _implicit_delta_constraint
                 # Append function to list of delta functions
-                delta_functions.append(make_delta_function(i))
+                delta_functions.append(make_implicit_delta_function(i))
+                # Increment number of constraints
+                num_constraints += 1
 
+        if 'explicit' in self.inference_metadata['inference']['parameter_constraints'].keys():
+
+            # Explicit constraints exist
+            constraints_exist = True
+
+            # Number of constraints
+            C = len(list(self.inference_metadata['inference']['parameter_constraints']['explicit']))
+
+            if prints: print(f'C = {C} explicit constraints')
+
+            # Loop through number of parameters
+            for j,e in enumerate(list(self.inference_metadata['inference']['parameter_constraints']['explicit'])):
+                # Get constraint
+                constraint = self.inference_metadata['inference']['parameter_constraints']['explicit'][e]
+                if prints: print('explicit constraint',constraint)
+
+                # Define explicit delta function
+                def make_explicit_delta_function(index):
+                    # Get LHS and RHS of constraint
+                    constraint_function = utils.map_constraint_name_to_function(fundamental_diagram,
+                                                                                str(constraint['name']),
+                                                                                **constraint)
+                    def _explicit_delta_constraint(p):
+                        return int(constraint_function(p=p))
+
+                    return _explicit_delta_constraint
+                # Append function to list of delta functions
+                delta_functions.append(make_explicit_delta_function(j+num_constraints))
+
+        # Take intersection (product) of all existing constraints or set delta function to 1 if there are no constraints
+        if constraints_exist:
             # Define intersection of constraints by defining a product over delta functions
             def _delta(p):
                 return np.prod([delta(p) for delta in delta_functions])
@@ -594,17 +632,40 @@ class MarkovChainMonteCarlo(object):
 
     def acceptance_ratio(self,pnew,pprev):
         # Compute parameter constraints
-        delta_new = self.evaluate_parameter_delta_function(pnew)
-        # delta_prev = self.evaluate_parameter_delta_function(pprev)
+        delta_new = self.evaluate_parameter_delta_function(self.transform_parameters(pnew,True))
 
         # If proposed move does not satisfy parameter constraints
         if delta_new == 0:
             return 0, -np.inf, np.inf
 
+        # pnew = [ 0.9258142,3.00755043,3.78737999,5.89096989,3.184542,0.68729564,-4.56678862 ]
+        # pprev = [ 0.94638877,3.0001441,3.79171751,5.89457763,3.16743865,0.68095388,-4.58506089 ]
+
         # Compute log targets
         log_pnew = self.evaluate_log_target(pnew) + self.evaluate_log_kernel(pnew,pprev)
         log_pprev = self.evaluate_log_target(pprev) + self.evaluate_log_kernel(pprev,pnew)
 
+        # print('self.evaluate_log_kernel(pnew,pprev)',self.evaluate_log_kernel(pnew,pprev))
+        # print("self.evaluate_log_target(pnew)",self.evaluate_log_target(pnew))
+        # print('log_pnew',log_pnew)
+        # sys.exit(1)
+
+        # print('somepnew',somepnew)
+        # print('somepprev',somepprev)
+        # print('self.evaluate_log_kernel(somepnew,somepprev)',self.evaluate_log_kernel(somepnew,somepprev))
+        # print('self.evaluate_log_kernel(somepprev,somepnew)',self.evaluate_log_kernel(somepprev,somepnew))
+        # print('self.evaluate_log_target(somepnew)',self.evaluate_log_target(somepnew))
+        # print('self.evaluate_log_target(somepprev)',self.evaluate_log_target(somepprev))
+        # print('self.evaluate_log_joint_prior(somepnew)',self.evaluate_log_joint_prior(somepnew))
+        # print('self.evaluate_log_joint_prior(somepprev)',self.evaluate_log_joint_prior(somepprev))
+
+        # print('pnew',pnew)
+        # print('pprev',pprev)
+        # print('log_pnew',log_pnew,'self.evaluate_log_kernel(pnew,pprev)',self.evaluate_log_kernel(pnew,pprev))
+        # # 'prior',self.evaluate_log_joint_prior(pnew),'likelihood',self.evaluate_log_likelihood(pnew),
+        # print('log_pprev',log_pprev,'self.evaluate_log_kernel(pprev,pnew)',self.evaluate_log_kernel(pprev,pnew))
+        # # 'prior',self.evaluate_log_joint_prior(pprev),'likelihood',self.evaluate_log_likelihood(pprev),
+        # print('\n')
 
         if np.isnan(log_pnew) or np.isnan(log_pprev):
             print('NaN value found')
@@ -633,31 +694,44 @@ class MarkovChainMonteCarlo(object):
 
     def thermodynamic_integration_acceptance_ratio(self,pnew,pprev,t):
         # Compute parameter constraints
-        delta_new = self.evaluate_parameter_delta_function(pnew[t,:])
+        delta_new = self.evaluate_parameter_delta_function(self.transform_parameters(pnew[t,:],True))
 
         # If proposed move does not satisfy parameter constraints
         if delta_new == 0:
             return 0, -np.inf, np.inf
 
+        # if t == 29:
+        #     pnew[t,:] = [ 0.9258142,3.00755043,3.78737999,5.89096989,3.184542,0.68729564,-4.56678862 ]
+        #     pprev[t,:] = [ 0.94638877,3.0001441,3.79171751,5.89457763,3.16743865,0.68095388,-4.58506089 ]
+
+        # a = self.evaluate_log_target_thermodynamic_integration(pnew,t)
+        # b = self.evaluate_log_ti_kernel(pnew,pprev,t)
+        # c = self.evaluate_log_target_thermodynamic_integration(pprev,t)
+        # d = self.evaluate_log_ti_kernel(pprev,pnew,t)
+        # print('a',a)
+        # print('b',b)
+        # print('c',c)
+        # print('d',d)
         # Compute log targets
         log_pnew = self.evaluate_log_target_thermodynamic_integration(pnew,t) + self.evaluate_log_ti_kernel(pnew,pprev,t)
         log_pprev = self.evaluate_log_target_thermodynamic_integration(pprev,t) + self.evaluate_log_ti_kernel(pprev,pnew,t)
 
-        # 
         # print('t',t)
         # print('pprev',pprev[t,:],'self.evaluate_log_ti_kernel(pprev,pnew,t)',self.evaluate_log_ti_kernel(pprev,pnew,t))
         # print('pnew',pnew[t,:],'self.evaluate_log_ti_kernel(pnew,pprev,t)',self.evaluate_log_ti_kernel(pnew,pprev,t))
         # print('\n')
-        # if t == 29:
+        # if t > 15:
         #     print("i =",t,"t =",self.temperature_schedule[t])
+        #     print('pnew',pnew[t,:])
         #     print('log_pnew',log_pnew)
         #     print('self.evaluate_log_ti_kernel(pnew,pprev,t)',self.evaluate_log_ti_kernel(pnew,pprev,t))
+        #     print('pprev',pprev[t,:])
         #     print('log_pprev',log_pprev)
         #     print('self.evaluate_log_ti_kernel(pnew,pprev,t)',self.evaluate_log_ti_kernel(pprev,pnew,t))
         #     print('\n')
 
-        if np.isnan(log_pnew) or np.isnan(log_pprev)\
-            or np.isnan(pprev).any() or np.isinf(pprev).any():
+        if np.isnan(log_pnew) or np.isnan(log_pprev):#\
+            # or np.isnan(pprev).any() or np.isinf(pprev).any():
 
             # delta_prev = self.evaluate_parameter_delta_function(pprev[t,:])
             # print('NaN value found')
@@ -791,13 +865,14 @@ class MarkovChainMonteCarlo(object):
                 p_new = self.reflect_proposal(p_new,'vanilla_mcmc')
 
             # Calculate acceptance probability
-            if self.inference_metadata['inference']['transition_kernel']['action'] == 'reject':
-                # If theta is NOT within lower and upper bounds reject sample
-                if self.reject_proposal(p_new,'vanilla_mcmc'): acc_ratio = 0
-                lt_new = self.evaluate_log_target(p_new)
-                lt_prev = self.evaluate_log_target(p_prev)
-            else:
-                acc_ratio,lt_new,lt_prev = self.acceptance_ratio(p_new,p_prev)
+            # if self.inference_metadata['inference']['transition_kernel']['action'] == 'reject':
+            #     # If theta is NOT within lower and upper bounds reject sample
+            #     if self.reject_proposal(p_new,'vanilla_mcmc'): acc_ratio = 0
+            #     lt_new = self.evaluate_log_target(p_new)
+            #     lt_prev = self.evaluate_log_target(p_prev)
+            # else:
+            acc_ratio,lt_new,lt_prev = self.acceptance_ratio(p_new,p_prev)
+            # print('vanilla mcmc acc_ratio',acc_ratio)
 
             # Update Maximum A posteriori estimate if necessary
             if lt_new >= map_log_target:
@@ -808,36 +883,16 @@ class MarkovChainMonteCarlo(object):
             u = np.random.random()
 
             # Printing proposals every 0.1*Nth iteration
-            if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                print('p_prev',self.transform_parameters(p_prev,True),'lt_prev',lt_prev)
-                print('p_new',self.transform_parameters(p_new,True),'lt_new',lt_new)
+            # if prints and (i in [int(j/10*N) for j in range(1,11)]):
+            # print('p_prev',self.transform_parameters(p_prev,True),'lt_prev',lt_prev)
+            # print('p_new',self.transform_parameters(p_new,True),'lt_new',lt_new)
+            # print('\n')
+            # sys.exit(1)
 
-            if any(np.isnan(p_prev)) or any(np.isnan(p_new)):
-                print('p_prev',self.transform_parameters(p_prev,True))
-                print('p_new',self.transform_parameters(p_new,True))
-                sys.exit(1)
-
-            # Update proposal stds after burnin
-            if i == burnin:
-                # Get proposal factor adjustment from metadata
-                proposal_factor_adjustment = 0.5
-                if "proposal_factor_adjustment" in self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']:
-                    proposal_factor_adjustment = float(self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['proposal_factor_adjustment'])
-                # Adjust posterior variance during burnin by adjustment factor
-                post_std = np.std(theta[0:burnin],axis=0)*proposal_factor_adjustment
-                # Adjust proposal if flag is true
-                if adapt_proposal_during_burnin:
-                    # Update transition kernel
-                    self.update_transition_kernel(proposal_stds=list(post_std),mcmc_type='vanilla_mcmc',prints=prints)
-                    # Update metadata
-                    utils.update(self.__inference_metadata['results'],{"vanilla_mcmc": {"adapted_proposal_stds":list(post_std)}})
-                # REMOVE THIS BEFORE FORMAL EXPERIMENTS
-                # if prints:
-                post_mu = np.mean(theta[0:burnin],axis=0)
-                post_mu_str = [str(x) for x in post_mu]
-                post_std_str = [str(x) for x in post_std]
-                # print('Empirical mu during burnin','['+", ".join(post_mu_str)+']')
-                print('Empirical std during burnin','['+", ".join(post_std_str)+']')
+            # if any(np.isnan(p_prev)) or any(np.isnan(p_new)):
+            #     print('p_prev',self.transform_parameters(p_prev,True))
+            #     print('p_new',self.transform_parameters(p_new,True))
+            #     sys.exit(1)
 
             # Add proposal to relevant array
             theta_proposed.append(p_new)
@@ -862,6 +917,28 @@ class MarkovChainMonteCarlo(object):
                 # Append to accepted and proposed sample arrays
                 theta.append(p_prev)
 
+            # Update proposal stds after burnin
+            if i == (burnin-1):
+                # Get proposal factor adjustment from metadata
+                proposal_factor_adjustment = 0.5
+                if "proposal_factor_adjustment" in self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']:
+                    proposal_factor_adjustment = float(self.inference_metadata['inference']['vanilla_mcmc']['transition_kernel']['proposal_factor_adjustment'])
+                # Adjust posterior variance during burnin by adjustment factor
+                post_std = np.std(theta[0:burnin],axis=0)*proposal_factor_adjustment
+                # Adjust proposal if flag is true
+                if adapt_proposal_during_burnin:
+                    print('adapt_proposal_during_burnin',adapt_proposal_during_burnin)
+                    # Update transition kernel
+                    self.update_transition_kernel(proposal_stds=list(post_std),mcmc_type='vanilla_mcmc',prints=prints)
+                    # Update metadata
+                    utils.update(self.__inference_metadata['results'],{"vanilla_mcmc": {"adapted_proposal_stds":list(post_std)}})
+                # REMOVE THIS BEFORE FORMAL EXPERIMENTS
+                # if prints:
+                # post_mu = np.mean(theta[0:burnin],axis=0)
+                # post_mu_str = [str(x) for x in post_mu]
+                post_std_str = [str(x) for x in post_std]
+                # print('Empirical mu during burnin','['+", ".join(post_mu_str)+']')
+                print('Empirical std during burnin','['+", ".join(post_std_str)+']')
         # Update class attributes
         self.theta = np.array(theta).reshape((N,self.num_learning_parameters))
         self.theta_proposed = np.array(theta_proposed).reshape((N,self.num_learning_parameters))
@@ -927,11 +1004,6 @@ class MarkovChainMonteCarlo(object):
         # Store length of temperature schedule
         t_len = self.temperature_schedule.shape[0]
 
-        # Define distribution over temperatures
-        # temperature_distribution = (self.temperature_schedule+1/t_len)
-        # temperature_distribution = temperature_distribution/np.sum(temperature_distribution)
-        temperature_distribution = np.ones(t_len) * 1/t_len
-
         p0 = None
         # Read p0 or randomly initialise it from prior
         if utils.has_parameters(['p0'],self.inference_metadata['inference']['initialisation']) and self.inference_metadata['inference']['initialisation']['param_initialisation'] == 'metadata':
@@ -978,6 +1050,22 @@ class MarkovChainMonteCarlo(object):
         if "adapt_proposal_during_burnin" in self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']:
             adapt_proposal_during_burnin = strtobool(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['transition_kernel']['adapt_proposal_during_burnin'])
 
+        # Define distribution over temperatures
+        temperature_choice_distribution = "uniform"
+        if "temperature_choice_distribution" in self.inference_metadata['inference']['thermodynamic_integration_mcmc']:
+            temperature_choice_distribution = str(self.inference_metadata['inference']['thermodynamic_integration_mcmc']['temperature_choice_distribution'])
+
+        # Decide how many samples to take from each temperature
+        temperature_choice_probabilities = None
+        if temperature_choice_distribution.lower() == 'uniform':
+            temperature_choice_probabilities = np.ones(t_len) * 1/t_len
+        else:
+            temperature_choice_probabilities = np.ones(t_len)
+            temperature_choice_probabilities[0:temperature_of_interest] = 10000
+            temperature_choice_probabilities[temperature_of_interest:t_len] = 30000#40000
+            temperature_choice_probabilities = temperature_choice_probabilities/np.sum(temperature_choice_probabilities)
+        print(temperature_choice_probabilities)
+
         # Initialise output variables
         theta = np.zeros((N,t_len,self.num_learning_parameters))
         theta_proposed = np.zeros((N,t_len,self.num_learning_parameters))
@@ -991,9 +1079,13 @@ class MarkovChainMonteCarlo(object):
         for i in tqdm(range(N)):
 
             # Select random temperature from schedule
-            # random_t_index = np.random.randint(0,t_len)
-            random_t_index = np.random.choice(a=range(0,t_len),p=temperature_distribution)
-            # print('random_t_index',random_t_index)
+            random_t_index = np.random.choice(a=range(0,t_len),p=temperature_choice_probabilities)
+            # np.random.choice(a=[temperature_of_interest,temperature_of_interest-1],p=[0.75,0.25])
+            # np.random.choice(a=range(0,t_len),p=temperature_choice_probabilities)
+            # np.random.choice(a=[temperature_of_interest,t_len-1],p=[0.5,0.5])
+            # temperature_of_interest
+            # t_len-1
+            # np.random.choice(a=range(0,t_len),p=temperature_choice_probabilities)
 
             # Copy previously accepted sample
             p_new = copy.deepcopy(p_prev)
@@ -1006,22 +1098,26 @@ class MarkovChainMonteCarlo(object):
               # If theta is NOT within lower and upper bounds reject sample
               p_new[random_t_index,:] = self.reflect_proposal(p_new[random_t_index,:],'thermodynamic_integration_mcmc')
 
+            # if self.inference_metadata['inference']['transition_kernel']['action'] == 'reject':
+            #     # If theta is NOT within lower and upper bounds reject sample
+            #     if self.reject_proposal(p_new[random_t_index,:],'thermodynamic_integration_mcmc'): acc_ratio = 0
+            #     lt_new = self.evaluate_log_target_thermodynamic_integration(p_new,random_t_index)
+            #     lt_prev = self.evaluate_log_target_thermodynamic_integration(p_prev,random_t_index)
+            # else:
             # Calculate acceptance probability
-            if self.inference_metadata['inference']['transition_kernel']['action'] == 'reject':
-              # If theta is NOT within lower and upper bounds reject sample
-              if self.reject_proposal(p_new[random_t_index,:],'thermodynamic_integration_mcmc'): acc_ratio = 0
-              lt_new = self.evaluate_log_target_thermodynamic_integration(p_new,random_t_index)
-              lt_prev = self.evaluate_log_target_thermodynamic_integration(p_prev,random_t_index)
-            else:
-              acc_ratio,lt_new,lt_prev = self.thermodynamic_integration_acceptance_ratio(p_new,p_prev,random_t_index)
+            acc_ratio,lt_new,lt_prev = self.thermodynamic_integration_acceptance_ratio(p_new,p_prev,random_t_index)
+            # if random_t_index == 29:
+                # print('TI mcmc acc_ratio',acc_ratio)
 
             # Sample from Uniform(0,1)
             u = np.random.random()
 
             # Printing proposals every 0.1*Nth iteration
             # if prints and (i in [int(j/10*N) for j in range(1,11)]):
-                # print('p_prev',self.transform_parameters(p_prev[random_t_index,:],True),'lt_prev',lt_prev)
-                # print('p_new',self.transform_parameters(p_new[random_t_index,:],True),'lt_new',lt_new)
+            # print('p_prev',self.transform_parameters(p_prev[random_t_index,:],True),'lt_prev',lt_prev)
+            # print('p_new',self.transform_parameters(p_new[random_t_index,:],True),'lt_new',lt_new)
+            # print('\n')
+            # sys.exit(1)
 
             # Increment proposal counter
             prop[random_t_index] += 1
@@ -1045,11 +1141,12 @@ class MarkovChainMonteCarlo(object):
             if prints and (i in [int(j/10*N) for j in range(1,11)]):
                 # print(f'i = {random_t_index}, t_i = {self.temperature_schedule[random_t_index]}, p_new = {self.transform_parameters(p_new[random_t_index,:],True)}')
                 print(f'Total acceptance rate {int(100*np.sum(acc) / np.sum(prop))}%')
-                if temperature_threshold != 0 and temperature_threshold != 1:
-                    high_temp_acceptance = int(100*(np.sum(acc[self.temperature_schedule>temperature_threshold]) / np.sum(prop[self.temperature_schedule>temperature_threshold])))
-                    low_temp_acceptance = int(100*(np.sum(acc[self.temperature_schedule<=temperature_threshold]) / np.sum(prop[self.temperature_schedule<=temperature_threshold])))
-                    print(f'Low temperature acceptance rate {low_temp_acceptance}%, High temperature acceptance rate {high_temp_acceptance}%')
-                # print(f'Temperature acceptance rate {int(100*acc[random_t_index] / prop[random_t_index])}%')
+                # UNCOMMENT THIS
+                if UNCOMMENT:
+                    if temperature_threshold != 0 and temperature_threshold != 1:
+                        high_temp_acceptance = int(100*(np.sum(acc[self.temperature_schedule>temperature_threshold]) / np.sum(prop[self.temperature_schedule>temperature_threshold])))
+                        low_temp_acceptance = int(100*(np.sum(acc[self.temperature_schedule<=temperature_threshold]) / np.sum(prop[self.temperature_schedule<=temperature_threshold])))
+                        print(f'Low temperature acceptance rate {low_temp_acceptance}%, High temperature acceptance rate {high_temp_acceptance}%')
 
 
             # Update proposal stds after burnin
@@ -1078,12 +1175,18 @@ class MarkovChainMonteCarlo(object):
         self.thermodynamic_integration_theta = np.array(theta).reshape((N,t_len,self.num_learning_parameters))
         self.thermodynamic_integration_theta_proposed = np.array(theta_proposed).reshape((N,t_len,self.num_learning_parameters))
 
+        # Print posterior stds for temperature of interest - DELETE WHEN CLEANING CODE
+        a = np.std(self.thermodynamic_integration_theta,axis=0)[temperature_of_interest,:]
+        b = "["+ ",".join(str(e) for e in a)+ "]"
+        print(b)
 
         # Compute acceptance rate for temperatures below and above threshold
-        if temperature_threshold != 0 and temperature_threshold != 1:
-            high_temp_acceptance = int(100*(np.sum(acc[self.temperature_schedule>temperature_threshold]) / np.sum(prop[self.temperature_schedule>temperature_threshold])))
-            low_temp_acceptance = int(100*(np.sum(acc[self.temperature_schedule<=temperature_threshold]) / np.sum(prop[self.temperature_schedule<=temperature_threshold])))
-            utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"high_temp_acceptance_rate":high_temp_acceptance,"low_temp_acceptance_rate":low_temp_acceptance}})
+        # UNCOMMENT THIS
+        if UNCOMMENT:
+            if temperature_threshold != 0 and temperature_threshold != 1:
+                high_temp_acceptance = int(100*(np.sum(acc[self.temperature_schedule>temperature_threshold]) / np.sum(prop[self.temperature_schedule>temperature_threshold])))
+                low_temp_acceptance = int(100*(np.sum(acc[self.temperature_schedule<=temperature_threshold]) / np.sum(prop[self.temperature_schedule<=temperature_threshold])))
+                utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"high_temp_acceptance_rate":high_temp_acceptance,"low_temp_acceptance_rate":low_temp_acceptance}})
 
         # Update metadata
         utils.update(self.__inference_metadata['results'],{"thermodynamic_integration_mcmc": {"acceptance_rate":int(100*(np.sum(acc) / np.sum(prop)))}})
@@ -1100,10 +1203,11 @@ class MarkovChainMonteCarlo(object):
 
         if prints:
             print(f'Total acceptance rate {int(100*(np.sum(acc) / np.sum(prop)))}%')
-            if temperature_threshold != 0 and temperature_threshold != 1:
-                print(f'Low temperature acceptance rate {low_temp_acceptance}%, High temperature acceptance rate {high_temp_acceptance}%')
-            print(f"Temperature acceptance rate {[(str(int(100*a))+'%') for a in acc/prop]}")
-            # print(f"Choice probabilities {[(str(int(100*pr/N))+'%') for pr in prop]}")
+            # UNCOMMENT THIS
+            if UNCOMMENT:
+                if temperature_threshold != 0 and temperature_threshold != 1:
+                    print(f'Low temperature acceptance rate {low_temp_acceptance}%, High temperature acceptance rate {high_temp_acceptance}%')
+                print(f"Temperature acceptance rate {[(str(int(100*a))+'%') for a in acc/prop]}")
 
         return np.array(theta).reshape((N,t_len,self.num_learning_parameters)), int(100*(np.sum(acc) / np.sum(prop)))
 
@@ -1175,11 +1279,12 @@ class MarkovChainMonteCarlo(object):
         else:
             np.random.seed(int(self.simulation_metadata['seed']))
 
-
         # Get p0 from metadata
         p0 = list(self.inference_metadata['inference']['initialisation']['p0'])[0:self.num_learning_parameters]
+
         # Transform parameter
         p0 = self.transform_parameters(p0,False)
+
 
         # If no p0 is provided set p0 to true parameter values
         if len(p0) < 1:
@@ -1192,11 +1297,21 @@ class MarkovChainMonteCarlo(object):
         def negative_log_target(p):
             return (-1)*self.evaluate_log_target(p)
 
+        # def positive_alpha_constraint(p):
+        #     p = self.transform_parameters(p,True)
+        #     return p[0] - p[3]*((p[2]-p[1])/(p[1]*p[2]))**p[4]
+
         # Optimise parameters for negative_log_target
         map = fmin(negative_log_target, p0, disp = False)[0:self.num_learning_parameters]
+        # map = scipy.optimize.minimize(negative_log_target,
+        #                     p0,
+        #                     constraints = [{'type': 'ineq', 'fun': positive_alpha_constraint}],
+        #                     method = 'SLSQP',
+        #                     options = {"disp" : False})
+        # print('map',map)
 
         # Get parameters
-        self.map_params = map
+        self.map_params = map #map.x
         # Evaluate log target
         map_log_target = self.evaluate_log_target(self.map_params)
         map_log_likelihood = self.evaluate_log_likelihood(self.map_params)
@@ -1586,9 +1701,9 @@ class MarkovChainMonteCarlo(object):
         if prints: print(f'Computing posterior predictive R squared')
 
         # Compute mean
-        log_y_bar = np.mean(self.posterior_predictive_mean)
+        log_y_bar = np.mean(self.log_y)
         SS_res = np.sum((self.posterior_predictive_mean-self.log_y)**2)
-        SS_tot = np.sum((self.posterior_predictive_mean-log_y_bar)**2)
+        SS_tot = np.sum((self.log_y-log_y_bar)**2)
         R2 = 1 - SS_res/SS_tot
 
         # Update metadata
@@ -1637,8 +1752,8 @@ class MarkovChainMonteCarlo(object):
         mask = np.all(np.isnan(mc_samples) | np.isinf(mc_samples), axis=1)
         mc_samples = mc_samples[~mask]
         # Apply constraints on parameters
-        mc_samples = np.array([p for p in mc_samples if self.evaluate_parameter_delta_function(p)])
-        print(np.shape(mc_samples))
+        mc_samples = np.array([p for p in mc_samples if self.evaluate_parameter_delta_function(self.transform_parameters(p,True))])
+        # print(np.shape(mc_samples))
 
         # Loop through parameter number
         for i in range(self.num_learning_parameters):
@@ -1833,6 +1948,10 @@ class MarkovChainMonteCarlo(object):
             temps.append(len(self.temperature_schedule)-1)
         else:
             temps = [0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+            # [threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+            #[temperature_of_interest]
+            #[0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+        temps = [29]#[temperature_of_interest,29]
 
         for ti in temps:
         # for ti in range(len(np.concatenate([self.temperature_schedule[0:2],self.temperature_schedule[(len(self.temperature_schedule)-3):len(self.temperature_schedule-1)]]))):
@@ -2011,7 +2130,6 @@ class MarkovChainMonteCarlo(object):
                 plt.ylabel('Sample frequency')
                 plt.legend(fontsize=10)
 
-
                 # Show plot
                 if show_plot: plt.show()
                 # Append plot to list
@@ -2131,12 +2249,16 @@ class MarkovChainMonteCarlo(object):
                 temps.append(len(self.temperature_schedule)-1)
             else:
                 temps = [0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+                #[threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+                #[temperature_of_interest]
+                #[0,threshold_temperature-1,threshold_temperature,len(self.temperature_schedule)-1]
+
+            temps = [29]#[temperature_of_interest,29]
 
             for tj in temps:
                 # Define parameter transformation
                 transformation_0 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[0]],latex_characters)]['transformation']
                 transformation_1 = self.inference_metadata['inference']['priors'][utils.remove_characters(self.parameter_names[index[1]],latex_characters)]['transformation']
-
 
                 # Create figure
                 fig = plt.figure(figsize=(10,8))
@@ -2452,7 +2574,7 @@ class MarkovChainMonteCarlo(object):
         # If metadata exists - import it
         inference_metadata = None
         if os.path.exists((filename+'metadata.json')):
-            #  Import metadata where acceptance is part of metadata
+            #  Import metadata if it exists
             with open((filename+'metadata.json')) as json_file:
                 inference_metadata = json.load(json_file)
 
