@@ -1,2 +1,0 @@
-python models/scripts/fundamental_diagram_experiments.py smulders_fd_model_experiments
-python models/scripts/fundamental_diagram_experiments.py m25_data_experiments
