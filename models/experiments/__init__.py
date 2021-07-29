@@ -358,7 +358,7 @@ class Experiment(object):
         # Get unique data FDs
         data_fds = np.unique(data_fds)
         # Get model FDs
-        model_fds = [i.split('_model')[0].split('_')[1] for i in inference_ids]
+        model_fds = [i.split('_model')[0].split('_',1)[1] for i in inference_ids]
 
         # Loop through data ids
         for data_id in np.unique(data_ids):#tqdm(data_ids):
@@ -560,7 +560,9 @@ class Experiment(object):
         # Get unique data FDs
         data_fds = np.unique(data_fds)
         # Get model FDs
-        model_fds = [i.split('_model')[0].split('_')[1] for i in inference_ids]
+        # model_fds = [i.split('_model')[0].split('_')[1] for i in inference_ids]
+        model_fds = [i.split('_model')[0].split('_',1)[1] for i in inference_ids]
+        # print('model_fds',model_fds)
 
         # Loop through data ids
         for data_id in np.unique(data_ids):#tqdm(data_ids):
@@ -700,7 +702,8 @@ class Experiment(object):
         # Get unique data FDs
         data_fds = np.unique(data_fds)
         # Get model FDs
-        model_fds = [i.split('_model')[0].split('_')[1] for i in inference_ids]
+        model_fds = [i.split('_model')[0].split('_',1)[1] for i in inference_ids]
+        # print(model_fds)
 
         # Loop through data ids
         for data_id in np.unique(data_ids):#tqdm(data_ids):
@@ -742,9 +745,6 @@ class Experiment(object):
                 #  Import metadata where acceptance is part of metadata
                 with open((metadata_filename+'metadata.json')) as json_file:
                     inference_metadata = json.load(json_file)
-
-                # print('inference_id',inference_id)
-                # print(json.dumps(inference_metadata['results']['vanilla_mcmc'],indent=2))
 
                 if 'vanilla_mcmc' in list(inference_metadata['results'].keys())\
                     and 'R2' in list(inference_metadata['results']['vanilla_mcmc'].keys())\
