@@ -8,7 +8,7 @@ scripts_to_run
 retuning
 
 # Fetch
-../fetch/
+fetch/*
 
 # XLSX
 *.xlsx
