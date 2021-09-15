@@ -10,7 +10,7 @@ from datetime import datetime
 start_time = "2020-09-01T04:00:00.464Z"
 end_time = "2020-09-03T22:00:00.464Z"
 
-YOUR_API_KEY = "AIzaSyDXCxY9RcW0Nz5h4WRGD5Yi0TFL1ZQ97Iw"
+YOUR_API_KEY = ""
 
 starttime =  datetime.strptime(start_time,'%Y-%m-%dT%H:%M:%S.%fZ')
 endtime =  datetime.strptime(end_time,'%Y-%m-%dT%H:%M:%S.%fZ')
