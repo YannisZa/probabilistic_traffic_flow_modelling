@@ -7,6 +7,9 @@ __pycache__/
 scripts_to_run
 retuning
 
+# Fetch
+../fetch/
+
 # XLSX
 *.xlsx
 
